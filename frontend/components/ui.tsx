@@ -5,19 +5,30 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useSession } from "@/lib/auth";
 import { LogoMark } from "./Logo";
+import { ACCOUNT_LINKS, AccountMenu, HELP_LINKS, MobileMenu } from "./NavMenus";
 import { NotificationBell } from "./NotificationBell";
 
 const APP_LINKS = [
   { href: "/paper", label: "Today" },
   { href: "/archive", label: "Past papers" },
+  { href: "/dashboard#saved", label: "Saved" },
   { href: "/dashboard", label: "Dashboard" },
 ];
+const PUBLIC_LINKS = [
+  { href: "/how-it-works", label: "How it works" },
+  { href: "/jev", label: "How we check" },
+  { href: "/about", label: "About" },
+];
 
-/** Global nav (apple-DESIGN.md → global-nav / sub-nav-frosted): 44px, frosted, 12px links. */
+/** Global nav (apple-DESIGN.md → global-nav / sub-nav-frosted): 44px, frosted, 12px links.
+ *  Main destinations in the bar; account, help and sign-out in the account menu; everything in a ☰ sheet on phones. */
 export function TopBar({ right }: { right?: ReactNode }) {
   const { ready, signedIn, isDemo, user, signOut } = useSession();
   const path = usePathname();
   const initial = (user?.name && user.name !== "Reader" ? user.name : user?.email ?? "?").charAt(0).toUpperCase();
+  const displayName = user ? (user.name !== "Reader" ? user.name : user.email ?? "Reader") : "";
+  const links = signedIn ? APP_LINKS : PUBLIC_LINKS;
+  const isActive = (href: string) => !href.includes("#") && (href === "/" ? path === "/" : path?.startsWith(href));
 
   return (
     <header className="sticky top-0 z-40 border-b border-black/[0.06] bg-[#f5f5f7]/80 backdrop-blur-xl backdrop-saturate-[180%]">
@@ -26,37 +37,41 @@ export function TopBar({ right }: { right?: ReactNode }) {
           <LogoMark size={20} />
           <span className="text-[14px] font-semibold tracking-tight text-ink">ParhLo</span>
         </Link>
-        <nav className="hidden items-center gap-7 sm:flex">
-          {signedIn ? APP_LINKS.map((l) => (
-            <Link key={l.href} href={l.href}
-              className={path?.startsWith(l.href) ? "text-ink" : "text-ink/80 transition-colors hover:text-ink"}>
+        <nav className="hidden items-center gap-7 sm:flex" aria-label="Main">
+          {links.map((l) => (
+            <Link key={l.href} href={l.href} aria-current={isActive(l.href) ? "page" : undefined}
+              className={isActive(l.href) ? "text-ink" : "text-ink/80 transition-colors hover:text-ink"}>
               {l.label}
             </Link>
-          )) : (
-            <Link href="/how-it-works" className={path === "/how-it-works" ? "text-ink" : "text-ink/80 hover:text-ink"}>How it works</Link>
-          )}
+          ))}
         </nav>
         <div className={`ml-auto flex items-center gap-4 transition-opacity ${ready ? "opacity-100" : "opacity-0"}`}>
           {right}
           {user ? (
             <>
               <NotificationBell />
-              <Link href="/dashboard" data-tour="dashboard" className="flex items-center gap-2 text-ink/80 hover:text-ink" aria-label="Your dashboard">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-ink text-[11px] font-semibold text-white">{initial}</span>
-                <span className="hidden max-w-[120px] truncate sm:inline">{user.name !== "Reader" ? user.name : user.email}</span>
-              </Link>
-              <button className="text-ink/80 hover:text-ink" onClick={() => signOut()}>Sign out</button>
+              <div className="hidden sm:block">
+                <AccountMenu initial={initial} name={displayName} email={user.email} onSignOut={() => signOut()} />
+              </div>
+              <MobileMenu sections={[{ items: APP_LINKS }, { title: "Account", items: ACCOUNT_LINKS.filter((l) => l.href === "/dashboard#friends") }, { title: "Help", items: HELP_LINKS }]}
+                footer={<button className="w-full rounded-full bg-ink py-2.5 text-[15px] text-white" onClick={() => signOut()}>Sign out</button>} />
             </>
           ) : isDemo ? (
             <>
               <span className="rounded-full bg-[#e8f1fb] px-2 py-0.5 font-semibold text-primary">Demo</span>
-              <Link href="/sign-in" className="text-ink/80 hover:text-ink">Create an account</Link>
-              <button className="text-ink/80 hover:text-ink" onClick={() => signOut()}>Exit demo</button>
+              <Link href="/sign-in" className="hidden text-ink/80 hover:text-ink sm:inline">Create an account</Link>
+              <button className="hidden text-ink/80 hover:text-ink sm:inline" onClick={() => signOut()}>Exit demo</button>
+              <MobileMenu sections={[{ items: APP_LINKS }, { title: "Help", items: HELP_LINKS }]}
+                footer={<div className="flex gap-3">
+                  <Link href="/sign-in" className="flex-1 rounded-full bg-primary py-2.5 text-center text-[15px] text-white">Create an account</Link>
+                  <button className="flex-1 rounded-full bg-black/5 py-2.5 text-[15px] text-ink" onClick={() => signOut()}>Exit demo</button>
+                </div>} />
             </>
           ) : (
             <>
-              <Link href="/sign-in" className="text-ink/80 hover:text-ink">Sign in</Link>
+              <Link href="/sign-in" className="hidden text-ink/80 hover:text-ink sm:inline">Sign in</Link>
               <Link href="/sign-in" className="btn btn-primary btn-sm !py-1 !text-[12px]">Get started</Link>
+              <MobileMenu sections={[{ items: PUBLIC_LINKS }, { items: [{ href: "/demo", label: "Try the demo" }, { href: "/sign-in", label: "Sign in" }] }]} />
             </>
           )}
         </div>

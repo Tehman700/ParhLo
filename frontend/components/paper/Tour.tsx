@@ -49,7 +49,8 @@ export function Tour() {
     return () => { cancelled = true; };
   }, [ready, signedIn, api]);
 
-  const steps = STEPS.filter((s) => !s.target || typeof document === "undefined" || document.querySelector(s.target));
+  // Skip steps whose feature isn't on screen (e.g. the account menu is inside the ☰ sheet on phones).
+  const steps = STEPS.filter((s) => !s.target || typeof document === "undefined" || (document.querySelector(s.target)?.getClientRects().length ?? 0) > 0);
   const step = steps[Math.min(i, steps.length - 1)];
 
   const close = useCallback(() => { markDone(); setActive(false); }, []);

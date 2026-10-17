@@ -3,11 +3,12 @@
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { useRef, type ReactNode } from "react";
+import { CONTACT_EMAIL } from "@/lib/site";
 import { TopBar } from "./ui";
 
 gsap.registerPlugin(useGSAP);
 
-export const CONTACT_EMAIL = "tehmanhassan@gmail.com";
+export { CONTACT_EMAIL };
 
 /** Long-form text page (privacy, terms, about): parchment header, white reading column. */
 export function DocPage({ title, lead, updated, hero, children }: { title: string; lead?: string; updated?: string; hero?: ReactNode; children: ReactNode }) {
