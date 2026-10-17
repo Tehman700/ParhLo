@@ -2,7 +2,7 @@
 
   dashboard change ──► interests_changed()  ── stamps users.interests_changed_at, POSTs a signed event to n8n
   n8n: Webhook ─► Wait 8 s (debounce) ─► POST /api/internal/paper/check ─► IF act ─► POST /api/internal/paper/refresh
-  refresh ──► generate_edition(force) under the one-build-per-reader lock, keeps today's read/liked stories,
+  refresh ──► generate_edition(force) under the one-build-per-reader lock (new interests → new stories),
               notifies "paper updated"
 
 The event carries an HMAC token over (user, change time), so n8n holds no secrets and nobody can forge a reprint.
@@ -116,7 +116,7 @@ async def refresh(user_id: str, changed_ms: int | None) -> dict:
         return {"status": "skipped", "reason": d["reason"]}
     user = d["user"]
     t0 = datetime.now(timezone.utc)
-    ed = await editions.generate_edition(user, editions.today_pkt(), force=True, keep_today=True)
+    ed = await editions.generate_edition(user, editions.today_pkt(), force=True)
     with db() as conn:
         friends.notify(conn, user["id"], "paper_updated", data={"date": ed["edition_date"]})
     return {"status": "refreshed", "stories": len(ed["stories"]),

@@ -14,7 +14,7 @@ TOPICS: dict[str, dict] = {
     "climate":       {"label": "Climate & Environment", "group": "Life",  "desc": "climate change, environment, smog, air pollution, floods, weather, energy transition"},
     "cricket":       {"label": "Cricket",           "group": "Sports",   "desc": "cricket matches, PCB, Pakistan cricket team, PSL, ICC, test ODI T20"},
     "football":      {"label": "Football",          "group": "Sports",   "desc": "football soccer, Premier League, Champions League, FIFA, transfers"},
-    "motorsport":    {"label": "Formula 1 & Motorsport", "group": "Sports", "desc": "Formula 1 F1 grand prix racing, drivers, teams, motorsport"},
+    "motorsport":    {"label": "Formula 1 & Motorsport", "group": "Sports", "desc": "Motor racing only: Formula 1 (F1) grand prix, drivers and teams, MotoGP, IndyCar, rallying, NASCAR. Not horse racing or other races."},
     "entertainment": {"label": "Entertainment",     "group": "Culture",  "desc": "movies, films, TV dramas, music, celebrities, streaming, showbiz"},
     "culture":       {"label": "Culture & Books",   "group": "Culture",  "desc": "arts, books, literature, culture, history, food and travel"},
     "education":     {"label": "Education & Careers", "group": "Life",   "desc": "education, universities, students, exams, jobs, careers, skills"},

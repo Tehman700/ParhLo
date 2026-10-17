@@ -30,6 +30,10 @@ FEEDS: list[dict] = [
     {"name": "ESPNcricinfo", "url": "https://www.espncricinfo.com/rss/content/story/feeds/0.xml", "region": "global", "topics": ["cricket"]},
     {"name": "BBC Sport", "url": "https://feeds.bbci.co.uk/sport/football/rss.xml", "region": "global", "topics": ["football"]},
     {"name": "BBC Sport", "url": "https://feeds.bbci.co.uk/sport/formula1/rss.xml", "region": "global", "topics": ["motorsport"]},
+    {"name": "Autosport", "url": "https://www.autosport.com/rss/f1/news/", "region": "global", "topics": ["motorsport"]},
+    {"name": "Motorsport.com", "url": "https://www.motorsport.com/rss/f1/news/", "region": "global", "topics": ["motorsport"]},
+    {"name": "The Race", "url": "https://www.the-race.com/feed/", "region": "global", "topics": ["motorsport"]},
+    {"name": "Formula 1", "url": "https://www.formula1.com/en/latest/all.xml", "region": "global", "topics": ["motorsport"]},
 ]
 
 

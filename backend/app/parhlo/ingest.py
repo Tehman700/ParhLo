@@ -27,8 +27,15 @@ CLUSTER_SIM = 0.84  # cosine similarity above which two articles are "the same s
 JUNK_THRESHOLD = 0.78  # Jev: probability the item is not real news (quiz, podcast, promo, tag page…)
 
 
-def merge_topics(d: "jev.ArticleDecision", hints: list[str]) -> list[str]:
-    return list(dict.fromkeys([d.topic, *([d.second_topic] if d.second_topic else []), *hints]))[:3]
+# With no general "other sports" topic, horse racing lands closest to motorsport; keep it out of Formula 1 readers' papers.
+NOT_MOTORSPORT = re.compile(r"horse|racecourse|jockey|caulfield|the everest|melbourne cup|thoroughbred|greyhound|derby day", re.I)
+
+
+def merge_topics(d: "jev.ArticleDecision", hints: list[str], title: str = "") -> list[str]:
+    topics = list(dict.fromkeys([d.topic, *([d.second_topic] if d.second_topic else []), *hints]))[:3]
+    if "motorsport" in topics and NOT_MOTORSPORT.search(title):
+        topics = [t for t in topics if t != "motorsport"]
+    return topics
 
 
 async def jev_backfill(hours: int = 48, limit: int = 600) -> dict:
@@ -42,7 +49,7 @@ async def jev_backfill(hours: int = 48, limit: int = 600) -> dict:
                order by published_at desc limit %s""", (hours, limit)).fetchall()
     decisions = await jev.classify_many(
         [{"title": r["title"], "excerpt": r["rss_summary"], "source": r["source"]} for r in rows])
-    params = [(merge_topics(d, []), d.importance, d.junk, d.topic_confidence, r["id"])
+    params = [(merge_topics(d, [], r["title"]), d.importance, d.junk, d.topic_confidence, r["id"])
               for r, d in zip(rows, decisions) if d]
     with db() as conn, conn.cursor() as cur:
         cur.executemany(
@@ -171,7 +178,7 @@ async def ingest(extra_queries: list[str] | None = None) -> dict:
     with db() as conn:
         for item, vec, tags, d in zip(new, vectors, topics, decisions):
             if d:  # Jev decided: its topic first, then a strong runner-up, then the feed's own hints
-                tags = merge_topics(d, item["hints"])
+                tags = merge_topics(d, item["hints"], item["title"])
                 jev_done += 1
                 junk += d.junk >= JUNK_THRESHOLD
             row = conn.execute(
