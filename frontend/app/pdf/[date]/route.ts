@@ -4,6 +4,8 @@ import { buildPrintHtml } from "@/lib/printHtml";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+const CHROMIUM_PACK = "https://github.com/Sparticuz/chromium/releases/download/v153.0.0/chromium-v153.0.0-pack.x64.tar";
+
 /** GET /pdf/2026-10-17 → the edition as a print-ready A4 PDF (headless Chromium).
  *  Auth is forwarded from the caller (Authorization or X-Demo-User) to the backend. */
 export async function GET(req: Request, ctx: RouteContext<"/pdf/[date]">) {
@@ -41,8 +43,9 @@ export async function GET(req: Request, ctx: RouteContext<"/pdf/[date]">) {
 async function launchBrowser() {
   const puppeteer = await import("puppeteer-core");
   if (process.env.VERCEL) {
-    const chromium = (await import("@sparticuz/chromium")).default;
-    return puppeteer.launch({ args: chromium.args, executablePath: await chromium.executablePath(), headless: true });
+    // chromium-min downloads the browser pack into /tmp on cold start (nothing to bundle or trace).
+    const chromium = (await import("@sparticuz/chromium-min")).default;
+    return puppeteer.launch({ args: chromium.args, executablePath: await chromium.executablePath(CHROMIUM_PACK), headless: true });
   }
   const local = process.env.CHROME_PATH
     ?? (process.platform === "win32" ? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
