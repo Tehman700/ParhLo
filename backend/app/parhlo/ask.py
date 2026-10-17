@@ -130,10 +130,16 @@ async def ask_paper(user: dict, body: AskIn) -> dict:
         "Rules: use ONLY the stories below. Never invent facts, numbers, names or quotes, and never expand an "
         "abbreviation unless the story spells it out. Plain, simple English. "
         "Refer to stories by what they are about, never by their [id] or the labels in brackets. If the paper doesn't cover the question, say so "
-        "in one sentence, set in_paper=false, and point to the closest stories it does have. For 'why does this matter "
+        "in one sentence, set in_paper=false, and point to the closest stories it does have. Never end with an offer or a "
+        "question to the reader. For 'why does this matter "
         "to me' questions, connect the story to the reader's city and interests only where the story supports it.\n\n"
         f"TODAY'S PAPER ({len(stories)} stories; the most relevant ones include full article text):\n\n"
         + _context(stories, focus, paper["lead_id"]))
+    opened = next((s for s in stories if s["id"] == body.story_id), None)
+    if opened:  # asked from a story card: "this"/"it" means that story
+        system += (f"\n\nThe reader is asking from the story “{opened['headline']}” [{opened['id']}]. Words like "
+                   "'this' or 'it' refer to that story: answer about it alone and cite it, unless they clearly ask "
+                   "about something else.")
     messages = [{"role": "system", "content": system}]
     messages += [{"role": t.role, "content": t.content} for t in body.history[-6:]]
     messages.append({"role": "user", "content": body.question})

@@ -92,8 +92,8 @@ export function StoryCard({ story, variant = "normal", tracker, initial }: { sto
         {story.also_reported_by.length > 0 && <span className="t-caption text-ink-48">Also in {story.also_reported_by.slice(0, 3).join(", ")}</span>}
       </div>
       <div className="mt-3 flex items-center gap-1">
-        <span className="mr-auto t-caption text-ink-48">{story.source} · {timeAgo(story.published_at)}</span>
-        {!lead && story.points.length > 0 && <button className="mr-1 t-caption text-primary" onClick={() => setOpen(!open)}>{open ? "Less" : "Key points"}</button>}
+        <span className="mr-auto min-w-0 truncate t-caption text-ink-48">{story.source} · {timeAgo(story.published_at)}</span>
+        {!lead && story.points.length > 0 && <button className="mr-1 whitespace-nowrap t-caption text-primary" onClick={() => setOpen(!open)}>{open ? "Less" : "Key points"}</button>}
         <IconButton label="Ask about this story" kind="ask" activeClass="" onClick={() => askAbout(story.id)} />
         <IconButton label="More like this" kind="up" active={reaction === "like"} activeClass="text-primary" onClick={() => react("like")} />
         <IconButton label="Less like this" kind="down" active={reaction === "dislike"} activeClass="text-danger" onClick={() => react("dislike")} />
