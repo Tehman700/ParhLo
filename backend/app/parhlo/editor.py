@@ -13,7 +13,9 @@ log = logging.getLogger("parhlo.editor")
 class StoryEdit(BaseModel):
     id: int
     headline: str = Field(description="Clear, plain headline, max 12 words, faithful to the summary. No clickbait.")
-    why: str = Field(description="Max 14 words, plain English: why this story matches the reader's interests")
+    why: str = Field(description="Max 12 words. Start with 'Because you' and name the reader interest it matches, "
+                                 "e.g. 'Because you follow cricket' or 'Because you're interested in startups'. "
+                                 "For DISCOVERY stories start with 'Something new:'.")
 
 
 class Section(BaseModel):
