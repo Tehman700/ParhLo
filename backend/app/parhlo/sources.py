@@ -5,11 +5,11 @@ from urllib.parse import quote
 # name, url, region, topic hints
 FEEDS: list[dict] = [
     # Pakistan
-    {"name": "Dawn", "url": "https://www.dawn.com/feeds/home", "region": "pakistan", "topics": []},
-    {"name": "Dawn", "url": "https://www.dawn.com/feeds/pakistan", "region": "pakistan", "topics": ["pakistan"]},
-    {"name": "Dawn", "url": "https://www.dawn.com/feeds/business", "region": "pakistan", "topics": ["business"]},
-    {"name": "Dawn", "url": "https://www.dawn.com/feeds/sport", "region": "pakistan", "topics": []},
-    {"name": "Dawn", "url": "https://www.dawn.com/feeds/world", "region": "pakistan", "topics": ["world"]},
+    {"name": "Dawn", "url": "https://www.dawn.com/feeds/home", "region": "pakistan", "topics": [], "fallback": ("dawn.com", "")},
+    {"name": "Dawn", "url": "https://www.dawn.com/feeds/pakistan", "region": "pakistan", "topics": ["pakistan"], "fallback": ("dawn.com", "pakistan")},
+    {"name": "Dawn", "url": "https://www.dawn.com/feeds/business", "region": "pakistan", "topics": ["business"], "fallback": ("dawn.com", "business")},
+    {"name": "Dawn", "url": "https://www.dawn.com/feeds/sport", "region": "pakistan", "topics": [], "fallback": ("dawn.com", "sport")},
+    {"name": "Dawn", "url": "https://www.dawn.com/feeds/world", "region": "pakistan", "topics": ["world"], "fallback": ("dawn.com", "world")},
     {"name": "Express Tribune", "url": "https://tribune.com.pk/feed/home", "region": "pakistan", "topics": []},
     {"name": "Business Recorder", "url": "https://www.brecorder.com/feeds/latest-news", "region": "pakistan", "topics": ["economy"]},
     {"name": "Geo News", "url": "https://www.geo.tv/rss/1/1", "region": "pakistan", "topics": []},
@@ -31,6 +31,12 @@ FEEDS: list[dict] = [
     {"name": "BBC Sport", "url": "https://feeds.bbci.co.uk/sport/football/rss.xml", "region": "global", "topics": ["football"]},
     {"name": "BBC Sport", "url": "https://feeds.bbci.co.uk/sport/formula1/rss.xml", "region": "global", "topics": ["motorsport"]},
 ]
+
+
+def google_news_site(domain: str, name: str, region: str, topics: list[str], extra: str = "") -> dict:
+    """Fallback for outlets that block cloud IPs: the outlet's latest stories via Google News search."""
+    feed = google_news_feed(f"site:{domain} {extra}".strip())
+    return {**feed, "name": name, "region": region, "topics": topics, "outlet": name}
 
 
 def google_news_feed(query: str) -> dict:

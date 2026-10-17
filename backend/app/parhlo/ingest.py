@@ -17,7 +17,7 @@ import httpx
 
 from app.core.database import db
 from app.parhlo.embed import embed_texts, tag_topics
-from app.parhlo.sources import FEEDS, google_news_feed
+from app.parhlo.sources import FEEDS, google_news_feed, google_news_site
 
 log = logging.getLogger("parhlo.ingest")
 UA = "Mozilla/5.0 (compatible; ParhLo/1.0; +https://github.com/Tehman700/ParhLo)"
@@ -60,7 +60,7 @@ def parse_feed(feed: dict, body: bytes) -> list[dict]:
         if published and published < cutoff:
             continue
         source = feed["name"]
-        if feed["name"] == "Google News":  # "Headline - Outlet" → real outlet name
+        if feed["name"] == "Google News" or feed.get("outlet"):  # "Headline - Outlet" → real outlet name
             outlet = (e.get("source") or {}).get("title")
             if outlet:
                 source = outlet
@@ -82,6 +82,16 @@ async def fetch_all(feeds: list[dict]) -> tuple[list[dict], list[str]]:
             r.raise_for_status()
             return parse_feed(feed, r.content)
         except Exception as e:  # one bad feed must not stop the paper
+            if feed.get("fallback"):  # outlet blocks us (e.g. cloud IPs) → its stories via Google News
+                domain, extra = feed["fallback"]
+                try:
+                    fb = google_news_site(domain, feed["name"], feed["region"], feed["topics"], extra)
+                    r = await client.get(fb["url"])
+                    r.raise_for_status()
+                    errors.append(f"{feed['name']} {feed['url']}: {type(e).__name__} → used Google News fallback")
+                    return parse_feed(fb, r.content)
+                except Exception:
+                    pass
             errors.append(f"{feed['name']} {feed['url']}: {type(e).__name__}")
             return []
 
