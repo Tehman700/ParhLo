@@ -88,3 +88,22 @@ Older signals decay over time.
 | PDF on serverless | Chromium for serverless; fallback: browser print-to-PDF of the same page |
 | LLM output errors | Structured JSON + validation + plain fallback layout |
 | Time | Core first; extras are cuttable |
+
+## Module status (updated 2026-10-17, ~15:30)
+| Module | Status | Notes |
+|---|---|---|
+| Setup + auto-deploy | ✅ | Vercel services, Neon, AWS, GitHub → Vercel |
+| Login | ✅ | Own email OTP (SES) + Google OAuth; Clerk removed |
+| UI redesign | ✅ | Apple design system, GSAP, plain English |
+| **A** Live AI pipeline | ✅ | Ingest → rank → summarize → edit → paper → PDF on production (19–34 s) |
+| **B** Jev decision layer | ✅ | Topic/junk/importance at ingest, 2 Top-story slots, Jev summary check (434 ms vs 941 ms LLM, same accuracy) |
+| **C** Onboarding upgrade | ⏳ next | Live front-page preview, adaptive swipes, name prefill, transparency line, fading onboarding interests |
+| D Full flow test | ⬜ | Sign in → onboarding → paper → react → learn → tomorrow's paper → PDF |
+| E Demo readers | ⬜ | 2 personas, delete Fixture Reader |
+| F Two-persona compare | ⬜ | `/compare` page |
+| G Ask your paper | ⬜ | Jev routes, LLM answers from today's stories with sources |
+| H Audio edition | ⬜ | Script → Polly → S3 → player |
+| I Morning email | ⬜ | SES, top stories + PDF link |
+| J Submission | from 19:15 | README, architecture diagram (research session), Loom, form |
+
+The original timetable above is superseded by this table. Push notifications and the WhatsApp-forward check are dropped for time.
