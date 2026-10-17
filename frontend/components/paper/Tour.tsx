@@ -22,7 +22,10 @@ const STEPS: Step[] = [
   { title: "You're all set", body: "Read, react, and come back tomorrow. Your paper gets better every day." },
 ];
 
-const markDone = () => { try { localStorage.setItem(DONE_KEY, "1"); } catch {} };
+// "Seen" is remembered per account (not per browser), so a new account on a used browser still gets the tour.
+let tourUser = "";
+const doneKey = () => `${DONE_KEY}:${tourUser}`;
+const markDone = () => { try { localStorage.setItem(doneKey(), "1"); } catch {} };
 
 /** First-paper walkthrough. Only for new readers (account under 3 days old, not a sample reader) who haven't
  *  finished or skipped it on this device. A spotlight follows each feature; the card explains it. */
@@ -38,9 +41,10 @@ export function Tour() {
   // Decide once whether this reader should see the tour.
   useEffect(() => {
     if (!ready || !signedIn) return;
-    try { if (localStorage.getItem(DONE_KEY)) return; } catch { return; }
     let cancelled = false;
     api.get<Me>("/api/me").then((me) => {
+      tourUser = me.user.id;
+      try { if (localStorage.getItem(doneKey())) return; } catch { return; }
       const fresh = Date.now() - new Date(me.user.created_at).getTime() < NEW_FOR_MS;
       if (cancelled) return;
       if (fresh && me.user.onboarded && !me.user.persona) window.setTimeout(() => !cancelled && setActive(true), 1400); // let the paper settle in
