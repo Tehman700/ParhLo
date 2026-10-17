@@ -98,7 +98,8 @@ async def _build(user: dict, edition_date: date, fast: bool = False) -> dict:
     pool = rank_for_user(user, exclude_ids=prior_ids, avoid_titles=prior_titles)
     if not pool:
         raise NotFoundError("No articles available yet — try again in a minute.")
-    picks = select_stories(pool, story_count(user["reading_minutes"]))
+    on_topics = [t for t, w in sorted(((prof or {}).get("topics") or {}).items(), key=lambda kv: -kv[1]) if w >= 0.5]
+    picks = select_stories(pool, story_count(user["reading_minutes"]), on_topics=on_topics)
     picks = friends.add_friend_picks(user, pool, picks)
     lap("rank")
     ids = [p["id"] for p in picks]

@@ -181,7 +181,29 @@ def core_score(p: dict) -> float:
     return 0.7 * (p.get("importance") or 0.0) + 0.3 * coverage(p.get("cluster_size"))
 
 
-def select_stories(pool: list[dict], n: int, discovery_share: float = 0.15, n_core: int = CORE_SLOTS) -> list[dict]:
+def cover_topics(personal: list[dict], pool: list[dict], taken: set[int], on_topics: list[str]) -> list[dict]:
+    """Every topic the reader has switched on gets at least one personal story when the pool has one:
+    the best story of a missing topic replaces the weakest pick from a topic that has more than one."""
+    personal = list(personal)
+    for topic in on_topics:
+        if any(p["topics"] and p["topics"][0] == topic for p in personal):
+            continue
+        cand = next((p for p in pool if p["id"] not in taken and p["topics"] and p["topics"][0] == topic), None)
+        counts: dict[str, int] = {}
+        for p in personal:
+            counts[p["topics"][0] if p["topics"] else ""] = counts.get(p["topics"][0] if p["topics"] else "", 0) + 1
+        spare = [p for p in personal if counts[p["topics"][0] if p["topics"] else ""] > 1]
+        if not cand or not spare:
+            continue
+        out = min(spare, key=lambda p: p["score"])
+        personal[personal.index(out)] = cand
+        taken.discard(out["id"])
+        taken.add(cand["id"])
+    return personal
+
+
+def select_stories(pool: list[dict], n: int, discovery_share: float = 0.15, n_core: int = CORE_SLOTS,
+                   on_topics: list[str] | None = None) -> list[dict]:
     """Common core (day's biggest stories) + personal picks (MMR for variety) + discovery outside the profile.
 
     The core answers readers' worry about missing important news (Reuters Institute: 48% worry about it).
@@ -197,6 +219,8 @@ def select_stories(pool: list[dict], n: int, discovery_share: float = 0.15, n_co
                     and (p["topic_weight"] >= 0.3 or p["match_sim"] >= 0.35)],
                    n_personal, avoid=core)
     taken |= {p["id"] for p in personal}
+    if on_topics:
+        personal = cover_topics(personal, pool, taken, on_topics)
     # "Something new" comes from outside the reader's interests, but never from topics they switched off (0.05).
     outside = [p for p in pool if p["id"] not in taken and OFF_WEIGHT < p["topic_weight"] < 0.3]
     outside.sort(key=lambda p: -(core_score(p) + 0.5 * source_quality(p["source"])))

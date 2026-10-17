@@ -27,3 +27,11 @@ def test_switched_off_topic_is_not_personal_even_if_it_matches_memory():
     hot["match_sim"] = 0.9                      # matches something the reader once liked
     picks = select_stories(pool + [hot], 6)
     assert 50 not in {p["id"] for p in picks}
+
+
+def test_every_switched_on_topic_gets_a_story():
+    pool = [{**story(i, 0.8, score=0.9 - i * 0.01), "topics": ["motorsport"]} for i in range(8)]
+    pool += [{**story(20, 0.8, score=0.3), "topics": ["health"]}]
+    picks = select_stories(pool, 6, on_topics=["motorsport", "health"])
+    assert any(p["topics"][0] == "health" for p in picks)
+    assert sum(p["topics"][0] == "motorsport" for p in picks) >= 1
