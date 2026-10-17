@@ -110,8 +110,24 @@ async def morning(user=Depends(current_user)):
 
 @router.get("/demo/personas")
 def personas():
+    """Seeded, onboarded demo readers (for the two-persona comparison and judges)."""
     with db() as conn:
-        return conn.execute("select id, name, city from users where is_demo order by created_at").fetchall()
+        return conn.execute(
+            """select u.id, u.name, u.city, p.about,
+                      (select array_agg(k order by (p.topics->>k)::float desc) from jsonb_object_keys(p.topics) k
+                        where (p.topics->>k)::float >= 0.5) as top_topics
+               from users u join profiles p on p.user_id = u.id
+               where u.is_demo and u.onboarded and u.name <> 'Guest' order by u.created_at limit 6""").fetchall()
+
+
+@router.post("/demo/start")
+def demo_start():
+    """Instant guest reader without sign-up (then onboarding as usual)."""
+    if not get_settings().allow_demo_users:
+        raise AuthError("Demo readers are disabled")
+    with db() as conn:
+        row = conn.execute("insert into users (name, is_demo) values ('Guest', true) returning id").fetchone()
+    return {"id": str(row["id"])}
 
 
 # ---------- cron (Vercel Cron sends Authorization: Bearer $CRON_SECRET) ----------

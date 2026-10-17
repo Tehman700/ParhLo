@@ -27,7 +27,8 @@ CLUSTER_SIM = 0.84  # cosine similarity above which two articles are "the same s
 
 def clean_text(raw: str | None, limit: int = 600) -> str:
     text = html.unescape(re.sub(r"<[^>]+>", " ", raw or ""))
-    return re.sub(r"\s+", " ", text).strip()[:limit]
+    text = re.sub(r"\s+", " ", text).strip()
+    return "" if re.fullmatch(r"https?://\S+", text) else text[:limit]  # some feeds put a bare URL here
 
 
 def _image(entry) -> str | None:

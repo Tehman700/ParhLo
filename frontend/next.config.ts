@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
+  images: { remotePatterns: [{ protocol: "https", hostname: "**" }] },
+  // Headless Chromium for the PDF route must stay a runtime dependency, not bundled.
+  serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core"],
   turbopack: {
     rules: {
       "*.css": {
