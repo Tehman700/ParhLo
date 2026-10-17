@@ -131,7 +131,7 @@ async def onboard(user: dict, data: OnboardingIn) -> dict:
 def get_profile(user_id) -> dict:
     with db() as conn:
         user = conn.execute(
-            "select id, name, email, city, reading_minutes, region_mix, onboarded, is_demo, created_at, "
+            "select id, name, email, city, reading_minutes, region_mix, onboarded, is_demo, created_at, learn_from_friends, "
             "(google_sub is not null) as google from users where id=%s",
             (user_id,)).fetchone()
         prof = conn.execute("select topics, entities, about, source_affinity, updated_at from profiles "
@@ -256,12 +256,13 @@ class ProfileUpdate(BaseModel):
     reading_minutes: int | None = Field(default=None, ge=3, le=30)
     region_mix: float | None = Field(default=None, ge=0, le=1)
     about: str | None = Field(default=None, max_length=500)
+    learn_from_friends: bool | None = None
 
 
 async def update_profile(user: dict, data: ProfileUpdate) -> dict:
     fields = data.model_dump(exclude_unset=True)
     with db() as conn:
-        for col in ("name", "reading_minutes", "region_mix"):
+        for col in ("name", "reading_minutes", "region_mix", "learn_from_friends"):
             if fields.get(col) is not None:
                 conn.execute(f"update users set {col} = %s where id = %s", (fields[col], user["id"]))
         if fields.get("city"):

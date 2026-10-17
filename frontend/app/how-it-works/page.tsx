@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DocPage } from "@/components/DocPage";
+import { HowItWorksFlow } from "@/components/HowItWorksFlow";
 
 export const metadata: Metadata = { title: "How it works · ParhLo" };
 
 export default function HowItWorks() {
   return (
-    <DocPage title="How it works" lead="What happens between the news being published and your paper arriving.">
+    <DocPage title="How it works" lead="What happens between the news being published and your paper arriving." hero={<HowItWorksFlow />}>
       <h2>1. You tell us what you like</h2>
       <p>When you sign up, you pick topics, follow people, teams or companies, and swipe through a few real headlines. You can also describe your interests in your own words. This takes about a minute.</p>
 
@@ -36,6 +37,9 @@ export default function HowItWorks() {
 
       <h2>6. It learns from you</h2>
       <p>Opening, reading, liking or skipping a story is a signal. Each night these signals update your interests. What you chose at sign-up slowly gives way to what you actually read. You can see every change, and remove anything, on your <Link href="/dashboard">dashboard</Link>.</p>
+
+      <h2>7. Friends, if you want</h2>
+      <p>Invite friends with your personal link. If you both turn on <strong>Learn from friends</strong>, up to two stories they liked can appear in your paper, labelled with their name, and your interests drift slightly toward theirs. Turn it off at any time. It stops from then on, and what your paper has already learned stays.</p>
       <p>Want to see one first? <Link href="/demo">Try the demo</Link>.</p>
     </DocPage>
   );

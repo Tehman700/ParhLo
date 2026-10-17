@@ -24,6 +24,11 @@ export default function Privacy() {
         <li>Which stories you open, how long you spend on them, and which ones you like, skip or ask for less of.</li>
         <li>Whether you download the PDF or listen to a story.</li>
       </ul>
+      <h3>Friends</h3>
+      <ul>
+        <li>Who you invited and who accepted, so we can show your friends list and notify you.</li>
+        <li>If you turn on <strong>Learn from friends</strong>, stories you liked or saved in the last few days can appear in your friends&apos; papers with your name (&ldquo;Ali liked this&rdquo;), but only for friends who also turned it on. Nothing else about your reading is shown to them. It is off by default.</li>
+      </ul>
       <p>We don&apos;t use advertising trackers and we don&apos;t record your location. Your city is only used for the weather and air quality in the morning box.</p>
 
       <h2>How we use it</h2>
@@ -54,7 +59,8 @@ export default function Privacy() {
       <h2>Your choices</h2>
       <ul>
         <li><strong>See and edit</strong> your interests, topics and everything ParhLo remembers on your <Link href="/dashboard">dashboard</Link>.</li>
-        <li><strong>Remove</strong> any single thing ParhLo remembers about you.</li>
+        <li><strong>Remove</strong> any single thing ParhLo remembers about you, any saved story, or any friend.</li>
+        <li><strong>Turn off Learn from friends</strong> to stop sharing your likes with friends and stop their likes shaping your paper.</li>
         <li><strong>Delete your account</strong> at any time from the dashboard. This can&apos;t be undone.</li>
         <li><strong>Ask us</strong> for a copy of your data, or anything else, at <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</li>
       </ul>

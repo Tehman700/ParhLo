@@ -5,6 +5,8 @@ import { request, type Headers } from "./api";
 
 /** One session API for the app: our own login (email OTP / Google → httpOnly session cookie) + demo readers. */
 const DEMO_KEY = "parhlo.demoUser";
+/** Invite code waiting to be accepted after sign-in (set on /invite/[code]). */
+export const PENDING_INVITE = "parhlo.invite";
 
 export type SessionUser = { id: string; name: string; email: string | null; onboarded: boolean; is_demo: boolean };
 

@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from app.core.config import get_settings
 from app.core.database import db
 from app.core.errors import AppError, NotFoundError
-from app.parhlo import editions, learn, profile
+from app.parhlo import editions, friends, learn, profile
 from app.parhlo.auth import AuthError, clear_session, current_user
 from app.parhlo.ingest import ingest, jev_backfill
 from app.parhlo.morning import morning_box
@@ -123,7 +123,12 @@ class GenerateIn(BaseModel):
 async def generate(body: GenerateIn, user=Depends(current_user)):
     if not user.get("onboarded"):
         raise AppError("Finish onboarding first", 409)
-    return await editions.generate_edition(user, body.date, body.force)
+    return _with_state(user, await editions.generate_edition(user, body.date, body.force))
+
+
+def _with_state(user: dict, ed: dict) -> dict:
+    """Attach the reader's likes/dislikes/saves for this paper's stories."""
+    return {**ed, "state": learn.reader_state(user["id"], [s["id"] for s in ed.get("stories", [])])}
 
 
 @router.get("/editions")
@@ -133,12 +138,49 @@ def archive(user=Depends(current_user)):
 
 @router.get("/editions/{edition_date}")
 def edition(edition_date: dt.date, user=Depends(current_user)):
-    return editions.get_edition(user["id"], edition_date)
+    return _with_state(user, editions.get_edition(user["id"], edition_date))
 
 
 @router.post("/events")
 def events(body: list[learn.EventIn], user=Depends(current_user)):
     return learn.record_events(user, body)
+
+
+@router.get("/me/saved")
+def saved(user=Depends(current_user)):
+    return learn.saved_stories(user["id"])
+
+
+# ---------- friends and notifications ----------
+
+@router.get("/me/friends")
+def my_friends(user=Depends(current_user)):
+    return friends.list_friends(user)
+
+
+@router.delete("/me/friends/{friend_id}")
+def unfriend(friend_id: str, user=Depends(current_user)):
+    return friends.remove_friend(user, friend_id)
+
+
+@router.get("/invites/{code}")
+def invite(code: str):
+    return friends.invite_info(code)
+
+
+@router.post("/invites/{code}/accept")
+def accept_invite(code: str, user=Depends(current_user)):
+    return friends.accept_invite(user, code)
+
+
+@router.get("/notifications")
+def notifications(user=Depends(current_user)):
+    return friends.list_notifications(user["id"])
+
+
+@router.post("/notifications/read")
+def notifications_read(user=Depends(current_user)):
+    return friends.mark_read(user["id"])
 
 
 @router.post("/learn")

@@ -4,7 +4,11 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { FriendsPanel } from "@/components/dashboard/FriendsPanel";
+import { PaperStatus } from "@/components/dashboard/PaperStatus";
+import { SavedStories } from "@/components/dashboard/SavedStories";
+import { Row, Section } from "@/components/dashboard/Section";
 import { ErrorNote, Spinner, TopBar } from "@/components/ui";
 import type { Edition, Me } from "@/lib/api";
 import { useApi, useSession } from "@/lib/auth";
@@ -19,25 +23,6 @@ const MINUTES = [5, 10, 15, 20];
 /** A topic counts as "on" while its weight is at least this. */
 const ON = 0.2;
 
-function Section({ title, note, children, id }: { title: string; note?: string; children: ReactNode; id?: string }) {
-  return (
-    <section id={id} className="panel scroll-mt-16 rounded-[18px] bg-canvas p-6 sm:p-8">
-      <h2 className="t-tagline">{title}</h2>
-      {note && <p className="mt-1 t-caption text-ink-60">{note}</p>}
-      <div className="mt-6">{children}</div>
-    </section>
-  );
-}
-
-function Row({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-2 border-t border-divider py-4 first:border-t-0 first:pt-0 sm:flex-row sm:items-center sm:justify-between">
-      <span className="t-body">{label}</span>
-      <div className="sm:w-[320px]">{children}</div>
-    </div>
-  );
-}
-
 export default function Dashboard() {
   const router = useRouter();
   const api = useApi();
@@ -51,6 +36,8 @@ export default function Dashboard() {
   const [newFollow, setNewFollow] = useState("");
   const [pendingTopic, setPendingTopic] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Arriving straight from onboarding: the first paper is still being built (shown in PaperStatus).
+  const [welcome] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("welcome"));
   const root = useRef<HTMLDivElement>(null);
 
   const apply = useCallback((m: Me) => {
@@ -66,6 +53,13 @@ export default function Dashboard() {
     api.get<Me>("/api/me").then((m) => (m.user.onboarded ? apply(m) : router.replace("/onboarding")))
       .catch((e) => setError(e.message));
   }, [ready, signedIn, api, apply, router]);
+
+  // Arriving from onboarding (?welcome=1) or a notification link (#friends): set up once the page has data.
+  useEffect(() => {
+    if (!me) return;
+    if (welcome) window.history.replaceState(null, "", "/dashboard");
+    if (window.location.hash) document.querySelector(window.location.hash)?.scrollIntoView({ behavior: "smooth" });
+  }, [Boolean(me)]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useGSAP(() => {
     if (!me) return;
@@ -193,6 +187,8 @@ export default function Dashboard() {
         </div>
 
         <div className="mt-2 grid gap-5">
+          <PaperStatus welcome={welcome} name={form.name || "there"} />
+
           <Section title="Profile" note="Changes apply from your next paper.">
             <form onSubmit={saveProfile}>
               <Row label="Name">
@@ -284,6 +280,10 @@ export default function Dashboard() {
               </div>
             </Section>
           </div>
+
+          <FriendsPanel isDemo={isDemo} onChanged={flash} />
+
+          <SavedStories />
 
           <Section id="memory" title="What ParhLo remembers" note="Each story is matched against these. Remove anything you don't want.">
             <div className="flex flex-wrap gap-2">

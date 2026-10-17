@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useSession } from "@/lib/auth";
 import { LogoMark } from "./Logo";
+import { NotificationBell } from "./NotificationBell";
 
 const APP_LINKS = [
   { href: "/paper", label: "Today" },
@@ -39,6 +40,7 @@ export function TopBar({ right }: { right?: ReactNode }) {
           {right}
           {user ? (
             <>
+              <NotificationBell />
               <Link href="/dashboard" className="flex items-center gap-2 text-ink/80 hover:text-ink" aria-label="Your dashboard">
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-ink text-[11px] font-semibold text-white">{initial}</span>
                 <span className="hidden max-w-[120px] truncate sm:inline">{user.name !== "Reader" ? user.name : user.email}</span>

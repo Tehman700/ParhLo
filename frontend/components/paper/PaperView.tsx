@@ -8,7 +8,7 @@ import { useMemo, useRef, useState } from "react";
 import type { Edition, Morning, QuizQuestion, Story } from "@/lib/api";
 import { useTracker } from "@/lib/tracker";
 import { formatDate } from "../ui";
-import { StoryCard } from "./StoryCard";
+import { StoryCard, type StoryState } from "./StoryCard";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -17,6 +17,9 @@ export function PaperView({ edition, actions }: { edition: Edition; actions?: Re
   const tracker = useTracker(edition.id);
   const byId = useMemo(() => new Map(edition.stories.map((s) => [s.id, s])), [edition]);
   const lead = byId.get(edition.lead_id) ?? edition.stories[0];
+  const initial = (id: number): StoryState => ({
+    reaction: edition.state?.reactions[String(id)] ?? null, saved: edition.state?.saved.includes(id) ?? false,
+  });
 
   useGSAP(() => {
     gsap.timeline({ defaults: { ease: "power3.out" } })
@@ -58,7 +61,7 @@ export function PaperView({ edition, actions }: { edition: Edition; actions?: Re
 
         {/* Front page */}
         <div className="front grid gap-10 border-b border-hairline py-10 lg:grid-cols-[1.7fr_1fr]">
-          {lead && <StoryCard story={lead} variant="lead" tracker={tracker} />}
+          {lead && <StoryCard story={lead} variant="lead" tracker={tracker} initial={initial(lead.id)} />}
           <aside className="space-y-8">
             <div className="rounded-[18px] bg-tile p-6 text-white">
               <p className="t-caption font-semibold text-primary-on-dark">3 things to remember</p>
@@ -93,7 +96,7 @@ export function PaperView({ edition, actions }: { edition: Edition; actions?: Re
             <section key={sec.name} id={`sec-${slug(sec.name)}`} className="section-block scroll-mt-16 pt-12">
               <h2 className="t-section">{sec.name}</h2>
               <div className="mt-2 grid gap-x-8 gap-y-8 md:grid-cols-2 lg:grid-cols-3">
-                {stories.map((s) => <StoryCard key={s.id} story={s} tracker={tracker} />)}
+                {stories.map((s) => <StoryCard key={s.id} story={s} tracker={tracker} initial={initial(s.id)} />)}
               </div>
             </section>
           );

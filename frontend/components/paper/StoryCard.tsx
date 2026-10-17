@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import type { Story } from "@/lib/api";
 import { timeAgo, topicLabel } from "@/lib/topics";
 
-type Tracker = { track: (t: "open" | "like" | "dislike" | "save" | "skip", id: number) => void; observe: (el: HTMLElement | null, id: number) => (() => void) | void };
+type Mark = "open" | "like" | "dislike" | "unreact" | "save" | "unsave" | "skip";
+type Tracker = { track: (t: Mark, id: number) => void; observe: (el: HTMLElement | null, id: number) => (() => void) | void };
 
 export function VerifiedBadge({ story }: { story: Story }) {
   if (story.verified === true) {
@@ -35,10 +36,12 @@ function IconButton({ label, active, onClick, kind, activeClass }: { label: stri
   );
 }
 
-export function StoryCard({ story, variant = "normal", tracker }: { story: Story; variant?: "lead" | "normal"; tracker: Tracker }) {
+export type StoryState = { reaction: "like" | "dislike" | null; saved: boolean };
+
+export function StoryCard({ story, variant = "normal", tracker, initial }: { story: Story; variant?: "lead" | "normal"; tracker: Tracker; initial?: StoryState }) {
   const ref = useRef<HTMLElement>(null);
-  const [reaction, setReaction] = useState<"like" | "dislike" | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [reaction, setReaction] = useState<"like" | "dislike" | null>(initial?.reaction ?? null);
+  const [saved, setSaved] = useState(initial?.saved ?? false);
   const [hidden, setHidden] = useState(false);
   const [open, setOpen] = useState(variant === "lead");
   const [imgFailed, setImgFailed] = useState(false);
@@ -51,8 +54,11 @@ export function StoryCard({ story, variant = "normal", tracker }: { story: Story
     gsap.to(ref.current, { height: 0, opacity: 0, marginTop: 0, paddingTop: 0, duration: 0.45, ease: "power2.inOut", onComplete: () => setHidden(true) });
   }
   function react(kind: "like" | "dislike") {
-    setReaction(kind);
-    tracker.track(kind, story.id);
+    // Pressing the active reaction again removes it.
+    const next = reaction === kind ? null : kind;
+    setReaction(next);
+    tracker.track(next ?? "unreact", story.id);
+    if (!next) return;
     gsap.fromTo(ref.current?.querySelector(`[data-react="${kind === "like" ? "up" : "down"}"]`) ?? null, { scale: 1.4 }, { scale: 1, duration: 0.4, ease: "back.out(3)" });
   }
 
@@ -64,6 +70,7 @@ export function StoryCard({ story, variant = "normal", tracker }: { story: Story
         <p className="kicker">{topicLabel(story.topics[0])}</p>
         {story.core && <span className="rounded-full bg-ink px-2 py-0.5 t-fine font-semibold text-white">Top story</span>}
         {story.discovery && <span className="rounded-full bg-parchment px-2 py-0.5 t-fine font-semibold text-ink-60">New for you</span>}
+        {story.friend && <span className="rounded-full bg-[#e8f1fb] px-2 py-0.5 t-fine font-semibold text-primary">From {story.friend}</span>}
       </div>
       {story.image && !imgFailed && <img src={story.image} alt="" referrerPolicy="no-referrer" onError={() => setImgFailed(true)} className={`mt-3 w-full rounded-[12px] object-cover ${lead ? "aspect-[16/9]" : "aspect-[16/10]"}`} />}
       <h3 className={`headline mt-3 ${lead ? "text-[32px] sm:text-[40px]" : "text-[20px]"}`}>
@@ -87,7 +94,7 @@ export function StoryCard({ story, variant = "normal", tracker }: { story: Story
         {!lead && story.points.length > 0 && <button className="mr-1 t-caption text-primary" onClick={() => setOpen(!open)}>{open ? "Less" : "Key points"}</button>}
         <IconButton label="More like this" kind="up" active={reaction === "like"} activeClass="text-primary" onClick={() => react("like")} />
         <IconButton label="Less like this" kind="down" active={reaction === "dislike"} activeClass="text-danger" onClick={() => react("dislike")} />
-        <IconButton label="Save" kind="save" active={saved} activeClass="text-primary" onClick={() => { setSaved(true); tracker.track("save", story.id); }} />
+        <IconButton label={saved ? "Saved. Click to remove" : "Save"} kind="save" active={saved} activeClass="text-primary" onClick={() => { setSaved(!saved); tracker.track(saved ? "unsave" : "save", story.id); }} />
         <IconButton label="Hide this story" kind="hide" activeClass="" onClick={hide} />
       </div>
     </article>

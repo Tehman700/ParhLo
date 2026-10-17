@@ -114,7 +114,7 @@ export default function Onboarding() {
         name: name.trim() || "Reader", city: otherCity.trim() || city, reading_minutes: minutes, region_mix: regionMix,
         topics: picked, entities, about: about.trim() || null, swipes: swipes.map(({ article_id, liked }) => ({ article_id, liked })),
       });
-      router.push("/paper?fresh=1");
+      router.push("/dashboard?welcome=1"); // the first paper is built in the background there
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);

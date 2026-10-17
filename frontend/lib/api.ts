@@ -54,6 +54,8 @@ export type Story = {
   grounded_in: string | null;
   why: string | null;
   discovery: boolean;
+  /** A friend liked or saved this ("Learn from friends"). */
+  friend?: string | null;
   core?: boolean;
   importance?: number | null;
   check?: { by: "jev" | "llm"; supported: boolean; confidence: number | null; ms?: number } | null;
@@ -89,6 +91,24 @@ export type Edition = {
   recall_quiz: QuizQuestion[];
   stories: Story[];
   generated_at: string;
+  /** The reader's current reactions (by story id) and saved story ids. */
+  state?: { reactions: Record<string, "like" | "dislike">; saved: number[] };
+};
+
+export type SavedStory = {
+  id: number; title: string; source: string; url: string; image_url: string | null; summary: string | null;
+  topics: string[]; published_at: string | null; saved_at: string;
+};
+
+export type Notification = {
+  id: number; kind: "invite_accepted" | "friend_added" | "paper_ready" | "friends_learning" | string;
+  data: { date?: string; lead?: string | null }; read: boolean; created_at: string; actor: string | null;
+};
+
+export type FriendsInfo = {
+  learn_from_friends: boolean;
+  invite_code: string;
+  friends: { id: string; name: string; since: string; sharing: boolean }[];
 };
 
 export type EditionSummary = {
@@ -107,10 +127,10 @@ export type Snapshot = {
 };
 
 export type Me = {
-  user: { id: string; name: string; email: string | null; city: string; reading_minutes: number; region_mix: number; onboarded: boolean; is_demo: boolean; created_at: string; google: boolean };
+  user: { id: string; name: string; email: string | null; city: string; reading_minutes: number; region_mix: number; onboarded: boolean; is_demo: boolean; created_at: string; google: boolean; learn_from_friends: boolean };
   profile: { topics: Record<string, number>; entities: string[]; about: string | null; source_affinity: Record<string, number> } | null;
   anchors: { id: number; label: string; kind: string; weight: number; created_at: string }[];
   snapshots: Snapshot[];
 };
 
-export type EventType = "open" | "dwell" | "like" | "dislike" | "skip" | "save" | "quiz_correct" | "quiz_wrong" | "pdf" | "listen" | "ask";
+export type EventType = "open" | "dwell" | "like" | "dislike" | "unreact" | "skip" | "save" | "unsave" | "quiz_correct" | "quiz_wrong" | "pdf" | "listen" | "ask";

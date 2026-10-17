@@ -1,12 +1,14 @@
 """④ PUBLISH — generate and freeze a reader's daily edition (web and PDF both render this JSON)."""
 
+import asyncio
 import logging
 from datetime import date, datetime, timedelta, timezone
 
 from psycopg.types.json import Jsonb
 
 from app.core.database import db
-from app.core.errors import NotFoundError
+from app.core.errors import AppError, NotFoundError
+from app.parhlo import friends
 from app.parhlo.editor import edit_paper
 from app.parhlo.ingest import ingest
 from app.parhlo.morning import morning_box
@@ -22,13 +24,50 @@ def today_pkt() -> date:
     return datetime.now(PKT).date()
 
 
+JOB_STALE_MIN = 3
+
+
 async def generate_edition(user: dict, edition_date: date | None = None, force: bool = False) -> dict:
+    """Build (or return) a reader's paper. Only one build runs per reader and date: a second request
+    (e.g. the dashboard and the paper page at once) waits for the first one's result."""
     edition_date = edition_date or today_pkt()
+    started = datetime.now(timezone.utc)
     with db() as conn:
         existing = conn.execute("select * from editions where user_id=%s and edition_date=%s",
                                 (user["id"], edition_date)).fetchone()
         if existing and not force:
             return _public(existing)
+        claimed = conn.execute(
+            """insert into edition_jobs (user_id, edition_date) values (%s,%s)
+               on conflict (user_id, edition_date) do update set started_at = now()
+                 where edition_jobs.started_at < now() - make_interval(mins => %s)
+               returning started_at""", (user["id"], edition_date, JOB_STALE_MIN)).fetchone()
+    if not claimed:
+        return await _wait_for_edition(user["id"], edition_date, started if force else None)
+    try:
+        return await _build(user, edition_date)
+    finally:
+        with db() as conn:
+            conn.execute("delete from edition_jobs where user_id=%s and edition_date=%s", (user["id"], edition_date))
+
+
+async def _wait_for_edition(user_id, edition_date: date, newer_than: datetime | None) -> dict:
+    for _ in range(80):
+        await asyncio.sleep(1.5)
+        with db() as conn:  # job first, then the row: a build that just finished is always seen
+            busy = conn.execute("select 1 from edition_jobs where user_id=%s and edition_date=%s",
+                                (user_id, edition_date)).fetchone()
+            row = conn.execute("select * from editions where user_id=%s and edition_date=%s",
+                               (user_id, edition_date)).fetchone()
+        if row and (newer_than is None or row["created_at"] >= newer_than):
+            return _public(row)
+        if not busy:
+            break
+    raise AppError("Your paper is taking longer than usual. Please try again in a moment.", 503)
+
+
+async def _build(user: dict, edition_date: date) -> dict:
+    with db() as conn:
         fresh = conn.execute("select count(*) as n from articles where embedding is not null "
                              "and fetched_at > now() - interval '3 hours'").fetchone()["n"]
         prof = conn.execute("select topics, entities from profiles where user_id=%s", (user["id"],)).fetchone()
@@ -47,6 +86,7 @@ async def generate_edition(user: dict, edition_date: date | None = None, force: 
     if not pool:
         raise NotFoundError("No articles available yet — try again in a minute.")
     picks = select_stories(pool, story_count(user["reading_minutes"]))
+    picks = friends.add_friend_picks(user, pool, picks)
     summaries = await ensure_summaries([p["id"] for p in picks])
     stories = [{**p, **summaries.get(p["id"], {"summary": p["rss_summary"] or p["title"], "points": [],
                                                "verified": None, "grounded_in": "excerpt", "check": None})} for p in picks]
@@ -61,6 +101,9 @@ async def generate_edition(user: dict, edition_date: date | None = None, force: 
         full = next((s for s in stories if s.get("grounded_in") == "full article" and not s.get("discovery")), None)
         if full:
             layout["lead_id"] = full["id"]
+    for s in stories:  # a friend's like is the reason, said plainly
+        if s.get("friend"):
+            layout["edits"].setdefault(s["id"], {})["why"] = f"{s['friend']} {'saved' if s.get('friend_saved') else 'liked'} this"
 
     data = {
         "date": edition_date.isoformat(),
@@ -82,6 +125,8 @@ async def generate_edition(user: dict, edition_date: date | None = None, force: 
                on conflict (user_id, edition_date) do update set data = excluded.data, pdf_key = null,
                    audio_key = null, created_at = now()
                returning *""", (user["id"], edition_date, number, Jsonb(data))).fetchone()
+        lead = next((st["headline"] for st in data["stories"] if st["id"] == data["lead_id"]), None)
+        friends.notify(conn, user["id"], "paper_ready", data={"date": data["date"], "lead": lead})
     return _public(row)
 
 
@@ -93,7 +138,7 @@ def _story_out(s: dict, edit: dict) -> dict:
         "topics": s["topics"], "summary": s["summary"], "points": s.get("points") or [],
         "verified": s.get("verified"), "grounded_in": s.get("grounded_in"),
         "why": edit.get("why") or (f"Matches your interest in {s['match']}" if s.get("match") else None),
-        "discovery": bool(s.get("discovery")), "core": bool(s.get("core")),
+        "discovery": bool(s.get("discovery")), "core": bool(s.get("core")), "friend": s.get("friend"),
         "importance": s.get("importance"), "check": s.get("check"),
         "also_reported_by": [x for x in (s.get("also_sources") or []) if x][:5],
         "region": s["source_region"],

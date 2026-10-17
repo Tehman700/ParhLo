@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ErrorNote, Spinner } from "@/components/ui";
 import type { Me } from "@/lib/api";
-import { useApi, useSession } from "@/lib/auth";
+import { PENDING_INVITE, useApi, useSession } from "@/lib/auth";
 
 /** After sign-in: new readers go to onboarding, returning readers to today's paper. */
 export default function Start() {
@@ -16,9 +16,14 @@ export default function Start() {
   useEffect(() => {
     if (!ready) return;
     if (!signedIn) return void router.replace("/");
-    api.get<Me>("/api/me")
-      .then((me) => router.replace(me.user.onboarded ? "/paper" : "/onboarding"))
-      .catch((e) => setError(e.message));
+    (async () => {
+      // An invite opened before signing in is accepted now.
+      let invite: string | null = null;
+      try { invite = localStorage.getItem(PENDING_INVITE); localStorage.removeItem(PENDING_INVITE); } catch {}
+      if (invite) await api.post(`/api/invites/${invite}/accept`).catch(() => {});
+      const me = await api.get<Me>("/api/me");
+      router.replace(!me.user.onboarded ? "/onboarding" : invite ? "/dashboard#friends" : "/paper");
+    })().catch((e) => setError(e.message));
   }, [ready, signedIn, api, router]);
 
   return (

@@ -10,7 +10,7 @@ gsap.registerPlugin(useGSAP);
 export const CONTACT_EMAIL = "tehmanhassan@gmail.com";
 
 /** Long-form text page (privacy, terms, about): parchment header, white reading column. */
-export function DocPage({ title, lead, updated, children }: { title: string; lead?: string; updated?: string; children: ReactNode }) {
+export function DocPage({ title, lead, updated, hero, children }: { title: string; lead?: string; updated?: string; hero?: ReactNode; children: ReactNode }) {
   const root = useRef<HTMLDivElement>(null);
   useGSAP(() => {
     gsap.from(".doc-head > *", { y: 20, opacity: 0, stagger: 0.08, duration: 0.6, ease: "power3.out" });
@@ -27,6 +27,7 @@ export function DocPage({ title, lead, updated, children }: { title: string; lea
           {updated && <p className="mt-4 t-caption text-ink-48">Last updated {updated}</p>}
         </div>
       </header>
+      {hero && <section className="bg-parchment pb-16">{hero}</section>}
       <main className="doc-body doc mx-auto max-w-[692px] px-4 py-14">{children}</main>
     </div>
   );

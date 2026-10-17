@@ -115,3 +115,44 @@ create table if not exists events (
     created_at  timestamptz not null default now()
 );
 create index if not exists events_user on events(user_id, created_at desc);
+
+-- Current like/dislike/save per story (events keep the full history for learning).
+create table if not exists article_state (
+    user_id     uuid not null references users(id) on delete cascade,
+    article_id  bigint not null references articles(id) on delete cascade,
+    reaction    text,                                    -- like | dislike | null
+    saved       boolean not null default false,
+    updated_at  timestamptz not null default now(),
+    primary key (user_id, article_id)
+);
+create index if not exists article_state_saved on article_state(user_id, updated_at desc) where saved;
+
+-- Friends: a personal invite link; one switch lets friends' likes shape each other's papers.
+alter table users add column if not exists invite_code text unique;
+alter table users add column if not exists learn_from_friends boolean not null default false;
+
+create table if not exists friendships (
+    user_id     uuid not null references users(id) on delete cascade,
+    friend_id   uuid not null references users(id) on delete cascade,
+    created_at  timestamptz not null default now(),
+    primary key (user_id, friend_id)                     -- stored in both directions
+);
+
+create table if not exists notifications (
+    id          bigserial primary key,
+    user_id     uuid not null references users(id) on delete cascade,
+    kind        text not null,                           -- invite_accepted | friend_added | paper_ready | friends_learning
+    actor_id    uuid references users(id) on delete cascade,
+    data        jsonb not null default '{}',
+    read_at     timestamptz,
+    created_at  timestamptz not null default now()
+);
+create index if not exists notifications_user on notifications(user_id, created_at desc);
+
+-- One paper build at a time per reader and date (a second request waits for the first).
+create table if not exists edition_jobs (
+    user_id       uuid not null references users(id) on delete cascade,
+    edition_date  date not null,
+    started_at    timestamptz not null default now(),
+    primary key (user_id, edition_date)
+);
