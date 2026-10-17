@@ -14,14 +14,14 @@ const domain = (url: string) => {
 };
 
 function badge(s: Story) {
-  if (s.verified === true) return `<span class="ok">✓ Checked against source</span>`;
+  if (s.verified === true) return `<span class="ok">✓ Checked against source${s.check?.confidence != null ? ` · ${Math.round(s.check.confidence * 100)}%` : ""}</span>`;
   if (s.grounded_in && s.grounded_in !== "full article") return `<span class="muted">Based on headline and excerpt</span>`;
   return `<span class="muted">AI summary</span>`;
 }
 
 function story(s: Story, lead = false) {
   return `<article class="${lead ? "lead" : "story"}">
-    <div class="kicker">${esc(topicLabel(s.topics[0]))}${s.discovery ? ' <span class="disc">Discovery</span>' : ""}</div>
+    <div class="kicker">${esc(topicLabel(s.topics[0]))}${s.core ? ' <span class="disc">Top story</span>' : ""}${s.discovery ? ' <span class="disc">New for you</span>' : ""}</div>
     ${lead && s.image ? `<img class="lead-img" src="${esc(s.image)}" alt="">` : ""}
     <h3><a href="${esc(s.url)}">${esc(s.headline)}</a></h3>
     <p class="${lead ? "deck dropcap" : "deck"}">${esc(s.summary)}</p>

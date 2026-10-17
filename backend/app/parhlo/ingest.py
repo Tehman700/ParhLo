@@ -16,6 +16,7 @@ import feedparser
 import httpx
 
 from app.core.database import db
+from app.parhlo import jev
 from app.parhlo.embed import embed_texts, tag_topics
 from app.parhlo.sources import FEEDS, google_news_feed, google_news_site
 
@@ -23,6 +24,33 @@ log = logging.getLogger("parhlo.ingest")
 UA = "Mozilla/5.0 (compatible; ParhLo/1.0; +https://github.com/Tehman700/ParhLo)"
 MAX_AGE = timedelta(hours=48)
 CLUSTER_SIM = 0.84  # cosine similarity above which two articles are "the same story"
+JUNK_THRESHOLD = 0.78  # Jev: probability the item is not real news (quiz, podcast, promo, tag page…)
+
+
+def merge_topics(d: "jev.ArticleDecision", hints: list[str]) -> list[str]:
+    return list(dict.fromkeys([d.topic, *([d.second_topic] if d.second_topic else []), *hints]))[:3]
+
+
+async def jev_backfill(hours: int = 48, limit: int = 600) -> dict:
+    """Classify recent articles that were stored before Jev (or while Jev was unavailable)."""
+    if not jev.enabled():
+        return {"jev_backfilled": 0, "reason": "jev disabled"}
+    with db() as conn:
+        rows = conn.execute(
+            """select id, title, rss_summary, source, topics from articles
+               where jev_checked_at is null and fetched_at > now() - make_interval(hours => %s)
+               order by published_at desc limit %s""", (hours, limit)).fetchall()
+    decisions = await jev.classify_many(
+        [{"title": r["title"], "excerpt": r["rss_summary"], "source": r["source"]} for r in rows])
+    params = [(merge_topics(d, []), d.importance, d.junk, d.topic_confidence, r["id"])
+              for r, d in zip(rows, decisions) if d]
+    with db() as conn, conn.cursor() as cur:
+        cur.executemany(
+            """update articles set topics = %s, importance = %s, junk = %s, topic_confidence = %s,
+               jev_checked_at = now() where id = %s""", params)
+    done = len(params)
+    junk = sum(1 for p in params if p[2] >= JUNK_THRESHOLD)
+    return {"jev_backfilled": done, "jev_backfill_junk": junk, "pending": len(rows) - done}
 
 
 def norm_title(title: str) -> str:
@@ -135,18 +163,26 @@ async def ingest(extra_queries: list[str] | None = None) -> dict:
                 "seconds": round(time.perf_counter() - start, 1)}
 
     vectors = await embed_texts([f"{i['title']}. {i['summary']}" for i in new])
-    topics = await tag_topics(vectors, [i["hints"] for i in new])
+    topics = await tag_topics(vectors, [i["hints"] for i in new])  # fallback tags (embedding similarity)
+    decisions = await jev.classify_many(
+        [{"title": i["title"], "excerpt": i["summary"], "source": i["source"]} for i in new])
 
-    clustered = 0
+    clustered = jev_done = junk = 0
     with db() as conn:
-        for item, vec, tags in zip(new, vectors, topics):
+        for item, vec, tags, d in zip(new, vectors, topics, decisions):
+            if d:  # Jev decided: its topic first, then a strong runner-up, then the feed's own hints
+                tags = merge_topics(d, item["hints"])
+                jev_done += 1
+                junk += d.junk >= JUNK_THRESHOLD
             row = conn.execute(
                 """insert into articles (url, source, source_region, title, rss_summary, image_url,
-                                         published_at, topics, embedding)
-                   values (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                                         published_at, topics, embedding, importance, junk, topic_confidence,
+                                         jev_checked_at)
+                   values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, case when %s then now() end)
                    on conflict (url) do nothing returning id""",
                 (item["url"], item["source"], item["region"], item["title"], item["summary"],
-                 item["image"], item["published"] or datetime.now(timezone.utc), tags, vec),
+                 item["image"], item["published"] or datetime.now(timezone.utc), tags, vec,
+                 d.importance if d else None, d.junk if d else None, d.topic_confidence if d else None, d is not None),
             ).fetchone()
             if not row:
                 continue
@@ -163,6 +199,7 @@ async def ingest(extra_queries: list[str] | None = None) -> dict:
             conn.execute("update articles set cluster_id = %s where id = %s", (cluster, row["id"]))
 
     stats = {"fetched": len(items), "new": len(new), "joined_existing_story": clustered,
+             "jev_classified": jev_done, "jev_junk": junk,
              "feeds": len(feeds), "errors": errors, "seconds": round(time.perf_counter() - start, 1)}
     log.info("ingest %s", stats)
     return stats

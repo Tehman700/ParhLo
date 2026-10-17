@@ -32,6 +32,9 @@ def pool() -> ConnectionPool:
             # Neon's pooled endpoint is PgBouncer (transaction mode): no server-side prepared statements.
             kwargs={"row_factory": dict_row, "prepare_threshold": None, "autocommit": True},
             configure=_configure,
+            # Neon closes idle connections; validate on checkout and recycle idle ones.
+            check=ConnectionPool.check_connection,
+            max_idle=120,
             open=True,
         )
     return _pool

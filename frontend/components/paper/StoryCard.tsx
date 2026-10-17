@@ -8,8 +8,12 @@ import { timeAgo, topicLabel } from "@/lib/topics";
 type Tracker = { track: (t: "open" | "like" | "dislike" | "save" | "skip", id: number) => void; observe: (el: HTMLElement | null, id: number) => (() => void) | void };
 
 export function VerifiedBadge({ story }: { story: Story }) {
-  if (story.verified === true)
-    return <span className="t-caption font-semibold text-success" title="A second check confirmed every point in the summary appears in the original article.">✓ Checked against source</span>;
+  if (story.verified === true) {
+    const c = story.check;
+    const pct = c?.confidence != null ? ` · ${Math.round(c.confidence * 100)}%` : "";
+    const how = c?.by === "jev" ? "Jev, a decision model," : "a second AI pass";
+    return <span className="t-caption font-semibold text-success" title={`Every point in this summary was checked against the original article by ${how}${c?.confidence != null ? ` (${Math.round(c.confidence * 100)}% confident)` : ""}.`}>✓ Checked against source{pct}</span>;
+  }
   if (story.grounded_in && story.grounded_in !== "full article")
     return <span className="t-caption text-ink-48" title="The full article couldn't be loaded, so this summary uses the headline and excerpt.">Based on headline and excerpt</span>;
   return <span className="t-caption text-ink-48">AI summary</span>;
@@ -58,6 +62,7 @@ export function StoryCard({ story, variant = "normal", tracker }: { story: Story
     <article ref={ref} className={`story-card overflow-hidden ${lead ? "" : "border-t border-hairline pt-5"}`}>
       <div className="flex items-center gap-2">
         <p className="kicker">{topicLabel(story.topics[0])}</p>
+        {story.core && <span className="rounded-full bg-ink px-2 py-0.5 t-fine font-semibold text-white">Top story</span>}
         {story.discovery && <span className="rounded-full bg-parchment px-2 py-0.5 t-fine font-semibold text-ink-60">New for you</span>}
       </div>
       {story.image && !imgFailed && <img src={story.image} alt="" referrerPolicy="no-referrer" onError={() => setImgFailed(true)} className={`mt-3 w-full rounded-[12px] object-cover ${lead ? "aspect-[16/9]" : "aspect-[16/10]"}`} />}

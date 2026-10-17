@@ -84,6 +84,11 @@ create table if not exists articles (
     summarized_at    timestamptz
 );
 create index if not exists articles_published on articles(published_at desc);
+-- Jev decisions (null = not checked yet)
+alter table articles add column if not exists importance real;        -- 0..1 (Jev Score, 5 levels)
+alter table articles add column if not exists junk real;              -- 0..1 probability it is not real news
+alter table articles add column if not exists topic_confidence real;  -- Jev Choice confidence for topics[1]
+alter table articles add column if not exists jev_checked_at timestamptz;
 create index if not exists articles_cluster on articles(cluster_id);
 create index if not exists articles_embedding on articles using hnsw (embedding vector_cosine_ops);
 

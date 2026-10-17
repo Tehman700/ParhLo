@@ -1,8 +1,10 @@
 """② RANK — pick today's stories for one reader.
 
-score = 0.42·best positive anchor match  + 0.18·topic weight + 0.12·recency + 0.08·story size
-      + 0.08·source quality + 0.07·region fit + 0.05·source affinity − 0.55·best negative anchor match
-then: one article per story cluster → MMR for variety → ~15% "discovery" slots outside the profile.
+score = 0.40·best positive anchor match + 0.17·topic weight + 0.11·recency + 0.08·importance (Jev)
+      + 0.05·story size + 0.08·source quality + 0.07·region fit + 0.05·source affinity
+      − 0.55·best negative anchor match
+then: drop Jev-flagged junk → one article per story cluster → 2 "common core" slots for the day's
+biggest stories (Jev importance + outlet coverage) → MMR for variety → ~15% "discovery" slots.
 """
 
 import math
@@ -22,6 +24,9 @@ KNOWN_GOOD = {"Reuters", "Associated Press", "AP News", "Al Jazeera", "CNN", "CN
               "Forbes", "Fortune", "Axios", "Politico", "Pakistan Today", "ARY News", "Samaa TV", "Arab News"}
 BLOCKED_HINTS = ("kucoin", "bitget", "binance", "mexc", "coin", "crypto.news", "biggo", "prnewswire", "globenewswire")
 STORIES_FOR_MINUTES = {5: 6, 10: 10, 15: 13, 20: 16}
+JUNK_THRESHOLD = 0.78       # Jev: probability an item is not real news
+CORE_SLOTS = 2              # day's biggest stories every reader gets
+CORE_MIN_IMPORTANCE = 0.7   # Jev importance (0..1) needed to qualify for the core
 
 
 def as_np(v) -> np.ndarray:
@@ -51,7 +56,7 @@ def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 
                                (user["id"],)).fetchall()
         arts = conn.execute(
             """select a.id, a.title, a.source, a.source_region, a.topics, a.published_at, a.image_url,
-                      a.url, a.rss_summary, a.cluster_id, a.embedding,
+                      a.url, a.rss_summary, a.cluster_id, a.embedding, a.importance, a.junk,
                       (select count(distinct b.source) from articles b where b.cluster_id = a.cluster_id) as cluster_size,
                       (select array_agg(distinct b.source) from articles b where b.cluster_id = a.cluster_id
                          and b.source <> a.source) as also_sources
@@ -62,7 +67,8 @@ def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 
         seen = {r["article_id"] for r in conn.execute(
             "select distinct article_id from events where user_id=%s and article_id is not null", (user["id"],))}
     arts = [a for a in arts if a["id"] not in exclude_ids and a["id"] not in seen
-            and source_quality(a["source"]) > 0 and len(re.findall(r"[A-Za-z]{3,}", a["title"])) >= 4]
+            and source_quality(a["source"]) > 0 and len(re.findall(r"[A-Za-z]{3,}", a["title"])) >= 4
+            and (a["junk"] or 0) < JUNK_THRESHOLD]
     if not arts:
         return []
 
@@ -92,13 +98,14 @@ def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 
         age_h = max(0.0, (now - a["published_at"]).total_seconds() / 3600)
         topic_w = max([topics.get(t, 0.1) for t in a["topics"]] or [0.1])
         region_fit = region_mix if a["source_region"] == "pakistan" else 1 - region_mix
-        score = (0.42 * pos_s[i] + 0.18 * topic_w + 0.12 * math.exp(-age_h / 24)
-                 + 0.08 * min(1.0, math.log1p(a["cluster_size"] or 1) / math.log(6))
+        importance = a["importance"] if a["importance"] is not None else 0.4  # neutral until Jev has scored it
+        score = (0.40 * pos_s[i] + 0.17 * topic_w + 0.11 * math.exp(-age_h / 24) + 0.08 * importance
+                 + 0.05 * coverage(a["cluster_size"])
                  + 0.08 * source_quality(a["source"]) + 0.07 * region_fit
                  + 0.05 * float(affinity.get(a["source"], 0)) - 0.55 * neg_s[i]
                  - (0.04 if "news.google.com" in a["url"] else 0.0))  # prefer links we can read in full
         scored.append({**a, "score": float(score), "match": pos_label[i], "match_sim": float(pos_s[i]),
-                       "topic_weight": topic_w, "embedding": E[i]})
+                       "topic_weight": topic_w, "embedding": E[i], "importance": importance})
 
     # One article per story: keep the best-scoring version of each cluster.
     best_by_cluster: dict[int, dict] = {}
@@ -115,27 +122,52 @@ def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 
     return pool
 
 
-def select_stories(pool: list[dict], n: int, discovery_share: float = 0.15) -> list[dict]:
-    """MMR for variety among personal picks + a few high-signal stories from outside the profile."""
+def coverage(cluster_size: int | None) -> float:
+    """0..1: how many outlets carried the story (1 outlet → 0, 6+ → 1)."""
+    return min(1.0, math.log1p(max(0, (cluster_size or 1) - 1)) / math.log(6))
+
+
+def core_score(p: dict) -> float:
+    return 0.7 * (p.get("importance") or 0.0) + 0.3 * coverage(p.get("cluster_size"))
+
+
+def select_stories(pool: list[dict], n: int, discovery_share: float = 0.15, n_core: int = CORE_SLOTS) -> list[dict]:
+    """Common core (day's biggest stories) + personal picks (MMR for variety) + discovery outside the profile.
+
+    The core answers readers' worry about missing important news (Reuters Institute: 48% worry about it).
+    """
+    core_candidates = sorted((p for p in pool if (p.get("importance") or 0) >= CORE_MIN_IMPORTANCE),
+                             key=lambda p: -core_score(p))
+    core = [{**p, "core": True} for p in mmr_by(core_candidates[:20], n_core, core_score)] if n >= 6 else []
+    taken = {p["id"] for p in core}
+
     n_disc = max(1, round(n * discovery_share)) if n >= 6 else 0
-    personal = mmr([p for p in pool if p["topic_weight"] >= 0.3 or p["match_sim"] >= 0.35], n - n_disc)
-    chosen_ids = {p["id"] for p in personal}
-    outside = [p for p in pool if p["id"] not in chosen_ids and p["topic_weight"] < 0.3]
-    outside.sort(key=lambda p: -((p["cluster_size"] or 1) + 2 * source_quality(p["source"])))
-    discovery = [{**p, "discovery": True} for p in mmr(outside[:30], n_disc)]
-    if len(personal) < n - n_disc:  # thin profile: top up from the general pool
-        rest = [p for p in pool if p["id"] not in chosen_ids and p["id"] not in {d["id"] for d in discovery}]
-        personal += rest[: n - n_disc - len(personal)]
-    return personal + discovery
+    n_personal = n - len(core) - n_disc
+    personal = mmr([p for p in pool if p["id"] not in taken and (p["topic_weight"] >= 0.3 or p["match_sim"] >= 0.35)],
+                   n_personal, avoid=core)
+    taken |= {p["id"] for p in personal}
+    outside = [p for p in pool if p["id"] not in taken and p["topic_weight"] < 0.3]
+    outside.sort(key=lambda p: -(core_score(p) + 0.5 * source_quality(p["source"])))
+    discovery = [{**p, "discovery": True} for p in mmr(outside[:30], n_disc, avoid=core + personal)]
+    taken |= {p["id"] for p in discovery}
+    if len(personal) < n_personal:  # thin profile: top up from the general pool
+        personal += [p for p in pool if p["id"] not in taken][: n_personal - len(personal)]
+    return personal + core + discovery
 
 
-def mmr(items: list[dict], k: int, lam: float = 0.72) -> list[dict]:
+def mmr(items: list[dict], k: int, lam: float = 0.72, avoid: list[dict] | None = None) -> list[dict]:
+    return mmr_by(items, k, lambda c: c["score"], lam, avoid)
+
+
+def mmr_by(items: list[dict], k: int, relevance, lam: float = 0.72, avoid: list[dict] | None = None) -> list[dict]:
+    """Maximal marginal relevance: relevant, but not near-duplicates of what's already chosen (or `avoid`)."""
     chosen: list[dict] = []
+    fixed = list(avoid or [])
     candidates = items[:120]
     while candidates and len(chosen) < k:
         def value(c):
-            redundancy = max((float(c["embedding"] @ s["embedding"]) for s in chosen), default=0.0)
-            return lam * c["score"] - (1 - lam) * redundancy
+            redundancy = max((float(c["embedding"] @ s["embedding"]) for s in chosen + fixed), default=0.0)
+            return lam * relevance(c) - (1 - lam) * redundancy
         best = max(candidates, key=value)
         chosen.append(best)
         candidates.remove(best)

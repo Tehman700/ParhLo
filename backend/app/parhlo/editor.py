@@ -15,7 +15,8 @@ class StoryEdit(BaseModel):
     headline: str = Field(description="Clear, plain headline, max 12 words, faithful to the summary. No clickbait.")
     why: str = Field(description="Max 12 words. Start with 'Because you' and name the reader interest it matches, "
                                  "e.g. 'Because you follow cricket' or 'Because you're interested in startups'. "
-                                 "For DISCOVERY stories start with 'Something new:'.")
+                                 "For DISCOVERY stories start with 'Something new:'. "
+                                 "For CORE stories write 'One of today's biggest stories'.")
 
 
 class Section(BaseModel):
@@ -47,7 +48,8 @@ class EditorOut(BaseModel):
 
 def _story_brief(s: dict) -> str:
     tags = ", ".join(TOPICS[t]["label"] for t in s["topics"] if t in TOPICS)
-    reason = "DISCOVERY (outside usual interests)" if s.get("discovery") else f"matches interest: {s.get('match')}"
+    reason = ("CORE (one of today's biggest stories for everyone)" if s.get("core")
+              else "DISCOVERY (outside usual interests)" if s.get("discovery") else f"matches interest: {s.get('match')}")
     return (f"[{s['id']}] {s['title']} — {s['source']} | topics: {tags} | {reason}\n"
             f"    summary: {s['summary']}")
 

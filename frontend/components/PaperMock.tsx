@@ -13,7 +13,7 @@ export function PaperMock() {
           <img src="/hero-story.webp" alt="" className="mt-2 aspect-[16/8] w-full rounded-[6px] object-cover" />
           <p className="mt-1 text-[9px] text-ink-48">Photo: Dawn</p>
           <p className="headline mt-3 text-[22px]">Pakistan showcases 20 tech firms at TechCrunch Disrupt</p>
-          <p className="deck mt-2 text-[13px] leading-relaxed">Twenty Pakistani startups presented their products in San Francisco this week, the country's largest group at the event so far.</p>
+          <p className="deck mt-2 text-[13px] leading-relaxed">Twenty Pakistani startups presented their products in San Francisco this week, the country&apos;s largest group at the event so far.</p>
           <p className="mt-2 text-[11px] font-semibold text-success">✓ Checked against source · Also in Business Recorder, TechCrunch</p>
         </div>
         <div className="space-y-4 border-l border-rule pl-5">

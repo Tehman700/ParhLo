@@ -49,7 +49,7 @@ async def generate_edition(user: dict, edition_date: date | None = None, force: 
     picks = select_stories(pool, story_count(user["reading_minutes"]))
     summaries = await ensure_summaries([p["id"] for p in picks])
     stories = [{**p, **summaries.get(p["id"], {"summary": p["rss_summary"] or p["title"], "points": [],
-                                               "verified": None, "grounded_in": "excerpt"})} for p in picks]
+                                               "verified": None, "grounded_in": "excerpt", "check": None})} for p in picks]
 
     topics = (prof or {}).get("topics") or {}
     top_topics = [TOPICS[t]["label"] for t, _ in sorted(topics.items(), key=lambda kv: -kv[1])[:5] if t in TOPICS]
@@ -93,7 +93,9 @@ def _story_out(s: dict, edit: dict) -> dict:
         "topics": s["topics"], "summary": s["summary"], "points": s.get("points") or [],
         "verified": s.get("verified"), "grounded_in": s.get("grounded_in"),
         "why": edit.get("why") or (f"Matches your interest in {s['match']}" if s.get("match") else None),
-        "discovery": bool(s.get("discovery")), "also_reported_by": [x for x in (s.get("also_sources") or []) if x][:5],
+        "discovery": bool(s.get("discovery")), "core": bool(s.get("core")),
+        "importance": s.get("importance"), "check": s.get("check"),
+        "also_reported_by": [x for x in (s.get("also_sources") or []) if x][:5],
         "region": s["source_region"],
     }
 

@@ -54,6 +54,9 @@ export type Story = {
   grounded_in: string | null;
   why: string | null;
   discovery: boolean;
+  core?: boolean;
+  importance?: number | null;
+  check?: { by: "jev" | "llm"; supported: boolean; confidence: number | null; ms?: number } | null;
   also_reported_by: string[];
   region: "pakistan" | "global";
 };

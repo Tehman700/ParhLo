@@ -2,13 +2,15 @@
 
 1. fetch full text (trafilatura); fall back to the RSS excerpt
 2. summarize ONLY from that text (fast model, JSON)
-3. verify: a second pass checks every summary claim against the source → summary_verified
+3. verify: Jev (System One, ~0.4 s, calibrated) checks every claim against the source → summary_verified;
+   the fast LLM is the fallback when Jev is unavailable
 Answers the BBC/EBU finding that ~half of AI news answers contain significant errors.
 """
 
 import asyncio
 import json
 import logging
+import time
 
 import httpx
 import trafilatura
@@ -17,6 +19,7 @@ from pydantic import BaseModel, Field
 
 from app.core.config import get_settings
 from app.core.database import db
+from app.parhlo import jev
 from app.parhlo.ingest import UA
 from app.services.llm import get_llm
 
@@ -60,17 +63,29 @@ async def summarize_one(client: httpx.AsyncClient, art: dict, sem: asyncio.Semap
                 "Summarize this news article for a busy reader in plain English. Use ONLY facts stated in the source. "
                 f"No speculation, no outside knowledge, no opinions. {style}\n\n"
                 f"TITLE: {art['title']}\nSOURCE TEXT:\n{source_text}")}], schema=Summary, model=fast, reasoning_effort="minimal")
-            v: Verdict = await llm.json([{"role": "user", "content": (
-                "Fact-check the SUMMARY against the SOURCE. A claim is supported only if the source states it. "
-                f"\n\nSOURCE:\n{source_text}\n\nSUMMARY:\n{s.summary}\n" + "\n".join(f"- {p}" for p in s.points))}],
-                schema=Verdict, model=fast, reasoning_effort="minimal")
-            verified = v.supported
+            points = s.points if content else s.points[:1]  # excerpt-only: don't pad with near-duplicate points
+            check = await verify(source_text, s.summary, points)
+            verified = check["supported"]
         except Exception as e:
             log.warning("summary failed for %s: %s", art["id"], e)
-            s, verified = Summary(summary=art.get("rss_summary") or art["title"], points=[]), None
-        points = s.points if content else s.points[:1]  # excerpt-only: don't pad with near-duplicate points
+            s, points, verified, check = Summary(summary=art.get("rss_summary") or art["title"], points=[]), [], None, None
         return {"id": art["id"], "content": content, "summary": s.summary, "points": points,
-                "verified": verified, "grounded_in": grounded_in}
+                "verified": verified, "grounded_in": grounded_in, "check": check}
+
+
+async def verify(source_text: str, summary: str, points: list[str]) -> dict:
+    """Is every claim in the summary stated in the source? Jev first (fast, calibrated); LLM as fallback."""
+    t = time.perf_counter()
+    jv = await jev.check_summary(source_text, summary, points)
+    if jv is not None:
+        return {"by": "jev", "supported": jv.supported, "confidence": jv.confidence,
+                "unsupported_probability": jv.unsupported_probability, "ms": round((time.perf_counter() - t) * 1000)}
+    t = time.perf_counter()
+    v: Verdict = await get_llm().json([{"role": "user", "content": (
+        "Fact-check the SUMMARY against the SOURCE. A claim is supported only if the source states it. "
+        f"\n\nSOURCE:\n{source_text}\n\nSUMMARY:\n{summary}\n" + "\n".join(f"- {p}" for p in points))}],
+        schema=Verdict, model=get_settings().llm_fast_model, reasoning_effort="minimal")
+    return {"by": "llm", "supported": v.supported, "confidence": None, "ms": round((time.perf_counter() - t) * 1000)}
 
 
 async def ensure_summaries(article_ids: list[int]) -> dict[int, dict]:
@@ -89,7 +104,7 @@ async def ensure_summaries(article_ids: list[int]) -> dict[int, dict]:
                 conn.execute(
                     """update articles set content = coalesce(%s, content), ai_summary = %s, ai_points = %s,
                        summary_verified = %s, summarized_at = now() where id = %s""",
-                    (d["content"], d["summary"], Jsonb({"points": d["points"], "grounded_in": d["grounded_in"]}),
+                    (d["content"], d["summary"], Jsonb({"points": d["points"], "grounded_in": d["grounded_in"], "check": d["check"]}),
                      d["verified"], d["id"]))
         with db() as conn:
             rows = conn.execute(
@@ -99,5 +114,5 @@ async def ensure_summaries(article_ids: list[int]) -> dict[int, dict]:
     for r in rows:
         meta = r["ai_points"] if isinstance(r["ai_points"], dict) else json.loads(r["ai_points"] or "{}")
         out[r["id"]] = {"summary": r["ai_summary"], "points": meta.get("points", []),
-                        "grounded_in": meta.get("grounded_in"), "verified": r["summary_verified"]}
+                        "grounded_in": meta.get("grounded_in"), "verified": r["summary_verified"], "check": meta.get("check")}
     return out

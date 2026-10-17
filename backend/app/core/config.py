@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     embedding_model: str = "openai/text-embedding-3-small"
     embedding_dim: int = 1536
 
+    # --- Jev (TypeSafe System One): fast typed decisions — topics, junk, importance, summary checks ---
+    typesafe_api_key: str = ""
+    jev_model: str = "jev-latest"
+    jev_enabled: bool = True
+
     # --- Database (Neon Postgres + pgvector) ---
     database_url: str = ""
 

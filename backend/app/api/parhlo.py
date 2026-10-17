@@ -10,7 +10,7 @@ from app.core.database import db
 from app.core.errors import AppError, NotFoundError
 from app.parhlo import editions, learn, profile
 from app.parhlo.auth import AuthError, current_user
-from app.parhlo.ingest import ingest
+from app.parhlo.ingest import ingest, jev_backfill
 from app.parhlo.morning import morning_box
 from app.parhlo.topics import TOPICS
 
@@ -143,7 +143,8 @@ async def cron_ingest():
     with db() as conn:
         rows = conn.execute("select entities from profiles").fetchall()
     queries = list(dict.fromkeys(e for r in rows for e in (r["entities"] or [])))[:12]
-    return await ingest(extra_queries=queries)
+    stats = await ingest(extra_queries=queries)
+    return {**stats, **(await jev_backfill())}
 
 
 @router.get("/cron/daily", dependencies=[Depends(_cron_auth)])
