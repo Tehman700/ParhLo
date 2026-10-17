@@ -5,7 +5,8 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Edition, Morning, QuizQuestion, Story } from "@/lib/api";
+import type { Edition, Me, Morning, QuizQuestion, Story } from "@/lib/api";
+import { useApi } from "@/lib/auth";
 import { useTracker } from "@/lib/tracker";
 import { formatDate } from "../ui";
 import { StoryCard, type StoryState } from "./StoryCard";
@@ -41,6 +42,7 @@ export function PaperView({ edition, actions }: { edition: Edition; actions?: Re
       .from(".mast-title", { y: 24, opacity: 0, duration: 0.8 }, "-=0.3")
       .from(".mast-rule", { scaleX: 0, transformOrigin: "center", duration: 0.8 }, "-=0.5")
       .from(".today-card", { y: 20, opacity: 0, stagger: 0.07, duration: 0.5 }, "-=0.4")
+      .from(".glance > *", { x: (k) => (k ? 40 : -40), opacity: 0, stagger: 0.1, duration: 0.6 }, "-=0.3")
       .from(".front > *", { y: 30, opacity: 0, stagger: 0.12, duration: 0.7 }, "-=0.3");
     ScrollTrigger.batch(".section-block .story-card", {
       start: "top 90%", once: true,
@@ -66,12 +68,8 @@ export function PaperView({ edition, actions }: { edition: Edition; actions?: Re
         <TodayCards morning={edition.morning} />
 
         {/* Editor's note */}
-        {edition.editor_note && (
-          <div className="mx-auto max-w-[760px] pt-8 text-center">
-            <p className="t-caption font-semibold text-ink-60">Today in brief</p>
-            <p className="mt-2 font-serif text-[19px] leading-relaxed text-ink-80">{edition.editor_note}</p>
-          </div>
-        )}
+        {/* Your paper today + what it learned (replaces "Today in brief", which repeated the 3 things). */}
+        <AtAGlance edition={edition} />
 
         {/* Front page */}
         <div className="front grid gap-10 border-b border-hairline py-10 lg:grid-cols-[1.7fr_1fr]">
@@ -191,3 +189,71 @@ function RecallQuiz({ quiz, onAnswer }: { quiz: QuizQuestion[]; onAnswer: (corre
 }
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+/** "Your paper today" (what's in this edition) and "What your paper learned" (latest interest changes). */
+function AtAGlance({ edition }: { edition: Edition }) {
+  const api = useApi();
+  const [me, setMe] = useState<Me | null | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    api.get<Me>("/api/me").then((m) => !cancelled && setMe(m)).catch(() => !cancelled && setMe(null));
+    return () => { cancelled = true; };
+  }, [api]);
+
+  const n = edition.stories.length;
+  const top = edition.stories.filter((s) => s.core).length;
+  const fresh = edition.stories.filter((s) => s.discovery).length;
+  const friends = edition.stories.filter((s) => s.friend).length;
+  const mostly = edition.sections.filter((s) => s.story_ids.length).slice(0, 3).map((s) => s.name);
+  const minutes = me?.user.reading_minutes;
+  const latest = me?.snapshots.find((s) => s.changes.some((c) => c.topic));
+  const changes = (latest?.changes ?? []).filter((c) => c.topic && c.from != null && c.to != null).slice(0, 3);
+  const pills = [
+    top ? `${top} top ${top === 1 ? "story" : "stories"}` : null,
+    fresh ? `${fresh} new for you` : null,
+    friends ? `${friends} from friends` : null,
+  ].filter(Boolean) as string[];
+
+  return (
+    <div className="glance grid gap-4 pt-8 md:grid-cols-2">
+      <div className="rounded-[18px] border border-hairline p-6">
+        <p className="t-caption font-semibold text-ink-60">Your paper today</p>
+        <p className="mt-2 text-[28px] font-semibold leading-tight tracking-tight">
+          {n} {n === 1 ? "story" : "stories"}{minutes ? <span className="text-ink-48"> · about {minutes} min</span> : null}
+        </p>
+        {pills.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {pills.map((t) => <span key={t} className="rounded-full bg-parchment px-3 py-1 t-caption text-ink-80">{t}</span>)}
+          </div>
+        )}
+        {mostly.length > 0 && <p className="mt-4 t-body text-ink-60">Mostly <span className="text-ink">{mostly.join(" · ")}</span>, in the order you care about them.</p>}
+      </div>
+      <div className="rounded-[18px] bg-parchment p-6">
+        <p className="t-caption font-semibold text-ink-60">What your paper learned</p>
+        {me === undefined ? (
+          <div className="mt-4 space-y-3" aria-hidden><div className="h-4 w-2/3 rounded bg-black/5" /><div className="h-4 w-1/2 rounded bg-black/5" /></div>
+        ) : changes.length ? (
+          <ul className="mt-3 space-y-3">
+            {changes.map((c) => {
+              const up = (c.to ?? 0) > (c.from ?? 0);
+              return (
+                <li key={c.topic} className="flex gap-3">
+                  <span className={`mt-0.5 text-[15px] ${up ? "text-primary" : "text-danger"}`} aria-label={up ? "up" : "down"}>{up ? "▲" : "▼"}</span>
+                  <div className="min-w-0">
+                    <p className="t-body font-semibold">{c.label} <span className="font-normal text-ink-48">{Math.round((c.from ?? 0) * 100)} → {Math.round((c.to ?? 0) * 100)}</span></p>
+                    <p className="t-caption text-ink-60">{c.why}</p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="mt-3 t-body text-ink-60">
+            It learns from what you do here. Open, like, save or hide stories, and each night ParhLo updates your interests. Tomorrow&apos;s paper shows the difference.
+          </p>
+        )}
+        <Link href="/dashboard#memory" className="link mt-4 inline-block t-caption font-semibold">See everything it remembers ›</Link>
+      </div>
+    </div>
+  );
+}

@@ -39,6 +39,11 @@ export function buildPrintHtml(ed: Edition): string {
   const lead = byId.get(ed.lead_id) ?? ed.stories[0];
   const date = new Date(`${ed.edition_date}T00:00:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const m = ed.morning;
+  // "Your paper today" (replaces "Today in brief", which repeated the 3 things).
+  const n = ed.stories.length, top = ed.stories.filter((s) => s.core).length, fresh = ed.stories.filter((s) => s.discovery).length;
+  const mostly = ed.sections.filter((s) => s.story_ids.length).slice(0, 3).map((s) => s.name);
+  const glance = `${n} ${n === 1 ? "story" : "stories"}${top ? `, including ${top} of today's top ${top === 1 ? "story" : "stories"}` : ""}`
+    + `${fresh ? ` and ${fresh} new for you` : ""}.${mostly.length ? ` Mostly ${mostly.join(", ")}, in the order you care about them.` : ""}`;
   const rates = m.rates ? Object.entries(m.rates.pkr).map(([k, v]) => `${k} Rs ${v.toFixed(2)}`).join(" · ") : "—";
 
   // The rest of the paper flows as one newspaper column set (no half-empty section rows); each story carries its section.
@@ -102,7 +107,7 @@ export function buildPrintHtml(ed: Edition): string {
   <div class="tag">For ${esc(ed.reader.name)}</div>
   <div class="double"></div>
   <div class="top">
-    <div><div class="kicker" style="color:#7a7a7a">Today in brief</div><p class="note">${esc(ed.editor_note)}</p></div>
+    <div><div class="kicker" style="color:#7a7a7a">Your paper today</div><p class="note">${esc(glance)}</p></div>
     <div class="box">
       <div>${esc(m.city)}: ${m.weather ? `<b>${m.weather.temp}°</b> ${esc(m.weather.condition)} · H ${m.weather.high}° L ${m.weather.low}°` : "—"}</div>
       <div ${m.smog_alert ? 'class="alert"' : ""}>${m.smog_alert ? "⚠ Smog alert — " : "Air: "}AQI ${m.air?.aqi ?? "—"} ${esc(m.air?.label ?? "")}</div>
