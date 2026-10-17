@@ -43,16 +43,36 @@ export function WatchTourButton({ className = "" }: { className?: string }) {
   );
 }
 
-/** Full-screen player. Esc, the ✕ or a click outside closes it (and pauses the video). */
+/** Full-screen player. Closes by itself when the tour finishes (fading out); Esc, ✕ or a click outside close it early. */
 export function TourLightbox() {
   const [open, setOpen] = useState(false);
+  const shell = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
+  const bar = useRef<HTMLDivElement>(null);
   const closeBtn = useRef<HTMLButtonElement>(null);
 
   const close = useCallback(() => {
     setOpen(false);
     if (location.hash === HASH) history.replaceState(null, "", location.pathname + location.search);
   }, []);
+  // When the tour is complete: finish the progress line, then fade the player out and close.
+  const finish = useCallback(() => {
+    if (bar.current) gsap.to(bar.current, { scaleX: 1, duration: 0.2 });
+    if (shell.current) gsap.to(shell.current, { opacity: 0, duration: 0.45, delay: 0.35, ease: "power2.in", onComplete: close });
+    else close();
+  }, [close]);
+
+  // The stand-in loop (an iframe) reports its start and end; a real video uses its own events below.
+  useEffect(() => {
+    if (!open || hasVideo()) return;
+    const onMsg = (e: MessageEvent) => {
+      if (e.origin !== location.origin || e.data?.type !== "parhlo-tour") return;
+      if (e.data.event === "start" && bar.current) gsap.fromTo(bar.current, { scaleX: 0 }, { scaleX: 1, duration: e.data.duration, ease: "none" });
+      if (e.data.event === "end") finish();
+    };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, [open, finish]);
 
   useEffect(() => {
     const sync = () => setOpen(location.hash === HASH);
@@ -77,7 +97,7 @@ export function TourLightbox() {
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/80 p-4 sm:p-8" role="dialog" aria-modal="true"
+    <div ref={shell} className="fixed inset-0 z-[95] flex items-center justify-center bg-black/80 p-4 sm:p-8" role="dialog" aria-modal="true"
       aria-label="ParhLo product tour" onMouseDown={(e) => e.target === e.currentTarget && close()}>
       <div ref={panel} className="w-full max-w-[1040px]">
         <div className="mb-3 flex items-center justify-between text-white">
@@ -87,14 +107,18 @@ export function TourLightbox() {
         </div>
         <div className="overflow-hidden rounded-[18px] bg-canvas">
           {hasVideo() ? (
-            <video className="aspect-video w-full bg-black" controls autoPlay playsInline poster={TOUR_VIDEO.poster}>
+            <video className="aspect-video w-full bg-black" controls autoPlay playsInline poster={TOUR_VIDEO.poster} onEnded={finish}
+              onTimeUpdate={(e) => { const v = e.currentTarget; if (bar.current && v.duration) bar.current.style.transform = `scaleX(${v.currentTime / v.duration})`; }}>
               <Sources />
             </video>
           ) : (
-            <MotionLoop bg="ffffff" wide />
+            <MotionLoop bg="ffffff" wide once />
           )}
         </div>
-        <p className="mt-3 text-center t-caption text-white/60">Press Esc or click outside to close.</p>
+        <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/15" aria-hidden>
+          <div ref={bar} className="h-full origin-left scale-x-0 rounded-full bg-primary-on-dark" />
+        </div>
+        <p className="mt-3 text-center t-caption text-white/60">Closes by itself when the tour ends. Press Esc or click outside to close now.</p>
       </div>
     </div>
   );

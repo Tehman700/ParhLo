@@ -413,9 +413,18 @@ const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 if (q.has("t")) seek(parseFloat(q.get("t")));
 else if (reduce) seek(0.1);
 else {
+  // ?once=1 (the landing-page tour player): play one cycle, rest on the first frame (= last frame), tell the parent.
+  const once = q.has("once");
+  const tell = (event) => { try { parent.postMessage({ type: "parhlo-tour", event, duration: LOOP }, location.origin); } catch {} };
   let t0 = null, visible = true;
   if ("IntersectionObserver" in window) new IntersectionObserver(([e]) => (visible = e.isIntersecting)).observe(document.body);
-  const loop = now => { if (t0 === null) t0 = now; if (visible && !document.hidden) seek((now - t0) / 1000); requestAnimationFrame(loop); };
+  const loop = now => {
+    if (t0 === null) { t0 = now; if (once) tell("start"); }
+    const el = (now - t0) / 1000;
+    if (once && el >= LOOP) { seek(0); tell("end"); return; }
+    if (visible && !document.hidden) seek(el);
+    requestAnimationFrame(loop);
+  };
   requestAnimationFrame(loop);
 }
 </script>
