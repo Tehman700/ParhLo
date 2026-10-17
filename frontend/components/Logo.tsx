@@ -13,7 +13,7 @@ export function LogoMark({ size = 40, ...props }: { size?: number } & SVGProps<S
           <stop offset="1" stopColor="#F2A93B" />
         </linearGradient>
       </defs>
-      <rect width="64" height="64" rx="15" fill="#2b241e" />
+      <rect width="64" height="64" rx="15" fill="#1d1d1f" />
       <g className="logo-rays" stroke="#F2A93B" strokeWidth="2.6" strokeLinecap="round">
         <line x1="32" y1="9" x2="32" y2="13.5" />
         <line x1="17.5" y1="15" x2="20.6" y2="18.2" />
@@ -25,10 +25,10 @@ export function LogoMark({ size = 40, ...props }: { size?: number } & SVGProps<S
         <circle className="logo-sun" cx="32" cy="37" r="13" fill="url(#parhlo-sun)" />
       </g>
       <g className="logo-paper">
-        <path d="M13 37.5h38v13.5a3 3 0 0 1-3 3H16a3 3 0 0 1-3-3z" fill="#F7F4EC" />
-        <path d="M13 37.5h38l-4 3.2H17z" fill="#E4DFD2" />
-        <rect className="logo-line" x="18" y="43.5" width="28" height="2.2" rx="1.1" fill="#2b241e" />
-        <rect className="logo-line" x="18" y="47.7" width="20" height="2.2" rx="1.1" fill="#2b241e" opacity=".55" />
+        <path d="M13 37.5h38v13.5a3 3 0 0 1-3 3H16a3 3 0 0 1-3-3z" fill="#FFFFFF" />
+        <path d="M13 37.5h38l-4 3.2H17z" fill="#E0E0E0" />
+        <rect className="logo-line" x="18" y="43.5" width="28" height="2.2" rx="1.1" fill="#1d1d1f" />
+        <rect className="logo-line" x="18" y="47.7" width="20" height="2.2" rx="1.1" fill="#1d1d1f" opacity=".55" />
       </g>
     </svg>
   );
@@ -37,7 +37,7 @@ export function LogoMark({ size = 40, ...props }: { size?: number } & SVGProps<S
 export function Wordmark({ className = "" }: { className?: string }) {
   return (
     <span className={`font-masthead tracking-tight ${className}`}>
-      Parh<span className="italic text-[#C9861F]">Lo</span>
+      Parh<span className="italic text-primary">Lo</span>
     </span>
   );
 }

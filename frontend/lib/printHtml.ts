@@ -51,45 +51,45 @@ export function buildPrintHtml(ed: Edition): string {
 <style>
   @page { size: A4; margin: 12mm 11mm 14mm; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; background: #f7f4ec; color: #1d1d1f; }
+  html, body { margin: 0; background: #ffffff; color: #1d1d1f; }
   body { font-family: "Source Serif 4", Georgia, serif; font-size: 9.6pt; line-height: 1.42; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   a { color: inherit; text-decoration: none; }
   .wrap { padding: 0; }
-  .metaline { display: flex; justify-content: space-between; font: 600 7.6pt Inter, sans-serif; color: #5c5c5f; border-bottom: 0.8pt solid #1d1d1f; padding-bottom: 3pt; }
+  .metaline { display: flex; justify-content: space-between; font: 600 7.6pt Inter, sans-serif; color: #6e6e73; border-bottom: 0.8pt solid #1d1d1f; padding-bottom: 3pt; }
   .mast { text-align: center; font: 900 58pt/1 "Playfair Display", serif; letter-spacing: -1pt; margin: 6pt 0 2pt; }
-  .mast i { color: #c9861f; }
-  .tag { text-align: center; font-style: italic; font-size: 9pt; color: #5c5c5f; margin-bottom: 4pt; }
+  .mast i { color: #0066cc; }
+  .tag { text-align: center; font-style: italic; font-size: 9pt; color: #6e6e73; margin-bottom: 4pt; }
   .double { border-top: 3pt double #1d1d1f; }
-  .top { display: grid; grid-template-columns: 1.5fr 1fr; gap: 12pt; padding: 8pt 0; border-bottom: 0.6pt solid #d8d1c0; }
+  .top { display: grid; grid-template-columns: 1.5fr 1fr; gap: 12pt; padding: 8pt 0; border-bottom: 0.6pt solid #e0e0e0; }
   .note { font-style: italic; font-size: 11pt; line-height: 1.45; color: #333; }
-  .box { border: 0.6pt solid #d8d1c0; padding: 6pt 8pt; font: 8pt/1.4 Inter, sans-serif; }
+  .box { border: 0.6pt solid #e0e0e0; padding: 6pt 8pt; font: 8pt/1.4 Inter, sans-serif; }
   .box b { font: 700 15pt "Playfair Display", serif; }
   .alert { color: #c4291c; font-weight: 700; }
-  .kicker { font: 700 6.8pt Inter, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #c9861f; }
-  .disc { background: #1d1d1f; color: #f2a93b; padding: 0 4pt; border-radius: 6pt; }
+  .kicker { font: 700 6.8pt Inter, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #0066cc; }
+  .disc { background: #1d1d1f; color: #2997ff; padding: 0 4pt; border-radius: 6pt; }
   .front { display: grid; grid-template-columns: 1.7fr 1fr; gap: 14pt; padding: 10pt 0; border-bottom: 3pt solid #1d1d1f; }
   .lead h3 { font: 700 23pt/1.08 "Playfair Display", serif; margin: 4pt 0; }
   .lead-img { width: 100%; height: 150pt; object-fit: cover; margin-top: 4pt; }
   .deck { margin: 3pt 0; text-align: justify; hyphens: auto; }
   .dropcap::first-letter { float: left; font: 900 34pt/0.85 "Playfair Display", serif; padding: 3pt 4pt 0 0; }
-  .points { margin: 4pt 0; padding-left: 10pt; border-left: 1.5pt solid #f2a93b; list-style: none; }
-  .why { font-size: 8.4pt; font-style: italic; color: #5c5c5f; margin: 3pt 0; }
-  .why b { font-style: normal; color: #c9861f; }
+  .points { margin: 4pt 0; padding-left: 10pt; border-left: 1.5pt solid #2997ff; list-style: none; }
+  .why { font-size: 8.4pt; font-style: italic; color: #6e6e73; margin: 3pt 0; }
+  .why b { font-style: normal; color: #0066cc; }
   .meta { font: 7pt/1.4 Inter, sans-serif; color: #7a7a7a; margin: 3pt 0 0; }
   .meta a { color: #0066cc; }
   .ok { color: #1a7f37; font-weight: 700; }
   .muted { color: #7a7a7a; }
   .things { background: #1d1d1f; color: #fff; padding: 8pt 10pt; }
-  .things .kicker { color: #f2a93b; }
+  .things .kicker { color: #2997ff; }
   .things ol { margin: 4pt 0 0; padding-left: 14pt; }
   .things li { margin: 4pt 0; font-size: 9.6pt; }
   .side h4 { font: 700 7pt Inter; letter-spacing: .1em; text-transform: uppercase; color: #7a7a7a; margin: 10pt 0 3pt; }
   section { break-inside: auto; }
   .sec { font: 700 15pt "Playfair Display", serif; border-top: 2.4pt solid #1d1d1f; padding-top: 3pt; margin: 12pt 0 4pt; break-after: avoid; }
-  .cols { column-count: 3; column-gap: 12pt; column-rule: 0.6pt solid #d8d1c0; }
-  .story { break-inside: avoid; padding: 0 0 8pt; margin-bottom: 8pt; border-bottom: 0.6pt solid #d8d1c0; }
+  .cols { column-count: 3; column-gap: 12pt; column-rule: 0.6pt solid #e0e0e0; }
+  .story { break-inside: avoid; padding: 0 0 8pt; margin-bottom: 8pt; border-bottom: 0.6pt solid #e0e0e0; }
   .story h3 { font: 700 12.5pt/1.15 "Playfair Display", serif; margin: 2pt 0 3pt; }
-  .end { margin-top: 14pt; text-align: center; border-top: 3pt double #1d1d1f; padding-top: 8pt; font: italic 10pt "Source Serif 4", serif; color: #5c5c5f; }
+  .end { margin-top: 14pt; text-align: center; border-top: 3pt double #1d1d1f; padding-top: 8pt; font: italic 10pt "Source Serif 4", serif; color: #6e6e73; }
 </style></head><body><div class="wrap">
   <div class="metaline"><span>No. ${ed.number} · ${esc(ed.reader.city)}</span><span>${esc(date)}</span>
     <span>${m.weather ? `${m.weather.temp}°C ${esc(m.weather.condition)}` : ""}${m.air?.aqi != null ? ` · AQI ${m.air.aqi}` : ""}</span></div>

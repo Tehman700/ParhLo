@@ -1,26 +1,28 @@
 @import "tailwindcss";
 
-/* ParhLo design system.
+/* ParhLo design system — follows Design-Files/apple-DESIGN.md.
    App chrome: Apple-style (Design-Files/apple-DESIGN.md) — one blue action color, pill buttons, hairline cards.
    The paper itself: newspaper — newsprint, ink, serif masthead + headlines, column rules. Sunrise gold = brand only. */
 @theme {
-  --color-primary: #7a4e1d;           /* warm brown — ParhLo's action color */
-  --color-primary-focus: #8f5c22;
-  --color-primary-on-dark: #f2a93b;
-  --color-ink: #2b241e;               /* warm brown-black */
-  --color-ink-80: #43392f;
-  --color-ink-60: #6a5d50;
-  --color-ink-48: #8a7d6f;
-  --color-hairline: #e5dbca;
-  --color-divider: #efe7d9;
-  --color-canvas: #fffdf9;
-  --color-parchment: #f3ece0;          /* app background: light brown */
-  --color-newsprint: #f8f3e9;
-  --color-newsprint-dark: #ece6d8;
-  --color-rule: #d8d1c0;
-  --color-tile: #2b241e;
-  --color-sun: #f2a93b;
-  --color-sun-deep: #c9861f;
+  /* Exactly Design-Files/apple-DESIGN.md: one blue action color, white / parchment / near-black surfaces. */
+  --color-primary: #0066cc;
+  --color-primary-focus: #0071e3;
+  --color-primary-on-dark: #2997ff;
+  --color-ink: #1d1d1f;
+  --color-ink-80: #333333;
+  --color-ink-60: #6e6e73;
+  --color-ink-48: #7a7a7a;
+  --color-hairline: #e0e0e0;
+  --color-divider: #f0f0f0;
+  --color-canvas: #ffffff;
+  --color-parchment: #f5f5f7;
+  --color-pearl: #fafafc;
+  --color-newsprint: #ffffff;          /* the paper is a white tile */
+  --color-newsprint-dark: #f5f5f7;
+  --color-rule: #e0e0e0;
+  --color-tile: #272729;
+  --color-sun: #2997ff;                /* accents on dark tiles = Sky Link Blue */
+  --color-sun-deep: #0066cc;           /* accents on light surfaces = Action Blue */
   --color-danger: #c4291c;
   --color-success: #1a7f37;
 

@@ -133,7 +133,7 @@ export default function Onboarding() {
                 <label className="label" htmlFor="mix">News mix</label>
                 <div className="mt-3 flex items-center gap-4 text-[14px]">
                   <span>World</span>
-                  <input id="mix" type="range" min={0} max={1} step={0.1} value={regionMix} onChange={(e) => setRegionMix(Number(e.target.value))} className="flex-1 accent-[#2b241e]" />
+                  <input id="mix" type="range" min={0} max={1} step={0.1} value={regionMix} onChange={(e) => setRegionMix(Number(e.target.value))} className="flex-1 accent-[#0066cc]" />
                   <span>Pakistan</span>
                 </div>
               </div>
