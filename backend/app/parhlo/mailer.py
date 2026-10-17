@@ -1,6 +1,7 @@
 """Email via AWS SES (ap-south-1). Credentials: the app's own IAM user (PARHLO_AWS_*), else the default chain."""
 
 import asyncio
+import logging
 from functools import lru_cache
 
 import boto3
@@ -8,13 +9,15 @@ import boto3
 from app.core.config import get_settings
 from app.core.errors import AppError
 
+log = logging.getLogger("parhlo.mailer")
+
 
 @lru_cache(maxsize=1)
 def _ses():
     s = get_settings()
     creds = ({"aws_access_key_id": s.parhlo_aws_access_key_id, "aws_secret_access_key": s.parhlo_aws_secret_access_key}
              if s.parhlo_aws_access_key_id else {})
-    return boto3.client("sesv2", region_name=s.aws_region, **creds)
+    return boto3.client("sesv2", region_name=s.parhlo_aws_region, **creds)
 
 
 def _send(to: str, subject: str, html: str, text: str) -> str:
@@ -29,6 +32,7 @@ def _send(to: str, subject: str, html: str, text: str) -> str:
         )
         return res["MessageId"]
     except _ses().exceptions.MessageRejected as e:
+        log.warning("SES rejected mail to %s: %s", to, e)
         if "not verified" in str(e):
             raise AppError("We can't email this address yet (our email service is in sandbox mode). "
                            "Use Continue with Google or try a demo reader.", 400) from e
