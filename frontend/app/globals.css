@@ -1,0 +1,186 @@
+@import "tailwindcss";
+
+/* Design tokens (Design-Files/apple-DESIGN.md): one blue accent, parchment/white/near-black surfaces,
+   pill actions, 18px cards with hairlines, no decorative shadows or gradients. */
+@theme {
+  --color-primary: #0066cc;
+  --color-primary-focus: #0071e3;
+  --color-primary-on-dark: #2997ff;
+  --color-ink: #1d1d1f;
+  --color-ink-80: #333333;
+  --color-ink-48: #7a7a7a;
+  --color-muted-on-dark: #cccccc;
+  --color-hairline: #e0e0e0;
+  --color-divider: #f0f0f0;
+  --color-canvas: #ffffff;
+  --color-parchment: #f5f5f7;
+  --color-pearl: #fafafc;
+  --color-tile: #272729;
+  --color-tile-2: #2a2a2c;
+  --color-tile-3: #252527;
+  --color-chip: #d2d2d7;
+  --color-danger: #c4291c;
+  --color-success: #1a7f37;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", var(--font-inter), system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+
+  --radius-sm: 8px;
+  --radius-md: 11px;
+  --radius-lg: 18px;
+}
+
+html {
+  background: var(--color-parchment);
+}
+
+body {
+  background: var(--color-parchment);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 1.47;
+  letter-spacing: -0.374px;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .display {
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.07;
+  }
+
+  /* Surfaces */
+  .card {
+    background: var(--color-canvas);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+  }
+  .tile-dark {
+    background: var(--color-tile);
+    color: #fff;
+    border-radius: var(--radius-lg);
+    padding: 24px;
+  }
+
+  /* Buttons — press state is scale(0.95), focus is a 2px blue ring */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 9999px;
+    padding: 9px 20px;
+    font-size: 15px;
+    line-height: 1.2;
+    transition: transform 0.1s ease, background-color 0.15s ease, opacity 0.15s;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+  .btn:focus-visible,
+  .input:focus-visible,
+  .chip:focus-visible {
+    outline: 2px solid var(--color-primary-focus);
+    outline-offset: 2px;
+  }
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    background: var(--color-primary);
+    color: #fff;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-primary-focus);
+  }
+  .btn-secondary {
+    background: transparent;
+    color: var(--color-primary);
+    box-shadow: inset 0 0 0 1px var(--color-primary);
+  }
+  .btn-dark {
+    background: var(--color-ink);
+    color: #fff;
+    border-radius: var(--radius-sm);
+    padding: 8px 15px;
+    font-size: 14px;
+  }
+  .btn-ghost {
+    color: var(--color-primary);
+    padding: 6px 10px;
+  }
+
+  /* Inputs are pills (single line) or soft rounded areas (multi-line) */
+  .input {
+    width: 100%;
+    background: var(--color-canvas);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 9999px;
+    padding: 10px 18px;
+    font-size: 15px;
+    color: var(--color-ink);
+  }
+  textarea.input {
+    border-radius: var(--radius-lg);
+    resize: vertical;
+    line-height: 1.47;
+  }
+  select.input {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%237a7a7a' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 16px center;
+    padding-right: 40px;
+  }
+
+  /* Segmented control / option chips */
+  .chip {
+    border-radius: 9999px;
+    padding: 6px 14px;
+    font-size: 14px;
+    letter-spacing: -0.224px;
+    color: var(--color-ink-80);
+    transition: background-color 0.15s, color 0.15s;
+    cursor: pointer;
+  }
+  .chip[data-active="true"] {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    box-shadow: 0 0 0 1px var(--color-hairline);
+  }
+
+  .label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--color-ink-48);
+  }
+  .caption {
+    font-size: 14px;
+    line-height: 1.43;
+    letter-spacing: -0.224px;
+  }
+  .mono {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 0;
+  }
+}
+
+/* Typing indicator */
+@keyframes pulse-dot {
+  0%, 80%, 100% { opacity: 0.25; }
+  40% { opacity: 1; }
+}
+.dot {
+  animation: pulse-dot 1.2s infinite ease-in-out;
+}
+.dot:nth-child(2) { animation-delay: 0.15s; }
+.dot:nth-child(3) { animation-delay: 0.3s; }

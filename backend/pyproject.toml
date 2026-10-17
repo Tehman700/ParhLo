@@ -1,0 +1,36 @@
+[project]
+name = "nascon-backend"
+version = "0.1.0"
+description = "FastAPI backend for the NaSCon AI hackathon starter"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.8",
+    "pydantic-settings>=2.4",
+    "python-multipart>=0.0.9",
+    "openai>=1.50",
+    "httpx>=0.27",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "scikit-learn>=1.5",
+    "joblib>=1.4",
+    "pypdf>=4.3",
+    "pillow>=10.4",
+]
+
+[project.optional-dependencies]
+# Enable with: uv sync --extra mcp
+mcp = ["mcp>=1.2"]
+
+[dependency-groups]
+dev = ["pytest>=8.3", "pytest-asyncio>=0.24"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

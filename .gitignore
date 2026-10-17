@@ -1,0 +1,16 @@
+# Secrets
+.env
+.env.local
+
+# Runtime storage created by the backend (uploads, sqlite, indexes, models)
+data/
+
+# Python
+__pycache__/
+.venv/
+.pytest_cache/
+*.pyc
+
+# Node (frontend has its own .gitignore too)
+node_modules/
+.next/
