@@ -83,11 +83,15 @@ export function AskPaper({ edition }: { edition: Edition }) {
   const scroller = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLTextAreaElement>(null);
   const fab = useRef<HTMLButtonElement>(null);
+  const storyRef = useRef<number | null>(null);
 
   // Opened from a story card
   useEffect(() => {
     const onAsk = (e: Event) => {
-      const id = (e as CustomEvent<{ storyId?: number }>).detail?.storyId;
+      const id = (e as CustomEvent<{ storyId?: number }>).detail?.storyId ?? null;
+      // A different story starts a fresh conversation about it.
+      if (id !== null && id !== storyRef.current) setMsgs([]);
+      storyRef.current = id;
       setStory(edition.stories.find((s) => s.id === id) ?? null);
       setOpen(true);
     };
@@ -139,7 +143,7 @@ export function AskPaper({ edition }: { edition: Edition }) {
   return (
     <>
       {!open && (
-        <button ref={fab} onClick={() => { setStory(null); setOpen(true); }} aria-label="Ask your paper"
+        <button ref={fab} onClick={() => { if (storyRef.current !== null) setMsgs([]); storyRef.current = null; setStory(null); setOpen(true); }} aria-label="Ask your paper"
           className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-full bg-ink py-3 pl-4 pr-5 text-[15px] font-medium text-white shadow-[0_12px_32px_-8px_rgba(0,0,0,.45)] transition-transform hover:scale-[1.03] active:scale-95">
           <Sparkle /> Ask your paper
         </button>
@@ -155,7 +159,7 @@ export function AskPaper({ edition }: { edition: Edition }) {
               <p className="text-[17px] font-semibold leading-tight">Ask your paper</p>
               <p className="t-fine text-ink-48">Answers come only from your {edition.stories.length} stories</p>
             </div>
-            {msgs.length > 0 && <button className="t-caption text-primary" onClick={() => { setMsgs([]); setStory(null); }}>New</button>}
+            {msgs.length > 0 && <button className="t-caption text-primary" onClick={() => { setMsgs([]); setStory(null); storyRef.current = null; }}>New</button>}
             <button aria-label="Close" onClick={() => setOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full bg-parchment text-ink-60 hover:text-ink">✕</button>
           </div>
 
@@ -163,7 +167,7 @@ export function AskPaper({ edition }: { edition: Edition }) {
             <div className="flex items-center gap-2 border-b border-divider bg-pearl px-5 py-2.5">
               <span className="t-fine font-semibold text-primary">About</span>
               <span className="flex-1 truncate t-caption">{story.headline}</span>
-              <button aria-label="Ask about the whole paper" className="t-caption text-ink-48 hover:text-ink" onClick={() => setStory(null)}>✕</button>
+              <button aria-label="Ask about the whole paper" className="t-caption text-ink-48 hover:text-ink" onClick={() => { setStory(null); storyRef.current = null; }}>✕</button>
             </div>
           )}
 
