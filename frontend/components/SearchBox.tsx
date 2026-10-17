@@ -182,7 +182,7 @@ export function SearchBox() {
               {chip(region === "global", "World", () => setRegion("global"))}
             </div>
 
-            <div className="flex-1 overflow-y-auto px-2 py-2">
+            <div className="flex-1 overflow-y-auto px-2 py-2" data-query={res?.query ?? ""}>
               {q.trim().length < 2 ? (
                 <div className="px-3 py-3">
                   {recent.length > 0 && (
