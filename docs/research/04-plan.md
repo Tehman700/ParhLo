@@ -1,0 +1,88 @@
+# 04: Plan: ParhLo Flow, Architecture and Build Schedule
+
+_Agreed 2026-10-17, 10:40._ **Hard deadline 21:00. Submit (Loom + repo + diagram) by 20:20.**
+
+## Decisions
+| Topic | Decision |
+|---|---|
+| Hosting | **Live on Vercel + Neon Postgres (pgvector)**. One Vercel project: Next.js frontend + FastAPI backend (Vercel Services). PDFs and audio in Vercel Blob |
+| LLM | **Vercel AI Gateway** (cheap fast model for per-article summaries, stronger model for the per-user editor; embeddings via the gateway). **Jev**: evaluate later for topic tagging and relevance scoring if it fits |
+| Extras (priority order, cut from the bottom) | 1. Two-persona comparison 2. Ask your paper 3. Audio edition 4. Email "your paper is ready" 5. Push notifications (Web Push/PWA) |
+| Design | Paper pages use a newspaper look (serif headlines, columns, rules, masthead). App screens (onboarding, profile) use the clean Apple-style tokens from `Design-Files/` |
+
+## User flow
+```
+Landing → Onboarding (≈60 s) → "Printing your first paper…" → Today's Paper (web)
+   ├─ read / open original / skip / 👍 / 👎 / save → events
+   ├─ Download PDF (same frozen edition)
+   ├─ Archive → any past edition (web + PDF)
+   ├─ Ask your paper (chat with citations)   ├─ Listen (audio edition)
+   └─ Profile: "Your paper is learning" (what changed and why, editable)
+Nightly: events → profile update → tomorrow's edition is better
+```
+**Onboarding:**
+1. Name, reading time (5/10/20 min), and region mix (Pakistan/World).
+2. Topic chips with sub-topics.
+3. Yes/no on about 10 of today's real headlines.
+4. Optional free text, which the LLM turns into entities and interests.
+
+It ends on an editable interest profile card.
+
+**Paper:**
+- Masthead: "ParhLo", date, edition no., "Good morning, {name}".
+- Front page: lead story, top stories, and a **"3 things to remember today"** box.
+- Sections ordered by interest weight and sized to the chosen reading time.
+- Each story: headline, summary, "why you're seeing this", source link, and actions.
+
+## Architecture
+```
+Next.js (Vercel)  /onboarding  /paper/[date]  /paper/[date]/print  /archive  /profile  /compare
+   │  event tracker (click, dwell via IntersectionObserver, skip, 👍/👎, save)
+   ▼
+FastAPI (Vercel, Python)
+ ① INGEST (shared, cron hourly): RSS registry (~50 feeds) + Google News RSS per interest
+    → fetch → extract (trafilatura) → dedupe/cluster → embed → topic-tag → summarize once (cached)
+ ② RANK (per user): similarity to interest vectors + topic weight + recency + source quality
+    + cluster size − dislikes → MMR diversity → 10–15% discovery slot
+ ③ EDIT (per user, LLM → JSON): headlines, "why for you", lead, sections, 3 things
+ ④ PUBLISH: frozen edition JSON (web == PDF) → PDF via headless Chromium printing /print → Blob
+ ⑤ LEARN (nightly cron + on demand): events → topic weights (EMA), interest vectors (Rocchio),
+    source affinity → profile snapshot (drives the "learning" panel)
+   ▼
+Neon Postgres + pgvector: users, profiles, profile_snapshots, articles(+embedding), clusters,
+                          editions(json), events     |  Vercel Blob: PDFs, audio
+```
+**Key principle:** articles are ingested and summarized **once, shared by all users**. Only selection and the "why for you" line are per user. This keeps cost and latency low and scales.
+
+### Learning signals
+| Signal | Weight |
+|---|---|
+| 👍 / save | +1.0 |
+| Open original | +0.6 |
+| Long dwell | +0.3 |
+| Skip | −0.3 |
+| 👎 | −1.0 |
+
+Older signals decay over time.
+
+## Build schedule (commit at every ✔)
+| Time | Phase | Done when |
+|---|---|---|
+| 10:45–11:15 | Setup: Vercel project link, Neon + AI Gateway env, DB schema, quick competitor scan for the pitch | `vercel env pull` works, tables exist |
+| 11:15–13:00 | ① Ingest pipeline | ~300+ fresh, deduped, tagged, summarized articles in DB |
+| 13:00–14:30 | ②③ Profile + ranking + LLM editor | Edition JSON generated for a test persona |
+| 14:30–16:00 | Web paper + archive. **First production deploy** | Live URL shows a real paper |
+| 16:00–17:00 | ④ PDF + onboarding | Newspaper PDF downloads; new user → first paper |
+| 17:00–18:00 | ⑤ Learning loop + cron + learning panel | "Next day" edition visibly changes after interactions |
+| 18:00–19:15 | Extras in priority order | Each extra demoable or cut |
+| 19:15–19:30 | Code freeze, prod smoke test | — |
+| 19:30–20:20 | Architecture diagram, README, record Loom, **submit** | Form submitted |
+
+## Risks
+| Risk | Mitigation |
+|---|---|
+| Slow or failing feeds | Hourly shared ingest; generation never waits on the web |
+| Paywalls | Fall back to RSS summary |
+| PDF on serverless | Chromium for serverless; fallback: browser print-to-PDF of the same page |
+| LLM output errors | Structured JSON + validation + plain fallback layout |
+| Time | Core first; extras are cuttable |
