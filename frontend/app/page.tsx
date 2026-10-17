@@ -6,7 +6,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Link from "next/link";
 import { useRef } from "react";
 import { LogoMark } from "@/components/Logo";
-import { MotionLoop } from "@/components/MotionLoop";
+import { TourLightbox, TourPreview, WatchTourButton } from "@/components/ProductTour";
 import { BrowserFrame, PaperMock } from "@/components/PaperMock";
 import { StartButtons, TopBar } from "@/components/ui";
 
@@ -140,7 +140,10 @@ export default function Landing() {
         <p className="hero-sub t-lead mx-auto mt-4 max-w-2xl text-ink-60">
           ParhLo reads the news for you each night and puts what you care about into one short paper every morning.
         </p>
-        <div className="hero-cta mt-8"><StartButtons /></div>
+        <div className="hero-cta mt-8">
+          <StartButtons />
+          <WatchTourButton className="mt-5" />
+        </div>
         <div className="mx-auto mt-14 max-w-[880px]">
           <BrowserFrame className="hero-product rounded-b-none">
             <PaperMock />
@@ -160,9 +163,10 @@ export default function Landing() {
               <li><span className="font-semibold text-ink">Your topics.</span> Switch them on and off, and see what it has learned.</li>
               <li><span className="font-semibold text-ink">Ask your paper.</span> Questions answered from your stories, with sources.</li>
             </ul>
+            <WatchTourButton className="mt-6" />
           </div>
           <div className="slide-right">
-            <MotionLoop bg="ffffff" />
+            <TourPreview bg="ffffff" />
           </div>
         </div>
       </section>
@@ -284,6 +288,7 @@ export default function Landing() {
         <div className="reveal mt-8"><StartButtons /></div>
       </section>
 
+      <TourLightbox />
     </div>
   );
 }

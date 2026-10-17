@@ -10,7 +10,6 @@ import { FriendsPanel } from "@/components/dashboard/FriendsPanel";
 import { PaperStatus } from "@/components/dashboard/PaperStatus";
 import { SavedStories } from "@/components/dashboard/SavedStories";
 import { Row, Section } from "@/components/dashboard/Section";
-import { MotionLoop } from "@/components/MotionLoop";
 import { ErrorNote, Spinner, TopBar } from "@/components/ui";
 import type { Edition, Me } from "@/lib/api";
 import { useApi, useSession } from "@/lib/auth";
@@ -75,8 +74,7 @@ function Dashboard() {
     gsap.from(".dash-head > *", { y: 20, opacity: 0, stagger: 0.08, duration: 0.6, ease: "power3.out" });
     gsap.from(".panel", { y: 24, opacity: 0, stagger: 0.08, duration: 0.6, ease: "power3.out", delay: 0.1 });
     // Intro card: copy slides in from the left, the loop from the right.
-    gsap.from(".dash-tour .slide-left", { x: -60, opacity: 0, duration: 0.8, ease: "power3.out", delay: 0.15 });
-    gsap.from(".dash-tour .slide-right", { x: 60, opacity: 0, duration: 0.8, ease: "power3.out", delay: 0.23 });
+    gsap.from(".dash-tour a", { x: -24, opacity: 0, stagger: 0.06, duration: 0.5, ease: "power3.out", delay: 0.15 });
   }, { scope: root, dependencies: [Boolean(me)] });
 
   function flash(msg: string) {
@@ -210,19 +208,15 @@ function Dashboard() {
 
           <PaperStatus welcome={welcome} name={form.name || "there"} />
 
-          <section className="dash-tour grid items-center gap-6 overflow-hidden rounded-[18px] bg-canvas p-6 sm:grid-cols-[1.25fr_1fr] sm:p-8">
-            <div className="slide-left">
-              <h2 className="t-tagline">What you can do here</h2>
-              <p className="mt-1 t-caption text-ink-60">Everything on this page shapes tomorrow&apos;s paper.</p>
-              <ul className="mt-5 space-y-2.5 t-body">
-                <li><a href="#profile" className="link">Set your reading time ›</a></li>
-                <li><a href="#topics" className="link">Switch topics on or off ›</a></li>
-                <li><a href="#memory" className="link">See what ParhLo remembers ›</a></li>
-                <li><Link href="/paper" className="link">Ask your paper a question ›</Link></li>
-              </ul>
-            </div>
-            <div className="slide-right mx-auto w-full max-w-[440px]">
-              <MotionLoop bg="ffffff" wide />
+          {/* Quick links (the product tour video lives on the landing page, not in readers' dashboards). */}
+          <section className="dash-tour rounded-[18px] bg-canvas p-6 sm:p-8">
+            <h2 className="t-tagline">What you can do here</h2>
+            <p className="mt-1 t-caption text-ink-60">Everything on this page shapes tomorrow&apos;s paper.</p>
+            <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
+              {[["#profile", "Reading time"], ["#topics", "Your topics"], ["#memory", "What it remembers"], ["#saved", "Saved stories"]].map(([h, t]) => (
+                <a key={h} href={h} className="whitespace-nowrap rounded-[14px] bg-parchment px-4 py-3 t-caption font-medium text-ink transition-colors hover:bg-primary hover:text-white">{t} ›</a>
+              ))}
+              <Link href="/paper" className="whitespace-nowrap rounded-[14px] bg-parchment px-4 py-3 t-caption font-medium text-ink transition-colors hover:bg-primary hover:text-white">Ask your paper ›</Link>
             </div>
           </section>
 
