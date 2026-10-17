@@ -5,6 +5,7 @@ import gsap from "gsap";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { FrontPagePreview, type Preview } from "@/components/FrontPagePreview";
 import { LogoMark } from "@/components/Logo";
 import { ErrorNote, Spinner } from "@/components/ui";
 import { request, type Headline, type Me, type Topic } from "@/lib/api";
@@ -32,7 +33,9 @@ export default function Onboarding() {
   const [entities, setEntities] = useState<string[]>([]);
   const [entityDraft, setEntityDraft] = useState("");
   const [headlines, setHeadlines] = useState<Headline[]>([]);
-  const [swipes, setSwipes] = useState<{ article_id: number; liked: boolean }[]>([]);
+  const [swipes, setSwipes] = useState<{ article_id: number; liked: boolean; topic?: string }[]>([]);
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [about, setAbout] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,8 +46,28 @@ export default function Onboarding() {
 
   useEffect(() => {
     request<Topic[]>("/api/topics").then(setTopics).catch(() => {});
-    request<Headline[]>("/api/onboarding/headlines").then(setHeadlines).catch(() => {});
   }, []);
+
+  // C1: live front-page preview while picking topics (debounced).
+  useEffect(() => {
+    if (step !== 1) return;
+    const t = setTimeout(() => {
+      setPreviewLoading(true);
+      const q = new URLSearchParams({ topics: picked.join(","), entities: entities.join(",") });
+      request<Preview>(`/api/onboarding/preview?${q}`)
+        .then(setPreview).catch(() => {}).finally(() => setPreviewLoading(false));
+    }, 350);
+    return () => clearTimeout(t);
+  }, [step, picked, entities]);
+
+  // C2: swipe headlines from the chosen topics first, then a few to discover new interests.
+  useEffect(() => {
+    if (step !== 2) return;
+    let cancelled = false;
+    request<Headline[]>(`/api/onboarding/headlines?topics=${picked.join(",")}`)
+      .then((h) => !cancelled && setHeadlines(h)).catch(() => {});
+    return () => { cancelled = true; };
+  }, [step, picked]);
 
   useEffect(() => {
     if (!ready || !signedIn) return;
@@ -60,14 +83,18 @@ export default function Onboarding() {
     if (step === 1 && topics.length) gsap.from(".topic-chip", { y: 8, opacity: 0, stagger: 0.02, duration: 0.35, ease: "power2.out" });
   }, { scope: root, dependencies: [step, topics.length] });
 
-  const card = headlines[swipes.length];
+  const swipedIds = new Set(swipes.map((s) => s.article_id));
+  const passes: Record<string, number> = {};
+  for (const sw of swipes) if (!sw.liked && sw.topic) passes[sw.topic] = (passes[sw.topic] ?? 0) + 1;
+  const queue = headlines.filter((h) => !swipedIds.has(h.id) && (passes[h.topic ?? ""] ?? 0) < 2);
+  const card = queue[0];
 
   function swipe(liked: boolean) {
     if (!card) return;
     gsap.to(".swipe-card", {
       x: liked ? 420 : -420, rotate: liked ? 10 : -10, opacity: 0, duration: 0.35, ease: "power2.in",
       onComplete: () => {
-        setSwipes((s) => [...s, { article_id: card.id, liked }]);
+        setSwipes((s) => [...s, { article_id: card.id, liked, topic: card.topic }]);
         gsap.fromTo(".swipe-card", { x: 0, rotate: 0, opacity: 0, scale: 0.96 }, { opacity: 1, scale: 1, duration: 0.3 });
       },
     });
@@ -85,7 +112,7 @@ export default function Onboarding() {
     try {
       await api.post("/api/onboarding", {
         name: name.trim() || "Reader", city: otherCity.trim() || city, reading_minutes: minutes, region_mix: regionMix,
-        topics: picked, entities, about: about.trim() || null, swipes,
+        topics: picked, entities, about: about.trim() || null, swipes: swipes.map(({ article_id, liked }) => ({ article_id, liked })),
       });
       router.push("/paper?fresh=1");
     } catch (e) {
@@ -108,7 +135,7 @@ export default function Onboarding() {
         <div className="h-[2px] w-full bg-divider"><div className="progress-fill h-full w-0 bg-primary" /></div>
       </header>
 
-      <main className="step-body mx-auto max-w-[640px] px-4 pb-32 pt-14">
+      <main className={`step-body mx-auto px-4 pb-32 pt-14 ${step === 1 ? "max-w-[1040px]" : "max-w-[640px]"}`}>
         <p className="t-caption font-semibold text-primary">{STEPS[step]}</p>
 
         {step === 0 && (
@@ -148,9 +175,10 @@ export default function Onboarding() {
         )}
 
         {step === 1 && (
-          <>
+          <div className="grid gap-10 lg:grid-cols-[1fr_340px]">
+          <div>
             <h1 className="t-display mt-2">Choose your topics.</h1>
-            <p className="t-body mt-3 text-ink-60">Pick at least three. You can change these any time.</p>
+            <p className="t-body mt-3 text-ink-60">Pick at least three. Your front page updates as you choose.</p>
             <div className="mt-10 space-y-8">
               {groups.map((g) => (
                 <div key={g}>
@@ -182,20 +210,27 @@ export default function Onboarding() {
                 </div>
               </div>
             </div>
-          </>
+          </div>
+          <aside className="lg:sticky lg:top-20 lg:self-start">
+            <FrontPagePreview preview={preview} name={name.trim()} loading={previewLoading} />
+          </aside>
+          </div>
         )}
 
         {step === 2 && (
           <>
             <h1 className="t-display mt-2">Would you read these?</h1>
-            <p className="t-body mt-3 text-ink-60">These are real headlines from today. Your answers help us pick better stories.</p>
+            <p className="t-body mt-3 text-ink-60">Real headlines from today, starting with your topics. Pass on a topic twice and we&apos;ll stop showing it.</p>
             <div className="mt-10 flex flex-col items-center">
               {card ? (
                 <>
                   <div className="swipe-card w-full overflow-hidden rounded-[18px] border border-hairline bg-canvas">
                     {card.image_url && <img src={card.image_url} alt="" className="h-56 w-full object-cover" />}
                     <div className="p-6">
-                      <p className="t-caption text-ink-60">{card.source}</p>
+                      <p className="t-caption text-ink-60">
+                        {card.discovery ? <span className="mr-2 rounded-full bg-parchment px-2 py-0.5 t-fine font-semibold text-ink-60">Something new</span> : null}
+                        {card.source}
+                      </p>
                       <h2 className="mt-1 text-[24px] font-semibold leading-tight tracking-tight">{card.title}</h2>
                     </div>
                   </div>
@@ -203,7 +238,7 @@ export default function Onboarding() {
                     <button className="btn btn-light !h-12" onClick={() => swipe(false)}>Not interested</button>
                     <button className="btn btn-primary !h-12" onClick={() => swipe(true)}>Interested</button>
                   </div>
-                  <p className="mt-4 t-caption text-ink-48">{swipes.length + 1} of {headlines.length}</p>
+                  <p className="mt-4 t-caption text-ink-48">{swipes.length + 1} of {swipes.length + queue.length}</p>
                 </>
               ) : (
                 <div className="w-full rounded-[18px] bg-parchment p-10 text-center">
@@ -232,6 +267,13 @@ export default function Onboarding() {
                 <div className="flex justify-between gap-4"><dt className="text-ink-60">Topics</dt><dd className="text-right">{picked.map(label).join(", ")}</dd></div>
                 {entities.length > 0 && <div className="flex justify-between gap-4"><dt className="text-ink-60">Following</dt><dd className="text-right">{entities.join(", ")}</dd></div>}
               </dl>
+            </div>
+            <div className="mt-4 flex gap-3 rounded-[18px] border border-hairline p-5">
+              <span className="text-[20px] leading-none text-primary">ⓘ</span>
+              <p className="t-caption text-ink-60">
+                Your paper always includes the day&apos;s two biggest stories, plus what you care about. You can see and change
+                everything ParhLo learns about you on the Interests page.
+              </p>
             </div>
             <div className="mt-4"><ErrorNote error={error} /></div>
           </>

@@ -108,7 +108,7 @@ def find_or_create_user(email: str, name: str | None = None, google_sub: str | N
             return row
         return conn.execute(
             "insert into users (email, name, google_sub) values (%s, %s, %s) returning *",
-            (email, (name or email.split("@")[0]).strip()[:60], google_sub),
+            (email, (name or "Reader").strip()[:60], google_sub),  # "Reader" = ask in onboarding
         ).fetchone()
 
 

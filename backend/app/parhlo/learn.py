@@ -17,6 +17,8 @@ from app.parhlo.topics import TOPICS
 
 SIGNAL = {"like": 1.0, "save": 1.0, "open": 0.6, "skip": -0.3, "dislike": -1.0, "quiz_correct": 0.2}
 EVENT_TYPES = {*SIGNAL, "dwell", "listen", "ask", "pdf", "quiz_wrong"}
+ONBOARDING_DECAY = 0.988  # per nightly consolidation → half-life ≈ 57 days
+ONBOARDING_FLOOR = 0.3
 
 
 class EventIn(BaseModel):
@@ -90,6 +92,11 @@ def consolidate(user: dict) -> dict:
             affinity[src] = round(max(-0.5, min(0.5, 0.7 * affinity.get(src, 0) + 0.3 * (sum(vals) / len(vals)))), 3)
 
         add_anchors(conn, user["id"], [(e["title"], "clicked", 0.5, e["embedding"], aid) for aid, e in clicked.items()])
+        # Onboarding picks matter early, then fade slowly (half-life ~2 months) so real reading takes over,
+        # like Spotify's onboarding signals. A floor keeps stated interests from vanishing entirely.
+        conn.execute("update interest_anchors set weight = greatest(%s, weight * %s) where user_id=%s "
+                     "and kind in ('onboarding','entity') and weight > %s",
+                     (ONBOARDING_FLOOR, ONBOARDING_DECAY, user["id"], ONBOARDING_FLOOR))
         conn.execute("update interest_anchors set weight = weight * 0.97 where user_id=%s and kind in "
                      "('clicked','liked','disliked')", (user["id"],))
 

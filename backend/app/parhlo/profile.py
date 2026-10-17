@@ -1,5 +1,7 @@
 """Reader memory, layer 1 and 2: explicit profile (topic weights, entities) + interest anchors (embeddings)."""
 
+import re
+
 import httpx
 from pydantic import BaseModel, Field
 
@@ -142,18 +144,101 @@ def get_profile(user_id) -> dict:
     return {"user": user, "profile": prof, "anchors": anchors, "snapshots": snaps}
 
 
-def onboarding_headlines(limit: int = 12) -> list[dict]:
-    """A diverse set of today's real headlines (one or two per topic, with images) to swipe on."""
+TRUSTED_SOURCES = ("Dawn", "Express Tribune", "Geo News", "The News", "Business Recorder", "BBC News", "BBC Sport",
+                   "The Guardian", "The New York Times", "TechCrunch", "The Verge", "Ars Technica", "ESPNcricinfo")
+
+
+def _candidates(require_image: bool) -> list[dict]:
+    """Today's real, Jev-approved headlines from trusted outlets, most important first."""
     with db() as conn:
-        rows = conn.execute(
-            """select distinct on (topics[1]) id, title, source, image_url, topics
-               from articles
-               where embedding is not null and image_url is not null and cardinality(topics) > 0
-                 and fetched_at > now() - interval '2 days' and source in (
-                   'Dawn','Express Tribune','Geo News','BBC News','The Guardian','TechCrunch','The Verge',
-                   'ESPNcricinfo','BBC Sport','Ars Technica','Business Recorder','The News')
-               order by topics[1], published_at desc""").fetchall()
-    return rows[:limit]
+        return conn.execute(
+            f"""select id, title, source, image_url, topics, coalesce(importance, 0.4) as importance,
+                       coalesce(cluster_id, id) as story
+                from articles
+                where embedding is not null and cardinality(topics) > 0 and coalesce(junk, 0) < 0.78
+                  and fetched_at > now() - interval '2 days' and source = any(%s)
+                  {"and image_url is not null" if require_image else ""}
+                order by importance desc nulls last, published_at desc limit 3000""",
+            (list(TRUSTED_SOURCES),)).fetchall()
+
+
+def _words(title: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z]{4,}", title.lower())}
+
+
+def same_story(a: str, b: str) -> bool:
+    """Headline overlap check for stories two outlets worded differently (Jaccard ≥ 0.3 on 4+ letter words)."""
+    wa, wb = _words(a), _words(b)
+    return bool(wa and wb) and len(wa & wb) / len(wa | wb) >= 0.3
+
+
+def _real_headlines(rows: list[dict]) -> list[dict]:
+    """Drop 1–3 word editorial titles ("No talks") and keep one article per story across outlets."""
+    out, stories = [], set()
+    for r in rows:
+        if len(re.findall(r"[A-Za-z]{3,}", r["title"])) < 4 or r.get("story") in stories:
+            continue
+        if any(same_story(r["title"], o["title"]) for o in out[:60]):  # top stories are where duplicates hurt
+            continue
+        stories.add(r.get("story"))
+        out.append(r)
+    return out
+
+
+def _pick(rows: list[dict], topics: list[str], per_topic: int, extra: int) -> list[dict]:
+    """Up to `per_topic` stories per chosen topic (round-robin, so every topic shows up early),
+    then `extra` important stories from other topics (one per topic) to discover hidden interests."""
+    chosen, used_ids, seen_titles = [], set(), set()
+
+    def take(row, topic, discovery):
+        key = row["title"].lower()[:60]
+        if row["id"] in used_ids or key in seen_titles:
+            return False
+        used_ids.add(row["id"])
+        seen_titles.add(key)
+        chosen.append({**row, "topic": topic, "discovery": discovery})
+        return True
+
+    by_topic: dict[str, list[dict]] = {}
+    for r in rows:
+        by_topic.setdefault(r["topics"][0], []).append(r)
+    for round_ in range(per_topic):
+        for t in topics:
+            for r in by_topic.get(t, []):
+                if take(r, t, False):
+                    break
+    others = [t for t in by_topic if t not in topics]
+    others.sort(key=lambda t: -by_topic[t][0]["importance"])
+    for t in others[:extra]:
+        for r in by_topic[t]:
+            if take(r, t, True):
+                break
+    return chosen
+
+
+def onboarding_headlines(topics: list[str] | None = None, limit: int = 10) -> list[dict]:
+    """Real headlines to swipe on. With topics: chosen topics first, then 3 discovery headlines."""
+    topics = [t for t in (topics or []) if t in TOPICS]
+    rows = _real_headlines(_candidates(require_image=True))
+    if not topics:  # no picks yet: one per topic, most important first
+        return _pick(rows, [], 0, limit)
+    per_topic = max(1, min(3, (limit - 3) // len(topics)))
+    return _pick(rows, topics, per_topic, 3)[:limit]
+
+
+def onboarding_preview(topics: list[str], entities: list[str] | None = None) -> dict:
+    """A mini front page for the topics picked so far: today's top stories + the reader's topics."""
+    topics = [t for t in topics if t in TOPICS]
+    rows = _real_headlines(_candidates(require_image=False))
+    core = [{**r, "topic": r["topics"][0], "core": True} for r in rows[:2]]
+    core_ids = {r["id"] for r in core}
+    personal = _pick([r for r in rows if r["id"] not in core_ids], topics, 2, 0)[:6]
+    if entities:  # followed names that appear in today's headlines
+        names = [e.lower() for e in entities if e.strip()]
+        hits = [r for r in rows if any(n in r["title"].lower() for n in names) and r["id"] not in core_ids]
+        personal = [{**h, "topic": h["topics"][0], "followed": True} for h in hits[:2]] +                    [p for p in personal if p["id"] not in {h["id"] for h in hits[:2]}]
+    lead = next((p for p in personal if p.get("image_url")), personal[0] if personal else None)
+    return {"lead": lead, "stories": [p for p in personal if p is not lead][:5], "core": core}
 
 
 def _json(v):

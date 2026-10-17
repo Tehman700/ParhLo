@@ -31,8 +31,15 @@ def topics():
 
 
 @router.get("/onboarding/headlines")
-def onboarding_headlines():
-    return profile.onboarding_headlines()
+def onboarding_headlines(topics: str = ""):
+    """Headlines to swipe on; pass ?topics=ai,cricket for chosen topics first + 3 discovery."""
+    return profile.onboarding_headlines([t for t in topics.split(",") if t])
+
+
+@router.get("/onboarding/preview")
+def onboarding_preview(topics: str = "", entities: str = ""):
+    """Live front-page preview while the reader picks topics."""
+    return profile.onboarding_preview([t for t in topics.split(",") if t], [e for e in entities.split(",") if e])
 
 
 # ---------- reader ----------

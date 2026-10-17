@@ -37,7 +37,7 @@ export async function request<T>(path: string, init: RequestInit & { json?: unkn
 // ---------- types (mirror backend/app/parhlo) ----------
 
 export type Topic = { slug: string; label: string; group: string; desc: string };
-export type Headline = { id: number; title: string; source: string; image_url: string | null; topics: string[] };
+export type Headline = { id: number; title: string; source: string; image_url: string | null; topics: string[]; topic?: string; discovery?: boolean };
 
 export type Story = {
   id: number;
