@@ -3,6 +3,7 @@
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { useRef } from "react";
+import { sharpImage } from "@/lib/images";
 import { topicLabel } from "@/lib/topics";
 
 export type PreviewItem = { id: number; title: string; source: string; image_url: string | null; topic: string; core?: boolean; followed?: boolean };
@@ -42,7 +43,7 @@ export function FrontPagePreview({ preview, name, loading }: { preview: Preview 
             {preview?.lead && (
               <div className="pv-item mt-3">
                 <p className="kicker">{topicLabel(preview.lead.topic)}{preview.lead.followed ? " · You follow this" : ""}</p>
-                {preview.lead.image_url && <img src={preview.lead.image_url} alt="" referrerPolicy="no-referrer" className="mt-1.5 aspect-[16/9] w-full rounded-[8px] object-cover" />}
+                {preview.lead.image_url && <img src={sharpImage(preview.lead.image_url) ?? undefined} alt="" referrerPolicy="no-referrer" className="mt-1.5 aspect-[16/9] w-full rounded-[8px] object-cover" />}
                 <p className="headline mt-1.5 text-[16px]">{preview.lead.title}</p>
                 <p className="t-fine text-ink-48">{preview.lead.source}</p>
               </div>

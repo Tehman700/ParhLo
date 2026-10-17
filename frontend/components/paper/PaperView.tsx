@@ -142,15 +142,15 @@ function TodayCards({ morning }: { morning: Morning }) {
       {cards.map((c) => {
         const body = (
           <>
-            <p className={`t-caption ${c.alert ? "font-semibold text-danger" : "text-ink-60"}`}>{c.k}</p>
-            <p className="mt-1 text-[24px] font-semibold tracking-tight">{c.v}</p>
-            <p className="mt-0.5 line-clamp-2 t-caption text-ink-60">{c.s}</p>
+            <p className={`t-caption transition-colors group-hover:text-white/80 ${c.alert ? "font-semibold text-danger" : "text-ink-60"}`}>{c.k}</p>
+            <p className="mt-1 text-[24px] font-semibold tracking-tight transition-colors group-hover:text-white">{c.v}</p>
+            <p className="mt-0.5 line-clamp-2 t-caption text-ink-60 transition-colors group-hover:text-white/80">{c.s}</p>
           </>
         );
         return c.href ? (
-          <a key={c.k} href={c.href} target="_blank" rel="noopener noreferrer" className="today-card rounded-[18px] bg-parchment p-4 hover:bg-[#ececf0]">{body}</a>
+          <a key={c.k} href={c.href} target="_blank" rel="noopener noreferrer" className="today-card group rounded-[18px] bg-parchment p-4 transition-colors duration-200 hover:bg-primary">{body}</a>
         ) : (
-          <div key={c.k} className={`today-card rounded-[18px] p-4 ${c.alert ? "bg-[#fff2f2]" : "bg-parchment"}`}>{body}</div>
+          <div key={c.k} className={`today-card group rounded-[18px] p-4 transition-colors duration-200 hover:bg-primary ${c.alert ? "bg-[#fff2f2]" : "bg-parchment"}`}>{body}</div>
         );
       })}
     </div>

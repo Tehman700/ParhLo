@@ -10,6 +10,7 @@ import { LogoMark } from "@/components/Logo";
 import { ErrorNote, Spinner } from "@/components/ui";
 import { request, type Headline, type Me, type Topic } from "@/lib/api";
 import { useApi, useSession } from "@/lib/auth";
+import { sharpImage } from "@/lib/images";
 
 gsap.registerPlugin(useGSAP);
 
@@ -226,7 +227,7 @@ export default function Onboarding() {
               {card ? (
                 <>
                   <div className="swipe-card w-full overflow-hidden rounded-[18px] border border-hairline bg-canvas">
-                    {card.image_url && <img src={card.image_url} alt="" className="h-56 w-full object-cover" />}
+                    {card.image_url && <img src={sharpImage(card.image_url) ?? undefined} alt="" referrerPolicy="no-referrer" className="h-56 w-full object-cover" />}
                     <div className="p-6">
                       <p className="t-caption text-ink-60">
                         {card.discovery ? <span className="mr-2 rounded-full bg-parchment px-2 py-0.5 t-fine font-semibold text-ink-60">Something new</span> : null}

@@ -1,4 +1,5 @@
 import type { Edition, Story } from "./api";
+import { sharpImage } from "./images";
 import { topicLabel } from "./topics";
 
 /** One newspaper template for both the print preview and the server-rendered PDF (A4). */
@@ -24,7 +25,7 @@ function story(s: Story, lead = false, section?: string) {
   const label = section && section !== topic ? `<span class="sect">${esc(section)}</span> · ${esc(topic)}` : esc(section ?? topic);
   return `<article class="${lead ? "lead" : "story"}">
     <div class="kicker">${label}${s.core ? ' <span class="disc">Top story</span>' : ""}${s.discovery ? ' <span class="disc">New for you</span>' : ""}</div>
-    ${lead && s.image ? `<img class="lead-img" src="${esc(s.image)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}
+    ${lead && s.image ? `<img class="lead-img" src="${esc(sharpImage(s.image))}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}
     <h3><a href="${esc(s.url)}">${esc(s.headline)}</a></h3>
     <p class="${lead ? "deck dropcap" : "deck"}">${esc(s.summary)}</p>
     ${s.points.length ? `<ul class="points">${(lead ? s.points : s.points.slice(0, 2)).map((p) => `<li>${esc(p)}</li>`).join("")}</ul>` : ""}

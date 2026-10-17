@@ -3,6 +3,7 @@
 import gsap from "gsap";
 import { useEffect, useRef, useState } from "react";
 import type { Story } from "@/lib/api";
+import { sharpImage } from "@/lib/images";
 import { timeAgo, topicLabel } from "@/lib/topics";
 import { CheckedBadge } from "./CheckedBadge";
 import { askAbout } from "./AskPaper";
@@ -44,6 +45,7 @@ export function StoryCard({ story, variant = "normal", tracker, initial, section
   const [open, setOpen] = useState(true); // key points shown by default; readers can hide them
   const topic = topicLabel(story.topics[0]);
   const [imgFailed, setImgFailed] = useState(false);
+  const [imgSrc, setImgSrc] = useState(() => sharpImage(story.image, variant === "lead" ? 2000 : 1000));
   const lead = variant === "lead";
 
   useEffect(() => tracker.observe(ref.current, story.id) ?? undefined, [tracker, story.id]);
@@ -73,7 +75,7 @@ export function StoryCard({ story, variant = "normal", tracker, initial, section
         {story.discovery && <span className="rounded-full bg-parchment px-2 py-0.5 t-fine font-semibold text-ink-60">New for you</span>}
         {story.friend && <span className="rounded-full bg-[#e8f1fb] px-2 py-0.5 t-fine font-semibold text-primary">From {story.friend}</span>}
       </div>
-      {story.image && !imgFailed && <img src={story.image} alt="" referrerPolicy="no-referrer" onError={() => setImgFailed(true)} className={`mt-3 w-full rounded-[12px] object-cover ${lead ? "aspect-[16/9]" : "aspect-[16/10]"}`} />}
+      {imgSrc && !imgFailed && <img src={imgSrc} alt="" referrerPolicy="no-referrer" onError={() => (imgSrc !== story.image && story.image ? setImgSrc(story.image) : setImgFailed(true))} className={`mt-3 w-full rounded-[12px] object-cover ${lead ? "aspect-[16/9]" : "aspect-[16/10]"}`} />}
       <h3 className={`headline mt-3 ${lead ? "text-[32px] sm:text-[40px]" : "text-[20px]"}`}>
         <a href={story.url} target="_blank" rel="noopener noreferrer" onClick={() => tracker.track("open", story.id)} className="hover:text-primary">
           {story.headline}
