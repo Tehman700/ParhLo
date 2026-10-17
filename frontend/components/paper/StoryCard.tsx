@@ -37,6 +37,7 @@ export function StoryCard({ story, variant = "normal", tracker }: { story: Story
   const [saved, setSaved] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [open, setOpen] = useState(variant === "lead");
+  const [imgFailed, setImgFailed] = useState(false);
   const lead = variant === "lead";
 
   useEffect(() => tracker.observe(ref.current, story.id) ?? undefined, [tracker, story.id]);
@@ -59,7 +60,7 @@ export function StoryCard({ story, variant = "normal", tracker }: { story: Story
         <p className="kicker">{topicLabel(story.topics[0])}</p>
         {story.discovery && <span className="rounded-full bg-parchment px-2 py-0.5 t-fine font-semibold text-ink-60">New for you</span>}
       </div>
-      {story.image && <img src={story.image} alt="" className={`mt-3 w-full rounded-[12px] object-cover ${lead ? "aspect-[16/9]" : "aspect-[16/10]"}`} />}
+      {story.image && !imgFailed && <img src={story.image} alt="" referrerPolicy="no-referrer" onError={() => setImgFailed(true)} className={`mt-3 w-full rounded-[12px] object-cover ${lead ? "aspect-[16/9]" : "aspect-[16/10]"}`} />}
       <h3 className={`headline mt-3 ${lead ? "text-[32px] sm:text-[40px]" : "text-[20px]"}`}>
         <a href={story.url} target="_blank" rel="noopener noreferrer" onClick={() => tracker.track("open", story.id)} className="hover:text-primary">
           {story.headline}
