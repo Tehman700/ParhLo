@@ -63,6 +63,7 @@ Snapshots (`profile_snapshots`) power the **Interests** page ("what changed and 
 ## 7. API (FastAPI, all under `/api`)
 Auth: `POST /auth/otp/request`, `POST /auth/otp/verify`, `GET /auth/google/start`, `GET /auth/google/callback`, `GET /auth/me`, `POST /auth/logout`
 Reader: `GET /me`, `POST /onboarding`, `PATCH /me` (name, city, reading time, mix, about → re-extracted into anchors), `PUT /me/topics/{slug}` {on}, `POST /me/following`, `DELETE /me/following?name=`, `DELETE /me` (account + all data; not for demo readers), `PATCH /me/topics`, `DELETE /me/anchors/{id}`, `POST /editions/generate`, `GET /editions`, `GET /editions/{date}`, `POST /events`, `POST /learn`, `GET /morning`
+Email: `GET /me/email`, `POST /me/email/send` (3/hour), `GET|POST /email/unsubscribe?u&t` (HMAC token, RFC 8058 one-click), `GET /cron/email` (Bearer CRON_SECRET, 01:00 UTC).
 Ask: `POST /ask` {question, date?, story_id?, history[]} → {answer, in_paper, sources[], follow_ups[], route{by, ms, focus}} (Jev Choice routes over the paper's headlines + "whole paper" + "not in paper"; keyword fallback; LLM answers only from the edition with full text of routed stories; asking = reading signal +0.5).
 Saved/friends: `GET /me/saved`, `GET /me/friends`, `DELETE /me/friends/{id}`, `GET /invites/{code}` (public), `POST /invites/{code}/accept`, `GET /notifications`, `POST /notifications/read`. `GET /editions/{date}` and `POST /editions/generate` include `state` (reactions + saved). Events also accept `unreact`, `unsave`.
 Public/demo: `GET /health`, `GET /topics`, `GET /onboarding/headlines?topics=` (chosen topics first, then 3 discovery), `GET /onboarding/preview?topics=&entities=` (live front page), `GET /demo/personas`, `POST /demo/start`
@@ -72,6 +73,12 @@ Frontend route: `GET /pdf/{date}` (Next.js route handler → Chromium → A4 PDF
 
 ## 7b. Friends ("Learn from friends", one switch, off by default)
 A friend's likes/saves reach your paper only if **both** of you have it on. Effects: up to 2 **friend picks** (stories they liked in the last 3 days that are in your ranked pool; they replace your weakest personal picks, never Top stories or discovery; labelled "Ali liked this") and a nightly **drift** of your topic weights toward friends' strong interests (≥ 0.5): 10% of the gap, max +0.03 per topic per night, never for topics you switched off. Turning it off stops both; nothing learned is reverted.
+
+## 7c. Morning email (job queue in Postgres)
+Celery needs Redis plus an always-on worker and n8n would be another hosted service; neither fits serverless Vercel, so the queue is a table (outbox pattern). `/cron/daily` prints papers, then enqueues one `email_jobs` row per reader (unique per reader and paper) and drains; `/cron/email` (06:00 PKT) enqueues stragglers and retries. A drain claims due jobs with `UPDATE … WHERE id IN (SELECT … FOR UPDATE SKIP LOCKED)`, sends 4 at a time (Gmail SMTP, SES fallback), and marks `sent`, or `queued` with backoff (5/10 min), or `failed` after 3 attempts; jobs stuck in `sending` > 10 min are re-queued. Email = table-layout HTML + plain text with List-Unsubscribe headers.
+
+## 7d. CI/CD
+GitHub → Vercel auto-deploys every push to `main`. GitHub Actions: `ci.yml` (backend: uv sync, ruff E9/F, pytest; frontend: pnpm install, next typegen + tsc, eslint, next build) and `smoke.yml` (on Vercel's production `deployment_status`: waits until `/api/health.commit` equals the deployed SHA, then checks API responses and 7 pages).
 
 ## 8. Measured numbers (production, 2026-10-17)
 | Metric | Value |

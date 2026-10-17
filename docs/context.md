@@ -55,7 +55,9 @@ All secrets are in Vercel env and the root `.env` (gitignored). Never commit or 
 | **D** Full flow test | ✅ live, E2E 31/31 with two accounts |
 | **E** Demo readers (2 read-only sample readers, guest cleanup) | ✅ live, E2E 23/23 |
 | **G** Ask your paper + personal front page fix | ✅ live, E2E 13/13 |
-| F Compare · H Audio · I Email | ⬜ |
+| **I** Morning email (Postgres queue) | ✅ live, E2E 18/18 |
+| CI/CD (GitHub Actions + production smoke test) | ✅ |
+| F Compare · H Audio | ✂ dropped (user decision) |
 | J Submission (README, diagram, Loom) | from 19:15 |
 
 ## Known issues and notes
@@ -63,6 +65,8 @@ All secrets are in Vercel env and the root `.env` (gitignored). Never commit or 
 - **Email:** Gmail stays primary even though SES is out of sandbox, because SES sending from a gmail.com address fails DMARC and lands in spam. Move to SES once we own a domain.
 - **Sample readers:** `users.persona` (Ayesha `e9079294-…`, Omar `104a8db0-…`). Read-only; nightly cron prints their paper but never consolidates them. Demo guests (`is_demo and not persona`) are deleted after 3 days.
 - **Web app copy is a general consumer product:** no event or hackathon names anywhere in the UI.
+- **CI:** every push runs `.github/workflows/ci.yml`; every production deploy runs `smoke.yml`. The frontend build retries once (Google Fonts fetch is flaky on runners). Another Claude session also pushes UI work to `main`: always `git pull --rebase` before pushing.
+- **Local `PUBLIC_URL` is localhost** (production has the real one); links built locally (emails, unsubscribe) point at localhost.
 - **Full flow E2E:** `ui/full_flow.mjs` (two accounts, ~4 min, deletes both at the end).
 - **Production E2E scripts** live in the session scratchpad (`ui/batch_e2e.mjs`, `ui/mkotp.py` creates a sign-in code in the DB without sending email; `ui/cleanup.py` deletes `rivonna.ai+e2e*` test accounts).
 - **Windows dev:** set `PYTHONUTF8=1`. Python from bash can't read `/tmp`, so use the scratchpad.

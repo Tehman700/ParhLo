@@ -89,7 +89,7 @@ Older signals decay over time.
 | LLM output errors | Structured JSON + validation + plain fallback layout |
 | Time | Core first; extras are cuttable |
 
-## Module status (updated 2026-10-17, ~19:30)
+## Module status (updated 2026-10-17, 16:30 PKT)
 | Module | Status | Notes |
 |---|---|---|
 | Setup + auto-deploy | ✅ | Vercel services, Neon, AWS, GitHub → Vercel |
@@ -103,10 +103,11 @@ Older signals decay over time.
 | Reactions, saves, friends | ✅ | Persistent like/dislike/save with undo, saved list; invite links, bell notifications, Learn from friends (friend picks + gentle drift, no reset when off) |
 | **D** Full flow test | ✅ | Two real accounts on production, 31/31 (sign-up → onboarding UI → background paper → reactions → saved → learn → tomorrow → PDF → invite → notifications → friend picks → drift → off) |
 | **E** Demo readers | ✅ | `persona` flag: only Ayesha (Lahore, AI/tech/startups) and Omar (Karachi, economy/business/cricket) on /demo; read-only (403 on edits, events ignored, no nightly learning), banner on their paper, locked dashboard; guests separate and editable, removed after 3 days; test leftovers deleted; better lead fallback + code-set why-lines. E2E 23/23 |
-| F Two-persona compare | ⬜ | `/compare` page |
+| F Two-persona compare | ✂ dropped | User decision: not needed |
 | **G** Ask your paper | ✅ | Floating widget + per-story "Ask"; Jev routes the question (≈0.4 s), gpt-5-mini answers only from the edition with sources + follow-ups (≈3–6 s). Also fixed: front page always a personal story, same event across outlets deduped, yesterday's events not repeated, weather retry. E2E 13/13 |
-| H Audio edition | ⬜ | Script → Polly → S3 → player |
-| I Morning email | ⬜ | SES, top stories + PDF link |
+| H Audio edition | ✂ dropped | User decision: not needed |
+| **I** Morning email | ✅ | Postgres job queue (outbox, SKIP LOCKED, retries), nightly + 06:00 PKT cron, newspaper-style email, one-click unsubscribe, dashboard switch + send-now. E2E 18/18 |
+| CI/CD | ✅ | GitHub Actions: backend ruff + 60 tests, frontend typegen + tsc + lint + build on every push; production smoke test after each Vercel deploy (waits for the deployed commit) |
 | J Submission | from 19:15 | README, architecture diagram (research session), Loom, form |
 
 The original timetable above is superseded by this table. Push notifications and the WhatsApp-forward check are dropped for time.
