@@ -53,18 +53,19 @@ Snapshots (`profile_snapshots`) power the **Interests** page ("what changed and 
 **Onboarding signals fade:** onboarding/followed-name anchors decay ×0.988 per nightly learn (half-life ≈ 57 days, floor 0.3) so real reading takes over (Spotify-style). Swipe passes lower a topic's weight; two passes on a topic remove it from the swipe queue.
 
 ## 5. Auth (own implementation, no third-party auth provider)
-- **Email OTP:** 6-digit code, only an HMAC hash stored (`otp_codes`), 10-min expiry, 5 attempts, 5/hour per email; sent via **AWS SES** (sandbox → verified addresses only until production access).
+- **Email OTP:** 6-digit code, only an HMAC hash stored (`otp_codes`), 10-min expiry, 5 attempts, 5/hour per email; sent via **Gmail SMTP** (app password), falling back to **AWS SES** (production access, 50k/day).
 - **Google OAuth:** authorization-code flow; ID token verified against Google JWKS (`email_verified` required).
-- **Session:** HS256 JWT in an **httpOnly, Secure, SameSite=Lax** cookie (30 days). **Demo readers:** `X-Demo-User` header (no sign-up, for judges).
+- **Session:** HS256 JWT in an **httpOnly, Secure, SameSite=Lax** cookie (30 days). **Demo readers:** `X-Demo-User` header (no sign-up), used only when no valid session cookie/Bearer is present: a real account always wins. Sign-out is a full page reload to `/`.
 
 ## 6. Data model (Neon Postgres, `backend/app/core/schema.sql`)
 `users` (id, name, email, google_sub, city, lat/lon, reading_minutes, region_mix, onboarded, is_demo) · `profiles` (topics jsonb, entities, about, source_affinity) · `interest_anchors` (label, kind, weight, embedding vector(1536)) · `articles` (url, source, region, title, rss_summary, content, image, published_at, topics[], embedding vector(1536) HNSW, cluster_id, ai_summary, ai_points jsonb{points, grounded_in, check{by, confidence, ms}}, summary_verified, **importance, junk, topic_confidence, jev_checked_at**) · `editions` (user_id, edition_date, number, data jsonb, pdf_key, audio_key) · `events` · `profile_snapshots` · `otp_codes`.
 
 ## 7. API (FastAPI, all under `/api`)
 Auth: `POST /auth/otp/request`, `POST /auth/otp/verify`, `GET /auth/google/start`, `GET /auth/google/callback`, `GET /auth/me`, `POST /auth/logout`
-Reader: `GET /me`, `POST /onboarding`, `PATCH /me/topics`, `DELETE /me/anchors/{id}`, `POST /editions/generate`, `GET /editions`, `GET /editions/{date}`, `POST /events`, `POST /learn`, `GET /morning`
+Reader: `GET /me`, `POST /onboarding`, `PATCH /me` (name, city, reading time, mix, about → re-extracted into anchors), `PUT /me/topics/{slug}` {on}, `POST /me/following`, `DELETE /me/following?name=`, `DELETE /me` (account + all data; not for demo readers), `PATCH /me/topics`, `DELETE /me/anchors/{id}`, `POST /editions/generate`, `GET /editions`, `GET /editions/{date}`, `POST /events`, `POST /learn`, `GET /morning`
 Public/demo: `GET /health`, `GET /topics`, `GET /onboarding/headlines?topics=` (chosen topics first, then 3 discovery), `GET /onboarding/preview?topics=&entities=` (live front page), `GET /demo/personas`, `POST /demo/start`
 Cron (Bearer `CRON_SECRET`): `GET /cron/ingest` (ingest + Jev backfill), `GET /cron/daily` (learn + print everyone's paper)
+Frontend pages: `/`, `/sign-in`, `/start`, `/onboarding`, `/paper`, `/paper/{date}`, `/archive`, `/dashboard` (`/profile` redirects), `/demo`, `/privacy`, `/terms`, `/about`, `/how-it-works`; site-wide footer.
 Frontend route: `GET /pdf/{date}` (Next.js route handler → Chromium → A4 PDF)
 
 ## 8. Measured numbers (production, 2026-10-17)

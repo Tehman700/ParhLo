@@ -89,7 +89,7 @@ Older signals decay over time.
 | LLM output errors | Structured JSON + validation + plain fallback layout |
 | Time | Core first; extras are cuttable |
 
-## Module status (updated 2026-10-17, ~15:30)
+## Module status (updated 2026-10-17, ~16:30)
 | Module | Status | Notes |
 |---|---|---|
 | Setup + auto-deploy | ✅ | Vercel services, Neon, AWS, GitHub → Vercel |
@@ -98,6 +98,7 @@ Older signals decay over time.
 | **A** Live AI pipeline | ✅ | Ingest → rank → summarize → edit → paper → PDF on production (19–34 s) |
 | **B** Jev decision layer | ✅ | Topic/junk/importance at ingest, 2 Top-story slots, Jev summary check (434 ms vs 941 ms LLM, same accuracy) |
 | **C** Onboarding upgrade | ✅ | Live front-page preview, adaptive swipes (topic dropped after 2 passes), name prefill, transparency note, onboarding interests fade (×0.988/night). E2E 15/15 on production |
+| Account batch | ✅ | Real sign-in always beats a demo session; OTP to any email (Gmail SMTP, SES fallback, SES out of sandbox); `/dashboard` (profile, topic switches, following, about you, memory, account, delete); `/privacy`, `/terms`, `/about`, `/how-it-works`, site footer; no event branding. Production E2E 32/32 |
 | **D** Full flow test | ⏳ next | Sign in → onboarding → paper → react → learn → tomorrow's paper → PDF |
 | E Demo readers | ⬜ | 2 personas, delete Fixture Reader |
 | F Two-persona compare | ⬜ | `/compare` page |

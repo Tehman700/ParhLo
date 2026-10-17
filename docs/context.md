@@ -36,8 +36,8 @@ The pitch: **"Jev decides, the LLM writes."**
 | LLM | OpenAI direct (`LLM_API_KEY`): gpt-5-mini (editor, extraction), gpt-5-nano (summaries), text-embedding-3-small |
 | Decision model | **Jev** (TypeSafe System One, `TYPESAFE_API_KEY`, `jev-latest`) |
 | AWS (ap-south-1) | IAM user `parhlo-vercel` (S3 bucket `parhlo-media-109257212304`, Polly, SES). Keys are `PARHLO_AWS_*`, because Vercel reserves `AWS_*` and injects `AWS_REGION=us-east-1` |
-| Email | SES sandbox: only `tehmanhassan@gmail.com` and `rivonna.ai@gmail.com` are verified (sender is tehmanhassan@gmail.com) |
-| Auth | Own: email OTP via SES + Google OAuth → httpOnly session cookie. Demo readers via `X-Demo-User` |
+| Email | **Gmail SMTP** (`GMAIL_USER` + `GMAIL_APP_PASSWORD`, sender tehmanhassan@gmail.com) reaches any address; **SES** (out of sandbox, 50k/day) is the automatic fallback |
+| Auth | Own: email OTP (Gmail SMTP) + Google OAuth → httpOnly session cookie. Demo readers via `X-Demo-User` |
 
 All secrets are in Vercel env and the root `.env` (gitignored). Never commit or print them.
 
@@ -50,13 +50,17 @@ All secrets are in Vercel env and the root `.env` (gitignored). Never commit or 
 | **A** Live AI pipeline (ingest → rank → summarize → edit → paper → PDF) | ✅ live, 19–34 s per paper |
 | **B** Jev layer (topic, junk, importance, 2 Top-story slots, summary check with confidence, LLM fallback) | ✅ live, 42 tests pass |
 | **C** Onboarding upgrade (live preview, adaptive swipes, transparency, fading) | ✅ live, E2E 15/15 |
+| Account batch: demo/login fix, OTP to any email, `/dashboard`, privacy/terms/about/how-it-works, footer | ✅ live, E2E 32/32 |
 | **D** Full flow test | ⏳ next |
 | E Demo readers · F Compare · G Ask your paper · H Audio · I Email | ⬜ |
 | J Submission (README, diagram, Loom) | from 19:15 |
 
 ## Known issues and notes
 - **Dawn blocks Vercel's IPs;** we use Google News `site:dawn.com` instead. Those links can't be read in full, so those summaries use the excerpt, and the lead story must be full-text.
-- **SES sandbox:** OTP only reaches the 2 verified emails. Production access has not been requested yet.
+- **Email:** Gmail stays primary even though SES is out of sandbox, because SES sending from a gmail.com address fails DMARC and lands in spam. Move to SES once we own a domain.
+- **Demo personas** are recognised only by `is_demo and name <> 'Guest'`. A guest who onboards with a name shows up as a persona, and demo readers can edit their shared profile. Add a `persona` flag in Module E. Demo readers can't delete themselves (400).
+- **Web app copy is a general consumer product:** no event or hackathon names anywhere in the UI.
+- **Production E2E scripts** live in the session scratchpad (`ui/batch_e2e.mjs`, `ui/mkotp.py` creates a sign-in code in the DB without sending email; `ui/cleanup.py` deletes `rivonna.ai+e2e*` test accounts).
 - **Test readers in the DB:**
   - Ayesha `e9079294-e5aa-4719-92bd-1da7db1b88fd` (Lahore, AI/tech)
   - Omar `104a8db0-b1bb-4853-85b5-7606ff152ced` (Karachi, business/cricket)
