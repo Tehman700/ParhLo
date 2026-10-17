@@ -147,6 +147,7 @@ async def delete_anchor(anchor_id: int, user=Depends(writable_user)):
 class GenerateIn(BaseModel):
     date: dt.date | None = None
     force: bool = False
+    fast: bool = False  # the page asks for a fast first print and polishes it right after (no waiting)
 
 
 @router.post("/editions/generate")
@@ -155,7 +156,7 @@ async def generate(body: GenerateIn, user=Depends(current_user)):
         raise AppError("Finish onboarding first", 409)
     if body.force and user.get("persona"):
         raise AppError(SAMPLE_READ_ONLY, 403)
-    return _with_state(user, await editions.generate_edition(user, body.date, body.force))
+    return _with_state(user, await editions.generate_edition(user, body.date, body.force, fast=body.fast))
 
 
 def _with_state(user: dict, ed: dict) -> dict:

@@ -44,7 +44,7 @@ export function PaperStatus({ welcome, name }: { welcome: boolean; name: string 
     let cancelled = false;
     // Only show "preparing" if the paper isn't already there (an existing paper returns instantly).
     const slow = setTimeout(() => !cancelled && setBuilding(true), 700);
-    api.post<Edition>("/api/editions/generate", {})
+    api.post<Edition>("/api/editions/generate", { fast: true })  // instant print; polished in the background
       .then((e) => !cancelled && setEdition(e))
       .catch((e) => !cancelled && setError(e.message))
       .finally(() => clearTimeout(slow));

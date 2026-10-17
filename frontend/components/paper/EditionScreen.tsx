@@ -35,7 +35,7 @@ export function EditionScreen({ date }: { date?: string }) {
     if (!ready) return;
     if (!signedIn) return void router.replace("/");
     let cancelled = false;
-    const fetchEdition = date ? api.get<Edition>(`/api/editions/${date}`) : api.post<Edition>("/api/editions/generate", {});
+    const fetchEdition = date ? api.get<Edition>(`/api/editions/${date}`) : api.post<Edition>("/api/editions/generate", { fast: true });  // polished in the background
     fetchEdition
       .then((e) => !cancelled && setEdition(e))
       .catch((e: Error & { status?: number }) => {
