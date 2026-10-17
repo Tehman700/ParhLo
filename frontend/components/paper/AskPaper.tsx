@@ -110,6 +110,14 @@ export function AskPaper({ edition }: { edition: Edition }) {
   }, [open]);
 
   useEffect(() => {
+    const id = Number(new URLSearchParams(window.location.search).get("ask"));
+    if (!id || !edition.stories.some((s) => s.id === id)) return;
+    const t = setTimeout(() => askAbout(id), 600);
+    window.history.replaceState(null, "", window.location.pathname + window.location.hash);
+    return () => clearTimeout(t);
+  }, [edition]);
+
+  useEffect(() => {
     gsap.fromTo(fab.current, { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, delay: 1.2, ease: "back.out(1.6)" });
   }, []);
 

@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from app.core.config import get_settings
 from app.core.database import db
 from app.core.errors import AppError, NotFoundError
-from app.parhlo import ask, digest, editions, friends, learn, profile, refresh
+from app.parhlo import ask, digest, editions, friends, learn, profile, refresh, search, support
 from app.parhlo.auth import AuthError, clear_session, current_user
 from app.parhlo.ingest import ingest, jev_backfill
 from app.parhlo.morning import morning_box
@@ -249,6 +249,22 @@ def email_unsubscribe(request: Request, u: str = "", t: str = ""):
 <p style="font-size:17px;line-height:1.47;color:#6e6e73">{msg}</p>
 <a href="{base}/dashboard" style="display:inline-block;margin-top:8px;background:#0066cc;color:#fff;text-decoration:none;padding:10px 22px;border-radius:999px">Open dashboard</a>
 </div></body></html>""", status_code=200 if ok else 400)
+
+
+@router.get("/search")
+async def search_news(q: str, days: int = 2, region: str | None = None, user=Depends(current_user)):
+    """Search the news by meaning and by words; your paper's stories first."""
+    return await search.search(user, q, days=max(1, min(days, 14)), region=region)
+
+
+@router.post("/support")
+async def support_message(body: support.SupportIn, request: Request):
+    """Help & contact form (works signed out too)."""
+    try:
+        user = current_user(request, request.headers.get("authorization"), request.headers.get("x-demo-user"))
+    except Exception:
+        user = None
+    return await support.submit(body, user)
 
 
 @router.get("/me/saved")

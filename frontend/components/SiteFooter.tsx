@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 const COLUMNS = [
   { title: "ParhLo", links: [["How it works", "/how-it-works"], ["Try the demo", "/demo"], ["Sign in", "/sign-in"]] },
   { title: "Your account", links: [["Today's paper", "/paper"], ["Past papers", "/archive"], ["Dashboard", "/dashboard"]] },
-  { title: "About", links: [["About ParhLo", "/about"], ["Privacy Policy", "/privacy"], ["Terms of Use", "/terms"]] },
+  { title: "About", links: [["About ParhLo", "/about"], ["Help & contact", "/help"], ["Privacy Policy", "/privacy"], ["Terms of Use", "/terms"]] },
 ] as const;
 
 const HIDDEN = ["/onboarding", "/sign-in", "/sign-up", "/sso-callback"];
@@ -39,7 +39,7 @@ export function SiteFooter() {
           <span className="flex gap-4">
             <Link href="/privacy" className="hover:text-ink">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-ink">Terms of Use</Link>
-            <a href="mailto:tehmanhassan@gmail.com" className="hover:text-ink">Contact</a>
+            <Link href="/help" className="hover:text-ink">Help &amp; contact</Link>
           </span>
         </div>
       </div>

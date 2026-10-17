@@ -4,7 +4,6 @@ import gsap from "gsap";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { CONTACT_EMAIL } from "@/lib/site";
 
 export type NavItem = { href: string; label: string; external?: boolean };
 
@@ -17,7 +16,7 @@ export const ACCOUNT_LINKS: NavItem[] = [
 export const HELP_LINKS: NavItem[] = [
   { href: "/how-it-works", label: "How it works" },
   { href: "/jev", label: "How we check stories" },
-  { href: `mailto:${CONTACT_EMAIL}`, label: "Help & contact", external: true },
+  { href: "/help", label: "Help & contact" },
 ];
 
 function useDismiss(open: boolean, close: () => void, box: React.RefObject<HTMLElement | null>) {

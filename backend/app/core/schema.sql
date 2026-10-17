@@ -179,3 +179,17 @@ create index if not exists email_jobs_due on email_jobs(run_after) where status 
 
 -- Interest changes reprint today's paper (debounced by the n8n workflow; see app/parhlo/refresh.py).
 alter table users add column if not exists interests_changed_at timestamptz;
+
+-- Help & contact messages (also emailed to the team).
+create table if not exists support_messages (
+    id          bigserial primary key,
+    user_id     uuid references users(id) on delete set null,
+    name        text not null,
+    email       text not null,
+    topic       text not null,
+    message     text not null,
+    page        text,
+    status      text not null default 'new',
+    created_at  timestamptz not null default now()
+);
+create index if not exists support_messages_email on support_messages(lower(email), created_at desc);

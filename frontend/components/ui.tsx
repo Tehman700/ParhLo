@@ -7,6 +7,7 @@ import { useSession } from "@/lib/auth";
 import { LogoMark } from "./Logo";
 import { ACCOUNT_LINKS, AccountMenu, HELP_LINKS, MobileMenu } from "./NavMenus";
 import { NotificationBell } from "./NotificationBell";
+import { SearchBox } from "./SearchBox";
 
 const APP_LINKS = [
   { href: "/paper", label: "Today" },
@@ -47,6 +48,7 @@ export function TopBar({ right }: { right?: ReactNode }) {
         </nav>
         <div className={`ml-auto flex items-center gap-4 transition-opacity ${ready ? "opacity-100" : "opacity-0"}`}>
           {right}
+          {(user || isDemo) && <SearchBox />}
           {user ? (
             <>
               <NotificationBell />
