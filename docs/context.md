@@ -57,6 +57,7 @@ All secrets are in Vercel env and the root `.env` (gitignored). Never commit or 
 | **G** Ask your paper + personal front page fix | ✅ live, E2E 13/13 |
 | **I** Morning email (Postgres queue) | ✅ live, E2E 18/18 |
 | Reprint on interest change (n8n Cloud workflow + page fallback) | ✅ live via n8n Cloud (`hackathonss.app.n8n.cloud`), reprint ≈ 28 s after a change; E2E 10/10 |
+| Instant reprints: fast print + background polish (change → paper ≈ 2.5 s, first paper ≈ 2.7 s) | ✅ live, E2E 11/11 + 6/6 |
 | CI/CD (GitHub Actions + production smoke test) | ✅ |
 | F Compare · H Audio | ✂ dropped (user decision) |
 | J Submission (README, diagram, Loom) | from 19:15 |
