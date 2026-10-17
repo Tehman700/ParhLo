@@ -71,29 +71,48 @@ export default function Landing() {
     });
   }, { scope: root });
 
-  // Headline: the blue word scrolls up and the next one scrolls in; the line resizes to fit each word.
+  // Headline ticker: the next blue word pushes the current one up (always exactly one word in view).
+  // The headline reserves the height of its tallest variant, so nothing below it ever moves.
   useGSAP((_, contextSafe) => {
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let cancelled = false;
+    let onResize: (() => void) | null = null;
     const start = contextSafe!(() => {
       const box = root.current?.querySelector<HTMLElement>(".rotator");
+      const h1 = box?.closest("h1");
       const words = gsap.utils.toArray<HTMLElement>(".rot-word", root.current);
-      if (!box || words.length < 2) return;
-      const widths = words.map((w) => w.offsetWidth);
+      if (!box || !h1 || words.length < 2) return;
+      const widths: number[] = [];
+      const measure = () => {
+        words.forEach((w, i) => (widths[i] = w.offsetWidth));
+        const current = box.style.width;
+        h1.style.minHeight = "";
+        let tallest = 0;
+        widths.forEach((w) => { box.style.width = `${w}px`; tallest = Math.max(tallest, h1.offsetHeight); });
+        box.style.width = current;
+        h1.style.minHeight = `${tallest}px`;
+      };
+      measure();
+      let current = 0;
       gsap.set(box, { width: widths[0] });
-      gsap.set(words, { yPercent: 110, opacity: 0 });
-      gsap.set(words[0], { yPercent: 0, opacity: 1 });
-      const tl = gsap.timeline({ repeat: -1, delay: 1.4 });
-      words.forEach((w, i) => {
-        const j = (i + 1) % words.length;
-        // Old word leaves while the line resizes; the new word enters only once the old one is nearly gone.
-        tl.to(w, { yPercent: -110, opacity: 0, duration: 0.4, ease: "power3.in" }, "+=1.6")
-          .to(box, { width: widths[j], duration: 0.55, ease: "power3.inOut" }, "<")
-          .fromTo(words[j], { yPercent: 110, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 0.55, ease: "power3.out" }, "<0.34");
+      gsap.set(words, { yPercent: 100, opacity: 1 });
+      gsap.set(words[0], { yPercent: 0 });
+      // Each change is its own short step that schedules the next, so no two tweens ever own the same word
+      // (a repeating timeline re-applied the first word's "from" state and blanked the headline).
+      const step = contextSafe!(() => {
+        const i = current, j = (i + 1) % words.length;
+        current = j;
+        gsap.to(box, { width: widths[j], duration: 0.6, ease: "power3.inOut" });
+        gsap.to(words[i], { yPercent: -100, duration: 0.6, ease: "power3.inOut", delay: 0.05 });
+        gsap.fromTo(words[j], { yPercent: 100 }, { yPercent: 0, duration: 0.6, ease: "power3.inOut", delay: 0.05,
+          onComplete: () => { gsap.delayedCall(1.8, step); } });
       });
+      gsap.delayedCall(1.6, step);
+      onResize = () => { measure(); gsap.set(box, { width: widths[current] }); };
+      window.addEventListener("resize", onResize);
     });
     document.fonts.ready.then(() => { if (!cancelled) start(); });
-    return () => { cancelled = true; };
+    return () => { cancelled = true; if (onResize) window.removeEventListener("resize", onResize); };
   }, { scope: root });
 
   return (
@@ -109,13 +128,13 @@ export default function Landing() {
         <h1 className="hero-title t-hero mx-auto mt-6 max-w-3xl" aria-label="Your news, in one paper.">
           <span aria-hidden="true">
             Your{" "}
-            <span className="rotator relative inline-block align-bottom text-primary" style={{ height: "1.07em", clipPath: "inset(-0.1em -0.15em -0.3em -0.15em)" }}>
+            <span className="rotator relative inline-block overflow-hidden align-bottom text-primary" style={{ height: "1.07em" }}>
               <span className="invisible whitespace-nowrap">{ROTATING[0]}</span>
               {ROTATING.map((w, i) => (
                 <span key={w} className="rot-word absolute left-0 top-0 whitespace-nowrap" style={{ opacity: i ? 0 : 1 }}>{w}</span>
               ))}
             </span>{" "}
-            news, in one paper.
+            news,<br className="max-sm:hidden" />{" "}in one paper.
           </span>
         </h1>
         <p className="hero-sub t-lead mx-auto mt-4 max-w-2xl text-ink-60">
