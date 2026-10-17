@@ -1,5 +1,6 @@
 """All configuration lives here. Values come from the repo-root .env file or environment variables."""
 
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -37,21 +38,29 @@ class Settings(BaseSettings):
     # --- Database (Neon Postgres + pgvector) ---
     database_url: str = ""
 
+    cron_secret: str = ""  # Vercel Cron sends it as a Bearer token
+
+    # --- Auth (Clerk) ---
+    next_public_clerk_publishable_key: str = ""  # provisioned by the Clerk integration; issuer is derived from it
+    clerk_issuers: list[str] = []  # extra trusted issuers (custom Clerk domains)
+    allow_demo_users: bool = True  # X-Demo-User header for seeded personas (two-persona demo)
+
     # --- AWS (S3 media, Polly audio, SES email) ---
     aws_region: str = "ap-south-1"
     s3_bucket: str = "parhlo-media-109257212304"
     email_from: str = "tehmanhassan@gmail.com"
 
-    # --- Feature switches ---
-    enable_rag: bool = True
-    enable_ml: bool = True
-    enable_vision: bool = True
+    # --- Starter modules (off for ParhLo; flip on if needed) ---
+    enable_rag: bool = False
+    enable_ml: bool = False
+    enable_vision: bool = False
 
     # --- Agent ---
     agent_max_iterations: int = 6
 
     # --- Paths & server ---
-    data_dir: Path = ROOT_DIR / "data"  # runtime storage (uploads, sqlite, indexes, models); created on start
+    # Runtime scratch storage. Vercel's filesystem is read-only except /tmp.
+    data_dir: Path = Path("/tmp/parhlo-data") if os.environ.get("VERCEL") else ROOT_DIR / "data"
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
     @property
@@ -62,6 +71,19 @@ class Settings(BaseSettings):
     @property
     def llm_configured(self) -> bool:
         return bool(self.llm_key)
+
+    @property
+    def uses_openai_direct(self) -> bool:
+        """An OpenAI key (sk-...) talks to api.openai.com directly instead of the gateway."""
+        return self.llm_api_key.startswith("sk-")
+
+    @property
+    def effective_base_url(self) -> str | None:
+        return None if self.uses_openai_direct else (self.llm_base_url or None)
+
+    def model_name(self, name: str) -> str:
+        """Gateway ids are 'provider/model'; OpenAI direct wants just 'model'."""
+        return name.split("/", 1)[1] if self.uses_openai_direct and "/" in name else name
 
     @property
     def uploads_dir(self) -> Path:

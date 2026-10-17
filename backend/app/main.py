@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import agent, chat, files, system
+from app.api import agent, chat, files, parhlo, system
 from app.core.config import get_settings
 from app.core.db import init_db
 from app.core.errors import AppError
@@ -46,6 +46,7 @@ def create_app() -> FastAPI:
     async def value_error(_: Request, exc: ValueError):
         return JSONResponse(status_code=400, content={"detail": str(exc)})
 
+    app.include_router(parhlo.router)
     app.include_router(system.router)
     app.include_router(chat.router)
     app.include_router(agent.router)

@@ -49,7 +49,7 @@ class LLMService:
         if self._client is None:
             self._client = AsyncOpenAI(
                 api_key=self.settings.llm_key,
-                base_url=self.settings.llm_base_url or None,
+                base_url=self.settings.effective_base_url,
                 timeout=self.settings.llm_timeout,
             )
         return self._client
@@ -65,7 +65,7 @@ class LLMService:
         json_mode: bool = False,
         max_tokens: int | None = None,
     ) -> LLMReply:
-        kwargs: dict[str, Any] = {"model": model or self.settings.llm_model, "messages": messages}
+        kwargs: dict[str, Any] = {"model": self.settings.model_name(model or self.settings.llm_model), "messages": messages}
         temp = self.settings.llm_temperature if temperature is None else temperature
         if temp is not None:
             kwargs["temperature"] = temp
@@ -136,7 +136,7 @@ class LLMService:
         try:
             extra = {} if self.settings.llm_temperature is None else {"temperature": self.settings.llm_temperature}
             stream = await self.client.chat.completions.create(
-                model=model or self.settings.llm_model, messages=messages, stream=True, **extra
+                model=self.settings.model_name(model or self.settings.llm_model), messages=messages, stream=True, **extra
             )
             async for chunk in stream:
                 if chunk.choices and chunk.choices[0].delta.content:
@@ -147,7 +147,7 @@ class LLMService:
     async def embed(self, texts: list[str], model: str | None = None) -> list[list[float]]:
         try:
             resp = await self.client.embeddings.create(
-                model=model or self.settings.embedding_model, input=texts
+                model=self.settings.model_name(model or self.settings.embedding_model), input=texts
             )
         except openai.APIError as e:
             raise UpstreamError(f"Embedding request failed: {e}") from e

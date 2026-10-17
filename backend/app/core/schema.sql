@@ -13,6 +13,10 @@ create table if not exists users (
     created_at      timestamptz not null default now()
 );
 
+alter table users add column if not exists clerk_id text unique;
+alter table users add column if not exists is_demo boolean not null default false;
+alter table users add column if not exists onboarded boolean not null default false;
+
 -- Explicit, editable preferences. Topic weights are learned over time.
 create table if not exists profiles (
     user_id          uuid primary key references users(id) on delete cascade,
