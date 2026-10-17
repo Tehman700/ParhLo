@@ -5,9 +5,11 @@ _Agreed 2026-10-17, 10:40._ **Hard deadline 21:00. Submit (Loom + repo + diagram
 ## Decisions
 | Topic | Decision |
 |---|---|
-| Hosting | **Live on Vercel + Neon Postgres (pgvector)**. One Vercel project: Next.js frontend + FastAPI backend (Vercel Services). PDFs and audio in Vercel Blob |
+| Hosting | **Hybrid.** Vercel (Next.js + FastAPI via Vercel Services, cron, AI Gateway; account `tehmanhassan-4631`) + Neon Postgres (pgvector) + **AWS ap-south-1**: S3 (PDFs, audio), Polly (audio edition), SES (6 AM email; sandbox means verified recipients only, 200/day). Scale path in the diagram: SQS → Lambda workers for per-user generation |
+| Why not all-AWS | Hosting on Lambda/ECS + API Gateway + CloudFront + IAM costs ~2–3 h of a 9 h build. The real scaling cost is LLM calls and per-user generation, solved by shared ingest + queue fan-out. Use AWS where it is best-in-class (S3, Polly, SES, SQS) |
 | LLM | **Vercel AI Gateway** (cheap fast model for per-article summaries, stronger model for the per-user editor; embeddings via the gateway). **Jev**: evaluate later for topic tagging and relevance scoring if it fits |
-| Extras (priority order, cut from the bottom) | 1. Two-persona comparison 2. Ask your paper 3. Audio edition 4. Email "your paper is ready" 5. Push notifications (Web Push/PWA) |
+| Research-driven features (see 02/03) | Verified grounded summaries (✓ badge, AI label); morning box (weather, AQI/smog alert, USD→PKR, cricket); "Also reported by" + Pakistani vs. international framing; editor's note; finite edition ("You're done ✓"); 3 things + recall quiz; WhatsApp-forward check (if time) |
+| Build priority (cut from the bottom) | ingest → rank+edit → web+archive → **deploy** → PDF/S3 → onboarding → learning → morning box + verified badge → two-persona → ask your paper → audio (Polly) → email (SES) → framing toggle → recall quiz → push (Web Push) → WhatsApp check |
 | Design | Paper pages use a newspaper look (serif headlines, columns, rules, masthead). App screens (onboarding, profile) use the clean Apple-style tokens from `Design-Files/` |
 
 ## User flow
