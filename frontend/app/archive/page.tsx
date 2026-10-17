@@ -24,29 +24,29 @@ export default function Archive() {
   }, [ready, signedIn, api, router]);
 
   useGSAP(() => {
-    if (items?.length) gsap.from(".archive-card", { y: 40, rotate: () => gsap.utils.random(-3, 3), opacity: 0, stagger: 0.07, duration: 0.7, ease: "power3.out" });
+    if (items?.length) gsap.from(".archive-card", { y: 30, opacity: 0, stagger: 0.07, duration: 0.6, ease: "power3.out" });
   }, { scope: root, dependencies: [items] });
 
   return (
-    <div ref={root} className="min-h-screen">
+    <div ref={root} className="min-h-screen bg-parchment">
       <TopBar />
-      <main className="mx-auto max-w-[1100px] px-4 py-14">
-        <p className="label">Archive</p>
-        <h1 className="display mt-2 text-[40px]">Every paper you&apos;ve received</h1>
+      <main className="mx-auto max-w-[980px] px-4 py-16">
+        <h1 className="t-display">Past papers</h1>
+        <p className="t-lead mt-3 text-ink-60">Every paper you&apos;ve received, newest first.</p>
         <div className="mt-8"><ErrorNote error={error} /></div>
-        {!items && !error && <Spinner label="Fetching your editions…" />}
-        {items && !items.length && <p className="text-ink-60">No editions yet. <Link href="/paper" className="text-primary">Print today&apos;s paper</Link>.</p>}
-        <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {!items && !error && <Spinner label="Loading" />}
+        {items && !items.length && <p className="t-body text-ink-60">No papers yet. <Link href="/paper" className="link">Get today&apos;s paper</Link></p>}
+        <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {(items ?? []).map((e) => (
-            <Link key={e.id} href={`/paper/${e.edition_date}`} className="archive-card paper block rounded-[4px] p-5 shadow-[0_14px_40px_-18px_rgba(0,0,0,.35)] transition-transform hover:-translate-y-1">
-              <div className="flex justify-between border-b border-ink pb-1 text-[11px] text-ink-60">
-                <span>No. {e.number}</span><span>{formatDate(e.edition_date, { weekday: "short", day: "numeric", month: "short" })}</span>
+            <Link key={e.id} href={`/paper/${e.edition_date}`} className="archive-card block rounded-[18px] bg-canvas p-6 transition-shadow hover:shadow-[0_8px_30px_-12px_rgba(0,0,0,.18)]">
+              <div className="flex justify-between t-caption text-ink-60">
+                <span>{formatDate(e.edition_date, { weekday: "long", day: "numeric", month: "long" })}</span><span>No. {e.number}</span>
               </div>
-              <div className="py-2 text-center font-masthead text-[30px] font-black leading-none">Parh<span className="italic text-sun-deep">Lo</span></div>
-              <div className="double-rule" />
-              <p className="headline mt-3 text-[19px]">{e.lead_headline ?? "Your morning paper"}</p>
-              <p className="mt-2 line-clamp-3 font-serif text-[14px] italic text-ink-60">{e.editor_note}</p>
-              <p className="mt-3 text-[12px] font-semibold text-ink-48">{e.stories} stories · Read →</p>
+              <div className="masthead mt-4 text-center text-[30px]">ParhLo</div>
+              <div className="double-rule mt-2" />
+              <p className="headline mt-4 text-[19px]">{e.lead_headline ?? "Your paper"}</p>
+              <p className="mt-2 line-clamp-3 t-caption text-ink-60">{e.editor_note}</p>
+              <p className="mt-4 t-caption text-primary">{e.stories} stories · Read ›</p>
             </Link>
           ))}
         </div>

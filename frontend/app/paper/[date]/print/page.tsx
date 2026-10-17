@@ -46,18 +46,18 @@ export default function PrintPage() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-parchment">
       <TopBar right={
-        <button className="btn btn-primary !px-4 !py-2 !text-[14px]" onClick={download} disabled={!edition || busy}>
-          {busy ? <Spinner dark label="Printing PDF…" /> : "⬇ Download PDF"}
+        <button className="btn btn-primary btn-sm !py-1 !text-[12px]" onClick={download} disabled={!edition || busy}>
+          {busy ? <Spinner dark label="Preparing PDF" /> : "Download PDF"}
         </button>
       } />
       <main className="mx-auto max-w-[900px] px-4 py-8">
         <ErrorNote error={error} />
-        {!edition && !error && <Spinner label="Loading your edition…" />}
+        {!edition && !error && <Spinner label="Loading" />}
         {edition && (
           <iframe title="Print preview" srcDoc={html}
-            className="mt-4 h-[1200px] w-full rounded-[6px] border border-rule bg-newsprint shadow-[0_20px_60px_-25px_rgba(0,0,0,.4)]" />
+            className="mt-4 h-[1200px] w-full rounded-[12px] bg-canvas product-shadow" />
         )}
       </main>
     </div>

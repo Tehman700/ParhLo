@@ -12,8 +12,8 @@ log = logging.getLogger("parhlo.editor")
 
 class StoryEdit(BaseModel):
     id: int
-    headline: str = Field(description="Crisp newspaper headline, max 12 words, faithful to the summary")
-    why: str = Field(description="Max 16 words, second person: why this reader should care")
+    headline: str = Field(description="Clear, plain headline, max 12 words, faithful to the summary. No clickbait.")
+    why: str = Field(description="Max 14 words, plain English: why this story matches the reader's interests")
 
 
 class Section(BaseModel):
@@ -22,7 +22,7 @@ class Section(BaseModel):
 
 
 class Thing(BaseModel):
-    text: str = Field(description="One memorable fact from today's paper, max 22 words")
+    text: str = Field(description="One key fact from today's paper in plain English, max 20 words")
     story_id: int
 
 
@@ -34,8 +34,8 @@ class QuizQuestion(BaseModel):
 
 
 class EditorOut(BaseModel):
-    editor_note: str = Field(description="3 short warm sentences addressed to the reader by name; mention the "
-                                         "day's big theme and the weather/air if notable. No facts not in the input.")
+    editor_note: str = Field(description="2 short sentences in plain, simple English summarizing today's main stories. "
+                                         "No greeting, no 'Good morning', no flowery or dramatic language, no facts not in the input.")
     lead_id: int
     sections: list[Section]
     stories: list[StoryEdit]
@@ -97,11 +97,11 @@ def fallback_layout(user: dict, stories: list[dict]) -> dict:
         name = TOPICS[s["topics"][0]]["group"] if s["topics"] and s["topics"][0] in TOPICS else "Also today"
         by_topic.setdefault(name, []).append(s["id"])
     return {
-        "editor_note": f"Good morning, {user['name']}. Here is your paper for today.",
+        "editor_note": "Here are today's stories, chosen for your interests.",
         "lead_id": stories[0]["id"],
         "sections": [{"name": k, "story_ids": v} for k, v in by_topic.items()],
         "edits": {s["id"]: {"headline": s["title"],
-                            "why": "Something new for you" if s.get("discovery") else f"Because you follow {s.get('match')}"}
+                            "why": "Something new, outside your usual topics" if s.get("discovery") else f"Matches your interest in {s.get('match')}"}
                   for s in stories},
         "three_things": [{"text": s["summary"].split(". ")[0][:160], "story_id": s["id"]} for s in stories[:3]],
         "quiz": [],

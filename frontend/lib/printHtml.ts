@@ -14,8 +14,8 @@ const domain = (url: string) => {
 };
 
 function badge(s: Story) {
-  if (s.verified === true) return `<span class="ok">✓ Verified against source</span>`;
-  if (s.grounded_in && s.grounded_in !== "full article") return `<span class="muted">◐ From headline &amp; excerpt</span>`;
+  if (s.verified === true) return `<span class="ok">✓ Checked against source</span>`;
+  if (s.grounded_in && s.grounded_in !== "full article") return `<span class="muted">Based on headline and excerpt</span>`;
   return `<span class="muted">AI summary</span>`;
 }
 
@@ -26,7 +26,7 @@ function story(s: Story, lead = false) {
     <h3><a href="${esc(s.url)}">${esc(s.headline)}</a></h3>
     <p class="${lead ? "deck dropcap" : "deck"}">${esc(s.summary)}</p>
     ${lead && s.points.length ? `<ul class="points">${s.points.map((p) => `<li>${esc(p)}</li>`).join("")}</ul>` : ""}
-    ${s.why ? `<p class="why"><b>Why for you:</b> ${esc(s.why)}</p>` : ""}
+    ${s.why ? `<p class="why"><b>Why this story:</b> ${esc(s.why)}</p>` : ""}
     <p class="meta">${esc(s.source)} · ${badge(s)}${s.also_reported_by.length ? ` · Also: ${esc(s.also_reported_by.slice(0, 3).join(", "))}` : ""}<br>
       <a href="${esc(s.url)}">${esc(domain(s.url))}</a></p>
   </article>`;
@@ -93,11 +93,11 @@ export function buildPrintHtml(ed: Edition): string {
 </style></head><body><div class="wrap">
   <div class="metaline"><span>No. ${ed.number} · ${esc(ed.reader.city)}</span><span>${esc(date)}</span>
     <span>${m.weather ? `${m.weather.temp}°C ${esc(m.weather.condition)}` : ""}${m.air?.aqi != null ? ` · AQI ${m.air.aqi}` : ""}</span></div>
-  <div class="mast">Parh<i>Lo</i></div>
-  <div class="tag">The personal morning paper of ${esc(ed.reader.name)}</div>
+  <div class="mast">ParhLo</div>
+  <div class="tag">For ${esc(ed.reader.name)}</div>
   <div class="double"></div>
   <div class="top">
-    <div><div class="kicker" style="color:#7a7a7a">From the editor</div><p class="note">${esc(ed.editor_note)}</p></div>
+    <div><div class="kicker" style="color:#7a7a7a">Today in brief</div><p class="note">${esc(ed.editor_note)}</p></div>
     <div class="box">
       <div>${esc(m.city)}: ${m.weather ? `<b>${m.weather.temp}°</b> ${esc(m.weather.condition)} · H ${m.weather.high}° L ${m.weather.low}°` : "—"}</div>
       <div ${m.smog_alert ? 'class="alert"' : ""}>${m.smog_alert ? "⚠ Smog alert — " : "Air: "}AQI ${m.air?.aqi ?? "—"} ${esc(m.air?.label ?? "")}</div>
@@ -115,6 +115,6 @@ export function buildPrintHtml(ed: Edition): string {
     </div>
   </div>
   ${sections}
-  <div class="end">That's everything that matters to you this morning. Summaries are AI-generated from the linked sources and checked against them. — ParhLo</div>
+  <div class="end">That's today's paper. Summaries are written by AI from the linked sources and checked against them.</div>
 </div></body></html>`;
 }

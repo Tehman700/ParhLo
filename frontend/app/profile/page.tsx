@@ -9,9 +9,10 @@ import type { Edition, Me } from "@/lib/api";
 import { useApi, useSession } from "@/lib/auth";
 import { topicLabel } from "@/lib/topics";
 
-const KIND_STYLE: Record<string, string> = {
-  onboarding: "bg-ink text-white", entity: "bg-sun text-ink", liked: "bg-[#e9f6ec] text-success",
-  clicked: "bg-[#e8f1fb] text-primary", disliked: "bg-[#fff1f0] text-danger",
+gsap.registerPlugin(useGSAP);
+
+const KIND_LABEL: Record<string, string> = {
+  onboarding: "You chose", entity: "You follow", liked: "You liked", clicked: "You read", disliked: "Show less",
 };
 
 export default function Profile() {
@@ -26,22 +27,26 @@ export default function Profile() {
   const load = useCallback(() => api.get<Me>("/api/me").then(setMe).catch((e) => setError(e.message)), [api]);
   useEffect(() => {
     if (!ready) return;
-    if (!signedIn) return void router.replace("/");
+    if (!signedIn) return void router.replace("/sign-in");
     void load();
   }, [ready, signedIn, load, router]);
 
   useGSAP(() => {
+    gsap.from(".page-head > *", { y: 20, opacity: 0, stagger: 0.08, duration: 0.6, ease: "power3.out" });
+  }, { scope: root });
+
+  useGSAP(() => {
     if (!me) return;
     gsap.from(".bar-fill", { width: 0, duration: 1.1, stagger: 0.04, ease: "power3.out" });
-    gsap.from(".change-row", { x: -20, opacity: 0, stagger: 0.08, duration: 0.5 });
-    gsap.from(".anchor-chip", { scale: 0.7, opacity: 0, stagger: 0.015, duration: 0.3, ease: "back.out(2)" });
+    gsap.from(".panel", { y: 24, opacity: 0, stagger: 0.1, duration: 0.6, ease: "power3.out" });
+    gsap.from(".anchor-chip", { scale: 0.85, opacity: 0, stagger: 0.012, duration: 0.3, ease: "power2.out" });
   }, { scope: root, dependencies: [me] });
 
   async function learnAndReprint() {
-    setBusy("Learning from your reading…");
+    setBusy("Updating your interests");
     try {
       await api.post("/api/learn");
-      setBusy("Printing tomorrow's paper with what it learned…");
+      setBusy("Preparing tomorrow's paper");
       const tomorrow = new Date(Date.now() + 5 * 3600_000 + 86400_000).toISOString().slice(0, 10);
       const ed = await api.post<Edition>("/api/editions/generate", { date: tomorrow, force: true });
       router.push(`/paper/${ed.edition_date}`);
@@ -60,32 +65,34 @@ export default function Profile() {
   const latest = me?.snapshots.find((s) => s.changes.some((c) => c.topic));
 
   return (
-    <div ref={root} className="min-h-screen">
+    <div ref={root} className="min-h-screen bg-parchment">
       <TopBar />
-      <main className="mx-auto max-w-[1100px] px-4 py-14">
-        <p className="label">Your memory</p>
-        <h1 className="display mt-2 text-[40px]">What your paper knows about you</h1>
-        <p className="mt-2 max-w-2xl text-ink-60">Every read, skip and reaction updates this. Nothing is hidden — remove anything you don&apos;t want it to remember.</p>
+      <main className="mx-auto max-w-[980px] px-4 py-16">
+        <div className="page-head">
+          <h1 className="t-display">Your interests</h1>
+          <p className="t-lead mt-3 max-w-2xl text-ink-60">What you read, skip and like changes this. You can remove anything here.</p>
+          {me && (
+            <div className="mt-8 flex flex-wrap items-center gap-4">
+              <button className="btn btn-primary" onClick={learnAndReprint} disabled={!!busy}>
+                {busy ? <Spinner dark label={busy} /> : "Update and see tomorrow's paper"}
+              </button>
+              <span className="t-caption text-ink-60">This happens automatically every night.</span>
+            </div>
+          )}
+        </div>
         <div className="mt-6"><ErrorNote error={error} /></div>
-        {!me && !error && <Spinner label="Loading your memory…" />}
+        {!me && !error && <Spinner label="Loading" />}
 
         {me && (
           <>
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <button className="btn btn-primary" onClick={learnAndReprint} disabled={!!busy}>
-                {busy ? <Spinner dark label={busy} /> : "Learn from today & print tomorrow's paper"}
-              </button>
-              <span className="caption text-ink-48">Normally this runs automatically every night at 5:30.</span>
-            </div>
-
-            <div className="mt-10 grid gap-6 lg:grid-cols-[1.3fr_1fr]">
-              <section className="card">
-                <h2 className="text-[19px] font-semibold">Interest strength</h2>
-                <div className="mt-5 space-y-3">
+            <div className="mt-10 grid gap-5 lg:grid-cols-[1.3fr_1fr]">
+              <section className="panel rounded-[18px] bg-canvas p-7">
+                <h2 className="t-tagline">Topics</h2>
+                <div className="mt-6 space-y-4">
                   {topics.map(([slug, w]) => (
-                    <div key={slug} className="grid grid-cols-[130px_1fr_40px] items-center gap-3 text-[14px]">
-                      <span className="truncate">{topicLabel(slug)}</span>
-                      <div className="h-2.5 overflow-hidden rounded-full bg-parchment">
+                    <div key={slug} className="grid grid-cols-[140px_1fr_36px] items-center gap-3 t-caption">
+                      <span className="truncate t-body">{topicLabel(slug)}</span>
+                      <div className="h-2 overflow-hidden rounded-full bg-parchment">
                         <div className="bar-fill h-full rounded-full" style={{ width: `${Math.round(w * 100)}%`, background: w >= 0.5 ? "#0066cc" : w >= 0.25 ? "#2997ff" : "#d2d2d7" }} />
                       </div>
                       <span className="text-right tabular-nums text-ink-48">{Math.round(w * 100)}</span>
@@ -94,44 +101,51 @@ export default function Profile() {
                 </div>
               </section>
 
-              <section className="space-y-6">
-                <div className="card">
-                  <h2 className="text-[19px] font-semibold">What changed recently</h2>
+              <div className="space-y-5">
+                <section className="panel rounded-[18px] bg-canvas p-7">
+                  <h2 className="t-tagline">Recent changes</h2>
                   {latest ? (
-                    <ul className="mt-4 space-y-3">
-                      {latest.changes.filter((c) => c.topic).map((c) => (
-                        <li key={c.topic} className="change-row flex gap-3">
-                          <span className={`mt-0.5 text-[18px] ${c.to! > c.from! ? "text-success" : "text-danger"}`}>{c.to! > c.from! ? "▲" : "▼"}</span>
-                          <div>
-                            <p className="font-semibold">{c.label} {Math.round(c.from! * 100)} → {Math.round(c.to! * 100)}</p>
-                            <p className="caption text-ink-60">{c.why}</p>
-                          </div>
-                        </li>
-                      ))}
+                    <ul className="mt-5 space-y-4">
+                      {latest.changes.filter((c) => c.topic).map((c) => {
+                        const up = (c.to ?? 0) > (c.from ?? 0);
+                        return (
+                          <li key={c.topic} className="flex gap-3">
+                            <span className={`mt-0.5 ${up ? "text-primary" : "text-danger"}`}>{up ? "▲" : "▼"}</span>
+                            <div>
+                              <p className="t-body font-semibold">{c.label}: {Math.round((c.from ?? 0) * 100)} → {Math.round((c.to ?? 0) * 100)}</p>
+                              <p className="t-caption text-ink-60">{c.why}.</p>
+                            </div>
+                          </li>
+                        );
+                      })}
                     </ul>
-                  ) : <p className="mt-3 caption text-ink-60">Read today&apos;s paper — open, skip or react to stories — then press the button above to watch it learn.</p>}
-                </div>
-                <div className="card">
-                  <h2 className="text-[19px] font-semibold">About you</h2>
-                  <p className="mt-2 caption text-ink-60">{me.user.city} · {me.user.reading_minutes}-minute paper · {Math.round(me.user.region_mix * 100)}% Pakistan</p>
-                  {me.profile?.about && <p className="mt-2 font-serif italic text-ink-80">&ldquo;{me.profile.about}&rdquo;</p>}
-                  {!!me.profile?.entities.length && <p className="mt-2 caption">Following: {me.profile.entities.join(", ")}</p>}
-                </div>
-              </section>
+                  ) : <p className="mt-4 t-body text-ink-60">Read today&apos;s paper, then press the button above to see what changes.</p>}
+                </section>
+                <section className="panel rounded-[18px] bg-canvas p-7">
+                  <h2 className="t-tagline">Settings</h2>
+                  <dl className="mt-4 space-y-2 t-body">
+                    <div className="flex justify-between"><dt className="text-ink-60">City</dt><dd>{me.user.city}</dd></div>
+                    <div className="flex justify-between"><dt className="text-ink-60">Reading time</dt><dd>{me.user.reading_minutes} minutes</dd></div>
+                    <div className="flex justify-between"><dt className="text-ink-60">Pakistan news</dt><dd>{Math.round(me.user.region_mix * 100)}%</dd></div>
+                    {!!me.profile?.entities.length && <div className="flex justify-between gap-4"><dt className="text-ink-60">Following</dt><dd className="text-right">{me.profile.entities.join(", ")}</dd></div>}
+                  </dl>
+                </section>
+              </div>
             </div>
 
-            <section className="card mt-6">
-              <h2 className="text-[19px] font-semibold">Interest anchors <span className="caption font-normal text-ink-48">— the long-term memory each story is matched against</span></h2>
-              <div className="mt-4 flex flex-wrap gap-2">
+            <section className="panel mt-5 rounded-[18px] bg-canvas p-7">
+              <h2 className="t-tagline">What ParhLo remembers</h2>
+              <p className="mt-1 t-caption text-ink-60">Each story in your paper is matched against these. Remove anything you don&apos;t want.</p>
+              <div className="mt-5 flex flex-wrap gap-2">
                 {me.anchors.map((a) => (
-                  <span key={a.id} className={`anchor-chip inline-flex max-w-[360px] items-center gap-2 rounded-full px-3 py-1.5 text-[13px] ${KIND_STYLE[a.kind] ?? "bg-parchment"}`}>
+                  <span key={a.id} className={`anchor-chip inline-flex max-w-[360px] items-center gap-2 rounded-full px-3.5 py-1.5 t-caption ${a.weight < 0 ? "bg-[#fff2f2] text-danger" : "bg-parchment"}`}>
+                    <span className="text-ink-48">{KIND_LABEL[a.kind] ?? a.kind}</span>
                     <span className="truncate">{a.label}</span>
-                    <span className="opacity-60">{a.weight > 0 ? "+" : ""}{a.weight.toFixed(1)}</span>
-                    <button aria-label={`Forget ${a.label}`} className="opacity-60 hover:opacity-100" onClick={() => removeAnchor(a.id)}>✕</button>
+                    <button aria-label={`Remove ${a.label}`} className="text-ink-48 hover:text-ink" onClick={() => removeAnchor(a.id)}>✕</button>
                   </span>
                 ))}
+                {!me.anchors.length && <p className="t-body text-ink-60">Nothing yet.</p>}
               </div>
-              <p className="mt-4 caption text-ink-48">Black = chose at onboarding · Gold = names you follow · Green = liked · Blue = read · Red = avoid</p>
             </section>
           </>
         )}

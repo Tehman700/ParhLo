@@ -86,7 +86,7 @@ def _story_out(s: dict, edit: dict) -> dict:
         "published_at": s["published_at"].isoformat() if s.get("published_at") else None,
         "topics": s["topics"], "summary": s["summary"], "points": s.get("points") or [],
         "verified": s.get("verified"), "grounded_in": s.get("grounded_in"),
-        "why": edit.get("why") or (f"Because you follow {s['match']}" if s.get("match") else None),
+        "why": edit.get("why") or (f"Matches your interest in {s['match']}" if s.get("match") else None),
         "discovery": bool(s.get("discovery")), "also_reported_by": [x for x in (s.get("also_sources") or []) if x][:5],
         "region": s["source_region"],
     }

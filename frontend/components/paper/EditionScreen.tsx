@@ -39,11 +39,11 @@ export function EditionScreen({ date }: { date?: string }) {
 
   return (
     <>
-      <TopBar right={<Link href={`/paper/${edition.edition_date}/print`} className="btn btn-dark !px-4 !py-2 !text-[14px]">⬇ PDF</Link>} />
+      <TopBar right={<Link href={`/paper/${edition.edition_date}/print`} className="btn btn-primary btn-sm !py-1 !text-[12px]">Download PDF</Link>} />
       <PaperView edition={edition} actions={
         <>
-          <Link href={`/paper/${edition.edition_date}/print`} className="btn btn-dark">Download today&apos;s PDF</Link>
-          <Link href="/archive" className="btn btn-light">Past editions</Link>
+          <Link href={`/paper/${edition.edition_date}/print`} className="btn btn-primary">Download PDF</Link>
+          <Link href="/archive" className="btn btn-secondary">Past papers</Link>
         </>
       } />
     </>

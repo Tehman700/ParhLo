@@ -1,6 +1,6 @@
 import type { SVGProps } from "react";
 
-/** ParhLo mark: the sun rising behind a folded morning paper. Class names let GSAP animate the parts. */
+/** ParhLo mark: a sun rising behind a folded paper. Class names let GSAP animate the parts. */
 export function LogoMark({ size = 40, ...props }: { size?: number } & SVGProps<SVGSVGElement>) {
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" role="img" aria-label="ParhLo" {...props}>
@@ -35,18 +35,14 @@ export function LogoMark({ size = 40, ...props }: { size?: number } & SVGProps<S
 }
 
 export function Wordmark({ className = "" }: { className?: string }) {
-  return (
-    <span className={`font-masthead tracking-tight ${className}`}>
-      Parh<span className="italic text-primary">Lo</span>
-    </span>
-  );
+  return <span className={`font-semibold tracking-tight ${className}`}>ParhLo</span>;
 }
 
-export function Logo({ size = 34, className = "" }: { size?: number; className?: string }) {
+export function Logo({ size = 28, className = "", text = "text-[19px]" }: { size?: number; className?: string; text?: string }) {
   return (
-    <span className={`inline-flex items-center gap-2.5 ${className}`}>
+    <span className={`inline-flex items-center gap-2 ${className}`}>
       <LogoMark size={size} />
-      <Wordmark className="text-[26px] leading-none" />
+      <Wordmark className={text} />
     </span>
   );
 }

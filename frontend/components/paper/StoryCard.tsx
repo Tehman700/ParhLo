@@ -9,68 +9,80 @@ type Tracker = { track: (t: "open" | "like" | "dislike" | "save" | "skip", id: n
 
 export function VerifiedBadge({ story }: { story: Story }) {
   if (story.verified === true)
-    return <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-success" title="A second AI pass checked every claim against the original article.">✓ Verified against {story.grounded_in === "full article" ? "full article" : "source"}</span>;
+    return <span className="t-caption font-semibold text-success" title="A second check confirmed every point in the summary appears in the original article.">✓ Checked against source</span>;
   if (story.grounded_in && story.grounded_in !== "full article")
-    return <span className="text-[12px] text-ink-48" title="The full article couldn't be fetched, so this summary is based on the headline and excerpt.">◐ From headline &amp; excerpt</span>;
-  return <span className="text-[12px] text-ink-48">AI summary · check the original</span>;
+    return <span className="t-caption text-ink-48" title="The full article couldn't be loaded, so this summary uses the headline and excerpt.">Based on headline and excerpt</span>;
+  return <span className="t-caption text-ink-48">AI summary</span>;
 }
 
-export function StoryCard({ story, variant = "normal", tracker }: { story: Story; variant?: "lead" | "normal" | "compact"; tracker: Tracker }) {
+const Icon = {
+  up: <path d="M7 11v8H4v-8h3Zm2 8h7.5a2 2 0 0 0 2-1.6l1.2-6A2 2 0 0 0 17.7 9H14V5.5A2.5 2.5 0 0 0 11.5 3L9 10v9Z" />,
+  down: <path d="M7 13V5H4v8h3Zm2-8h7.5a2 2 0 0 1 2 1.6l1.2 6a2 2 0 0 1-2 2.4H14v3.5a2.5 2.5 0 0 1-2.5 2.5L9 14V5Z" />,
+  save: <path d="M6 3h12v18l-6-4-6 4V3Z" />,
+  hide: <path d="M6 6l12 12M18 6 6 18" />,
+};
+
+function IconButton({ label, active, onClick, kind, activeClass }: { label: string; active?: boolean; onClick: () => void; kind: keyof typeof Icon; activeClass: string }) {
+  return (
+    <button aria-label={label} title={label} onClick={onClick} data-react={kind}
+      className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-parchment ${active ? activeClass : "text-ink-48 hover:text-ink"}`}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill={active && kind !== "hide" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{Icon[kind]}</svg>
+    </button>
+  );
+}
+
+export function StoryCard({ story, variant = "normal", tracker }: { story: Story; variant?: "lead" | "normal"; tracker: Tracker }) {
   const ref = useRef<HTMLElement>(null);
   const [reaction, setReaction] = useState<"like" | "dislike" | null>(null);
   const [saved, setSaved] = useState(false);
-  const [skipped, setSkipped] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const [open, setOpen] = useState(variant === "lead");
+  const lead = variant === "lead";
 
   useEffect(() => tracker.observe(ref.current, story.id) ?? undefined, [tracker, story.id]);
 
-  function skip() {
+  function hide() {
     tracker.track("skip", story.id);
-    gsap.to(ref.current, { height: 0, opacity: 0, paddingTop: 0, paddingBottom: 0, marginTop: 0, duration: 0.45, ease: "power2.inOut",
-      onComplete: () => setSkipped(true) });
+    gsap.to(ref.current, { height: 0, opacity: 0, marginTop: 0, paddingTop: 0, duration: 0.45, ease: "power2.inOut", onComplete: () => setHidden(true) });
   }
   function react(kind: "like" | "dislike") {
     setReaction(kind);
     tracker.track(kind, story.id);
-    gsap.fromTo(ref.current?.querySelector(`[data-react="${kind}"]`) ?? null, { scale: 1.5 }, { scale: 1, duration: 0.4, ease: "back.out(3)" });
+    gsap.fromTo(ref.current?.querySelector(`[data-react="${kind === "like" ? "up" : "down"}"]`) ?? null, { scale: 1.4 }, { scale: 1, duration: 0.4, ease: "back.out(3)" });
   }
 
-  if (skipped) return null;
-  const lead = variant === "lead";
-  const compact = variant === "compact";
+  if (hidden) return null;
 
   return (
-    <article ref={ref} className={`story-card group overflow-hidden ${lead ? "" : "border-t border-rule pt-4"}`}>
-      <p className="kicker text-sun-deep">
-        {topicLabel(story.topics[0])}
-        {story.discovery && <span className="ml-2 rounded-full bg-ink px-2 py-0.5 text-[10px] text-sun">Discovery</span>}
-        {story.region === "pakistan" && story.topics[0] !== "pakistan" && <span className="ml-2 text-ink-48">· Pakistan</span>}
-      </p>
-      {lead && story.image && <img src={story.image} alt="" className="mt-3 aspect-[16/9] w-full rounded-[4px] object-cover grayscale-[15%]" />}
-      <h3 className={`headline mt-2 ${lead ? "text-[34px] sm:text-[40px]" : compact ? "text-[18px]" : "text-[21px]"}`}>
-        <a href={story.url} target="_blank" rel="noopener noreferrer" onClick={() => tracker.track("open", story.id)} className="hover:underline decoration-1 underline-offset-4">
+    <article ref={ref} className={`story-card overflow-hidden ${lead ? "" : "border-t border-hairline pt-5"}`}>
+      <div className="flex items-center gap-2">
+        <p className="kicker">{topicLabel(story.topics[0])}</p>
+        {story.discovery && <span className="rounded-full bg-parchment px-2 py-0.5 t-fine font-semibold text-ink-60">New for you</span>}
+      </div>
+      {story.image && <img src={story.image} alt="" className={`mt-3 w-full rounded-[12px] object-cover ${lead ? "aspect-[16/9]" : "aspect-[16/10]"}`} />}
+      <h3 className={`headline mt-3 ${lead ? "text-[32px] sm:text-[40px]" : "text-[20px]"}`}>
+        <a href={story.url} target="_blank" rel="noopener noreferrer" onClick={() => tracker.track("open", story.id)} className="hover:text-primary">
           {story.headline}
         </a>
       </h3>
-      {!lead && !compact && story.image && <img src={story.image} alt="" className="mt-3 aspect-[16/10] w-full rounded-[3px] object-cover" />}
-      {!compact && <p className={`deck mt-2 ${lead ? "dropcap text-[18px]" : "text-[15.5px]"}`}>{story.summary}</p>}
+      <p className={`deck mt-2 ${lead ? "!text-[19px]" : "!text-[16px]"}`}>{story.summary}</p>
       {open && story.points.length > 0 && (
-        <ul className="mt-3 space-y-1 border-l-2 border-sun pl-3 font-serif text-[15px] text-ink-80">
-          {story.points.map((p) => <li key={p}>{p}</li>)}
+        <ul className="mt-3 space-y-1.5 t-body text-ink-80">
+          {story.points.map((p) => <li key={p} className="flex gap-2"><span className="text-primary">•</span>{p}</li>)}
         </ul>
       )}
-      {story.why && <p className="mt-3 text-[13px] italic text-ink-60"><span className="not-italic font-semibold text-sun-deep">Why you&apos;re seeing this:</span> {story.why}</p>}
+      {story.why && <p className="mt-3 t-caption text-ink-60">Why this story: {story.why}</p>}
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
         <VerifiedBadge story={story} />
-        {story.also_reported_by.length > 0 && <span className="text-[12px] text-ink-48">Also in {story.also_reported_by.slice(0, 3).join(", ")}</span>}
+        {story.also_reported_by.length > 0 && <span className="t-caption text-ink-48">Also in {story.also_reported_by.slice(0, 3).join(", ")}</span>}
       </div>
-      <div className="mt-3 flex items-center gap-1 text-[13px] text-ink-60">
-        <span className="mr-auto">{story.source} · {timeAgo(story.published_at)}</span>
-        {!lead && !compact && story.points.length > 0 && <button className="px-2 py-1 hover:text-ink" onClick={() => setOpen(!open)}>{open ? "Less" : "Key facts"}</button>}
-        <button data-react="like" aria-label="More like this" title="More like this" onClick={() => react("like")} className={`rounded-full px-2 py-1 hover:bg-black/5 ${reaction === "like" ? "text-success" : ""}`}>▲</button>
-        <button data-react="dislike" aria-label="Less like this" title="Less like this" onClick={() => react("dislike")} className={`rounded-full px-2 py-1 hover:bg-black/5 ${reaction === "dislike" ? "text-danger" : ""}`}>▼</button>
-        <button aria-label="Save" title="Save" onClick={() => { setSaved(true); tracker.track("save", story.id); }} className={`rounded-full px-2 py-1 hover:bg-black/5 ${saved ? "text-sun-deep" : ""}`}>{saved ? "★" : "☆"}</button>
-        <button aria-label="Skip" title="Skip — not interested" onClick={skip} className="rounded-full px-2 py-1 hover:bg-black/5">✕</button>
+      <div className="mt-3 flex items-center gap-1">
+        <span className="mr-auto t-caption text-ink-48">{story.source} · {timeAgo(story.published_at)}</span>
+        {!lead && story.points.length > 0 && <button className="mr-1 t-caption text-primary" onClick={() => setOpen(!open)}>{open ? "Less" : "Key points"}</button>}
+        <IconButton label="More like this" kind="up" active={reaction === "like"} activeClass="text-primary" onClick={() => react("like")} />
+        <IconButton label="Less like this" kind="down" active={reaction === "dislike"} activeClass="text-danger" onClick={() => react("dislike")} />
+        <IconButton label="Save" kind="save" active={saved} activeClass="text-primary" onClick={() => { setSaved(true); tracker.track("save", story.id); }} />
+        <IconButton label="Hide this story" kind="hide" activeClass="" onClick={hide} />
       </div>
     </article>
   );
