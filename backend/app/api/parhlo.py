@@ -1,6 +1,7 @@
 """ParhLo HTTP API. Everything under /api (Vercel routes /api/* to this service)."""
 
 import datetime as dt
+import os
 
 from fastapi import APIRouter, Depends, Header, Response
 from pydantic import BaseModel
@@ -22,7 +23,9 @@ router = APIRouter(prefix="/api", tags=["parhlo"])
 @router.get("/health")
 def health():
     s = get_settings()
-    return {"status": "ok", "app": s.app_name, "llm": s.llm_configured, "db": bool(s.database_url)}
+    # commit lets the post-deploy smoke test confirm it is checking the new deployment
+    return {"status": "ok", "app": s.app_name, "llm": s.llm_configured, "db": bool(s.database_url),
+            "commit": os.environ.get("VERCEL_GIT_COMMIT_SHA", "")[:7] or None}
 
 
 @router.get("/topics")

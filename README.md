@@ -1,5 +1,8 @@
 # ParhLo
 
+[![CI](https://github.com/Tehman700/ParhLo/actions/workflows/ci.yml/badge.svg)](https://github.com/Tehman700/ParhLo/actions/workflows/ci.yml)
+[![Smoke test (production)](https://github.com/Tehman700/ParhLo/actions/workflows/smoke.yml/badge.svg)](https://github.com/Tehman700/ParhLo/actions/workflows/smoke.yml)
+
 **Your personal morning paper.** ParhLo learns what you care about, gathers the articles that matter to you from across the web every day, and delivers one personal paper. You can read it on the web or download it as a newspaper-style PDF, and it gets better the more you read.
 
 > Built for the NaSCon'26 hackathon. Problem statement: "Build a personal morning paper" (Eynvision).

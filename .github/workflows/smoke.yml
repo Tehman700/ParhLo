@@ -1,0 +1,53 @@
+name: Smoke test (production)
+
+# Vercel reports each deployment back to GitHub. When a production deployment succeeds, check the live site.
+on:
+  deployment_status:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Live site checks
+    if: github.event_name == 'workflow_dispatch' || (github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production')
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      SITE: https://parhlo-brown.vercel.app
+      SHA: ${{ github.event.deployment.sha || github.sha }}
+    steps:
+      - name: Wait for the production domain to serve this commit
+        run: |
+          want="${SHA:0:7}"
+          for i in $(seq 1 36); do
+            got=$(curl -fsS "$SITE/api/health" | jq -r '.commit // empty' || true)
+            echo "attempt $i: live commit=$got want=$want"
+            [ "$got" = "$want" ] && exit 0
+            sleep 5
+          done
+          echo "::error::production is not serving $want after 3 minutes"; exit 1
+
+      - name: API checks
+        run: |
+          set -euo pipefail
+          fail=0
+          check() { if eval "$2"; then echo "PASS  $1"; else echo "::error::FAIL  $1"; fail=1; fi; }
+          h=$(curl -fsS "$SITE/api/health")
+          check "health ok, database and LLM configured" '[ "$(echo "$h" | jq -r ".status,.db,.llm" | tr "\n" " ")" = "ok true true " ]'
+          check "17 topics" '[ "$(curl -fsS "$SITE/api/topics" | jq length)" = "17" ]'
+          check "2 sample readers on /demo" '[ "$(curl -fsS "$SITE/api/demo/personas" | jq length)" = "2" ]'
+          check "signed-out /api/me is 401" '[ "$(curl -s -o /dev/null -w "%{http_code}" "$SITE/api/me")" = "401" ]'
+          check "unknown invite is 404" '[ "$(curl -s -o /dev/null -w "%{http_code}" "$SITE/api/invites/not-a-code")" = "404" ]'
+          check "onboarding headlines served" '[ "$(curl -fsS "$SITE/api/onboarding/headlines?topics=ai,cricket" | jq length)" -ge 4 ]'
+          exit $fail
+
+      - name: Page checks
+        run: |
+          fail=0
+          for p in / /how-it-works /demo /sign-in /privacy /terms /about; do
+            code=$(curl -s -o /tmp/page -w "%{http_code}" "$SITE$p")
+            if [ "$code" = "200" ] && grep -q "ParhLo" /tmp/page; then echo "PASS  $p"; else echo "::error::FAIL  $p ($code)"; fail=1; fi
+          done
+          exit $fail

@@ -38,3 +38,10 @@ testpaths = ["tests"]
 pythonpath = ["."]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+line-length = 130
+
+[tool.ruff.lint]
+# CI gate: real errors only (syntax errors, undefined names, unused imports/variables). Style is left to review.
+select = ["E9", "F"]
