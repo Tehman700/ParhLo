@@ -28,13 +28,15 @@ def _ses():
     return boto3.client("sesv2", region_name=s.parhlo_aws_region, **creds)
 
 
-def _send_gmail(to: str, subject: str, html: str, text: str) -> str:
+def _send_gmail(to: str, subject: str, html: str, text: str, headers: dict | None = None) -> str:
     s = get_settings()
     msg = EmailMessage()
     msg["From"] = formataddr(("ParhLo", s.gmail_user))
     msg["To"] = to
     msg["Subject"] = subject
     msg["Message-ID"] = make_msgid(domain="parhlo.app")
+    for k, v in (headers or {}).items():
+        msg[k] = v
     msg.set_content(text)
     msg.add_alternative(html, subtype="html")
     with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ssl.create_default_context(), timeout=15) as smtp:
@@ -59,18 +61,19 @@ def _send_ses(to: str, subject: str, html: str, text: str) -> str:
         raise AppError("We couldn't send an email to this address. Please check it, or continue with Google.", 400) from e
 
 
-def _send(to: str, subject: str, html: str, text: str) -> str:
+def _send(to: str, subject: str, html: str, text: str, headers: dict | None = None) -> str:
     s = get_settings()
     if s.gmail_user and s.gmail_app_password:
         try:
-            return _send_gmail(to, subject, html, text)
+            return _send_gmail(to, subject, html, text, headers)
         except (smtplib.SMTPException, OSError) as e:
             log.warning("Gmail send failed (%s); falling back to SES", e)
     return _send_ses(to, subject, html, text)
 
 
-async def send_email(to: str, subject: str, html: str, text: str) -> str:
-    return await asyncio.to_thread(_send, to, subject, html, text)
+async def send_email(to: str, subject: str, html: str, text: str, headers: dict | None = None) -> str:
+    """headers: extra MIME headers such as List-Unsubscribe (Gmail path; SES sends without them)."""
+    return await asyncio.to_thread(_send, to, subject, html, text, headers)
 
 
 def otp_email(code: str) -> tuple[str, str, str]:

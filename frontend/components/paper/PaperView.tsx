@@ -4,7 +4,7 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Edition, Morning, QuizQuestion, Story } from "@/lib/api";
 import { useTracker } from "@/lib/tracker";
 import { formatDate } from "../ui";
@@ -20,6 +20,14 @@ export function PaperView({ edition, actions }: { edition: Edition; actions?: Re
   const initial = (id: number): StoryState => ({
     reaction: edition.state?.reactions[String(id)] ?? null, saved: edition.state?.saved.includes(id) ?? false,
   });
+
+  // Links from the morning email (/paper/<date>#story-<id>) open at that story.
+  useEffect(() => {
+    const h = window.location.hash;
+    if (!h.startsWith("#story-")) return;
+    const t = setTimeout(() => document.querySelector(h)?.scrollIntoView({ behavior: "smooth", block: "center" }), 700);
+    return () => clearTimeout(t);
+  }, [edition.id]);
 
   useGSAP(() => {
     gsap.timeline({ defaults: { ease: "power3.out" } })

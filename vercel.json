@@ -26,7 +26,17 @@
     }
   ],
   "crons": [
-    { "path": "/api/cron/ingest", "schedule": "0 0 * * *" },
-    { "path": "/api/cron/daily", "schedule": "30 0 * * *" }
+    {
+      "path": "/api/cron/ingest",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/daily",
+      "schedule": "30 0 * * *"
+    },
+    {
+      "path": "/api/cron/email",
+      "schedule": "0 1 * * *"
+    }
   ]
 }

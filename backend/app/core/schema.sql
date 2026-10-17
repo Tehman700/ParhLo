@@ -158,3 +158,21 @@ create table if not exists edition_jobs (
     started_at    timestamptz not null default now(),
     primary key (user_id, edition_date)
 );
+
+-- Morning email: an outbox queue in Postgres (one job per reader per paper; workers claim with SKIP LOCKED).
+alter table users add column if not exists email_morning boolean not null default true;
+create table if not exists email_jobs (
+    id          bigserial primary key,
+    user_id     uuid not null references users(id) on delete cascade,
+    edition_id  bigint not null references editions(id) on delete cascade,
+    kind        text not null default 'morning',         -- morning | manual
+    status      text not null default 'queued',          -- queued | sending | sent | failed | skipped
+    attempts    int not null default 0,
+    last_error  text,
+    run_after   timestamptz not null default now(),
+    claimed_at  timestamptz,
+    sent_at     timestamptz,
+    created_at  timestamptz not null default now()
+);
+create unique index if not exists email_jobs_once on email_jobs(user_id, edition_id) where kind = 'morning';
+create index if not exists email_jobs_due on email_jobs(run_after) where status = 'queued';

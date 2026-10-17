@@ -5,6 +5,7 @@ import gsap from "gsap";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { EmailPanel } from "@/components/dashboard/EmailPanel";
 import { FriendsPanel } from "@/components/dashboard/FriendsPanel";
 import { PaperStatus } from "@/components/dashboard/PaperStatus";
 import { SavedStories } from "@/components/dashboard/SavedStories";
@@ -315,6 +316,8 @@ function Dashboard() {
               </div>
             </Section>
           </div>
+
+          <EmailPanel on={me.user.email_morning} email={me.user.email} isDemo={isDemo} onChanged={flash} />
 
           <FriendsPanel isDemo={isDemo} onChanged={flash} />
 

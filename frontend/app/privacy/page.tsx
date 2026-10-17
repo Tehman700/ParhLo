@@ -35,7 +35,7 @@ export default function Privacy() {
       <ul>
         <li>To choose and order the stories in your paper, and to explain why each one is there.</li>
         <li>To learn your interests over time. Each night your reading is turned into updated topic weights, which you can see and change on your <Link href="/dashboard">dashboard</Link>.</li>
-        <li>To send your sign-in codes and, if you ask for it, your morning paper by email.</li>
+        <li>To send your sign-in codes, and your paper by email each morning. The morning email is on when you create an account; turn it off on your <Link href="/dashboard">dashboard</Link> or with the unsubscribe link in any email.</li>
       </ul>
       <p>We don&apos;t sell your data, share it with advertisers, or use it to build profiles for anyone else.</p>
 

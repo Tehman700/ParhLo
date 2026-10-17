@@ -3,13 +3,14 @@
 import datetime as dt
 import os
 
-from fastapi import APIRouter, Depends, Header, Response
+from fastapi import APIRouter, Depends, Header, Request, Response
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from app.core.config import get_settings
 from app.core.database import db
 from app.core.errors import AppError, NotFoundError
-from app.parhlo import ask, editions, friends, learn, profile
+from app.parhlo import ask, digest, editions, friends, learn, profile
 from app.parhlo.auth import AuthError, clear_session, current_user
 from app.parhlo.ingest import ingest, jev_backfill
 from app.parhlo.morning import morning_box
@@ -170,6 +171,35 @@ async def ask_paper(body: ask.AskIn, user=Depends(current_user)):
     return await ask.ask_paper(user, body)
 
 
+# ---------- morning email ----------
+
+@router.get("/me/email")
+def email_status(user=Depends(current_user)):
+    return digest.status(user["id"])
+
+
+@router.post("/me/email/send")
+async def email_send_now(user=Depends(writable_user)):
+    """Send the reader's latest paper by email right now (rate limited)."""
+    return await digest.send_now(user)
+
+
+@router.api_route("/email/unsubscribe", methods=["GET", "POST"], response_class=HTMLResponse)
+def email_unsubscribe(request: Request, u: str = "", t: str = ""):
+    """Link in every email (GET) and one-click unsubscribe from mail apps (POST, RFC 8058). No sign-in needed."""
+    ok = digest.unsubscribe(u, t)
+    base = get_settings().public_url.rstrip("/")
+    msg = ("You won't get the morning email any more. You can turn it back on in your dashboard."
+           if ok else "This unsubscribe link isn't valid. You can turn the morning email off in your dashboard.")
+    return HTMLResponse(f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>ParhLo</title></head><body style="margin:0;background:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,Inter,Arial,sans-serif;color:#1d1d1f">
+<div style="max-width:440px;margin:80px auto;background:#fff;border-radius:18px;padding:32px;text-align:center">
+<div style="font-size:22px;font-weight:600">{'Unsubscribed' if ok else 'Link not valid'}</div>
+<p style="font-size:17px;line-height:1.47;color:#6e6e73">{msg}</p>
+<a href="{base}/dashboard" style="display:inline-block;margin-top:8px;background:#0066cc;color:#fff;text-decoration:none;padding:10px 22px;border-radius:999px">Open dashboard</a>
+</div></body></html>""", status_code=200 if ok else 400)
+
+
 @router.get("/me/saved")
 def saved(user=Depends(current_user)):
     return learn.saved_stories(user["id"])
@@ -275,4 +305,13 @@ async def cron_daily():
             failed.append({"user": str(u["id"]), "error": str(e)[:200]})
     if not users:
         raise NotFoundError("No onboarded readers yet")
-    return {"generated": done, "failed": failed, "guests_removed": removed}
+    queued = digest.enqueue_for_date(editions.today_pkt())
+    emails = await digest.drain(limit=500)
+    return {"generated": done, "failed": failed, "guests_removed": removed, "emails_queued": queued, "emails": emails}
+
+
+@router.get("/cron/email", dependencies=[Depends(_cron_auth)])
+async def cron_email():
+    """06:00 PKT: queue anything the nightly run missed, then send due emails (including retries)."""
+    queued = digest.enqueue_for_date(editions.today_pkt())
+    return {"queued": queued, **(await digest.drain(limit=500))}
