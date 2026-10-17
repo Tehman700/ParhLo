@@ -1,6 +1,6 @@
 # 01: Problem Analysis: "Build a personal morning paper" (NaSCon'26, by Eynvision)
 
-**Product name: PrhLo** (Urdu "parh lo", "read it"). Only the name is Urdu; the product, UI and content are in English.
+**Product name: ParhLo** (Urdu "parh lo", "read it"). Only the name is Urdu; the product, UI and content are in English.
 
 Source: `NaSCon'26 Problem Statement.pdf` (repo root).
 
