@@ -10,6 +10,7 @@ for key in ("LLM_API_KEY", "AI_GATEWAY_API_KEY", "VERCEL_OIDC_TOKEN", "DATABASE_
 os.environ["EMBEDDING_PROVIDER"] = "local"
 for flag in ("ENABLE_RAG", "ENABLE_ML", "ENABLE_VISION"):
     os.environ[flag] = "true"
+os.environ["ENABLE_STARTER"] = "true"  # starter tests still cover chat/agent/files
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

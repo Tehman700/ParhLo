@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     email_from: str = "tehmanhassan@gmail.com"
 
     # --- Starter modules (off for ParhLo; flip on if needed) ---
+    enable_starter: bool = False  # chat/agent/files routes + tools (imports pandas/sklearn)
     enable_rag: bool = False
     enable_ml: bool = False
     enable_vision: bool = False

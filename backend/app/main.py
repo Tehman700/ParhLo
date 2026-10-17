@@ -7,11 +7,9 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import agent, auth, chat, files, parhlo, system
+from app.api import auth, parhlo, system
 from app.core.config import get_settings
-from app.core.db import init_db
 from app.core.errors import AppError
-from app.tools import load_tools
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("app")
@@ -20,7 +18,10 @@ log = logging.getLogger("app")
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     s = get_settings()
-    init_db()
+    if s.enable_starter:  # the pre-event starter's SQLite demo DB
+        from app.core.db import init_db
+
+        init_db()
     log.info("LLM: %s (configured=%s)", s.llm_model, s.llm_configured)
     log.info("Features: rag=%s ml=%s vision=%s", s.enable_rag, s.enable_ml, s.enable_vision)
     yield
@@ -28,7 +29,6 @@ async def lifespan(_: FastAPI):
 
 def create_app() -> FastAPI:
     s = get_settings()
-    load_tools()
     app = FastAPI(title=s.app_name, version="0.1.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
@@ -49,9 +49,15 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(parhlo.router)
     app.include_router(system.router)
-    app.include_router(chat.router)
-    app.include_router(agent.router)
-    app.include_router(files.router)
+    # Pre-event starter (chat / agent tools / files / RAG / ML / vision): off by default to keep cold starts fast.
+    if s.enable_starter:
+        from app.api import agent, chat, files
+        from app.tools import load_tools
+
+        load_tools()
+        app.include_router(chat.router)
+        app.include_router(agent.router)
+        app.include_router(files.router)
 
     # Optional modules: imported only when enabled, so a broken/unused module can't break startup.
     if s.enable_rag:
