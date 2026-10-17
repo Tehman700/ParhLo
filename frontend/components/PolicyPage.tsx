@@ -36,8 +36,8 @@ export function PolicyPage({ title, lead, updated, glance, sections }: {
   return (
     <div ref={root} className="min-h-screen bg-parchment">
       <TopBar />
-      <header className="px-4 pb-10 pt-16">
-        <div className="pol-head mx-auto max-w-[1024px]">
+      <header className="pb-10 pt-16">
+        <div className="pol-head mx-auto max-w-[1024px] px-4">
           <p className="t-caption text-ink-48">Last updated {updated}</p>
           <h1 className="t-display mt-2">{title}</h1>
           <p className="t-lead mt-3 max-w-2xl text-ink-60">{lead}</p>

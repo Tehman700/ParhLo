@@ -109,6 +109,7 @@ Older signals decay over time.
 | **I** Morning email | ✅ | Postgres job queue (outbox, SKIP LOCKED, retries), nightly + 06:00 PKT cron, newspaper-style email, one-click unsubscribe, dashboard switch + send-now. E2E 18/18 |
 | Interest changes reprint today's paper (n8n) | ✅ | n8n workflow debounces (8 s) and calls back; HMAC-signed events; page fallback after 25 s; switched-off topics never picked. Tested with a real n8n (10/10) and the fallback on production (9/9). Live on n8n Cloud (`N8N_WEBHOOK_URL` set in Vercel); dashboard E2E through n8n 10/10, reprint ≈ 28 s |
 | Instant reprints (speed) | ✅ | Fast print (SQL/pgvector ranking, story bank, no AI) + background AI polish; change → new paper 2.4–2.9 s, first paper 2.7 s (was 18–30 s); n8n reprints + polishes when the page is closed. Speed E2E 11/11, first-paper E2E 6/6 |
+| Search + Help & contact + privacy redesign | ✅ | `/api/search`: pgvector meaning + Postgres full text in one query, your paper first, Follow/Save/Ask from results, opens the original; `/help` FAQ + form (stored in `support_messages`, emailed with Reply-To, honeypot, 5/hour); privacy policy updated (search, Ask, n8n, email, friends, messages) with at-a-glance cards, sticky contents, services table. E2E 21/21 |
 | CI/CD | ✅ | GitHub Actions: backend ruff + 60 tests, frontend typegen + tsc + lint + build on every push; production smoke test after each Vercel deploy (waits for the deployed commit) |
 | J Submission | from 19:15 | README, architecture diagram (research session), Loom, form |
 

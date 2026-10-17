@@ -161,8 +161,8 @@ export function HelpCenter() {
   return (
     <div ref={root} className="min-h-screen bg-parchment">
       <TopBar />
-      <header className="px-4 pb-10 pt-16">
-        <div className="help-head mx-auto max-w-[1024px]">
+      <header className="pb-10 pt-16">
+        <div className="help-head mx-auto max-w-[1024px] px-4">
           <h1 className="t-display">Help &amp; contact</h1>
           <p className="t-lead mt-3 max-w-2xl text-ink-60">Answers to common questions, or send us a message. We read every one.</p>
         </div>
