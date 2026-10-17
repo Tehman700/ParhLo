@@ -131,7 +131,7 @@ async def onboard(user: dict, data: OnboardingIn) -> dict:
 def get_profile(user_id) -> dict:
     with db() as conn:
         user = conn.execute(
-            "select id, name, email, city, reading_minutes, region_mix, onboarded, is_demo, created_at, learn_from_friends, "
+            "select id, name, email, city, reading_minutes, region_mix, onboarded, is_demo, persona, created_at, learn_from_friends, "
             "(google_sub is not null) as google from users where id=%s",
             (user_id,)).fetchone()
         prof = conn.execute("select topics, entities, about, source_affinity, updated_at from profiles "
@@ -323,6 +323,17 @@ def unfollow(user: dict, name: str) -> dict:
         conn.execute("delete from interest_anchors where user_id = %s and kind = 'entity' and lower(label) = lower(%s)",
                      (user["id"], name))
     return get_profile(user["id"])
+
+
+GUEST_TTL_DAYS = 3
+
+
+def cleanup_guests() -> int:
+    """Delete demo guests (not the public personas) older than GUEST_TTL_DAYS, with everything they made."""
+    with db() as conn:
+        rows = conn.execute("delete from users where is_demo and not persona and created_at < now() - make_interval(days => %s) "
+                            "returning id", (GUEST_TTL_DAYS,)).fetchall()
+    return len(rows)
 
 
 def delete_account(user: dict) -> None:

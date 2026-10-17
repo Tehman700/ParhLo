@@ -193,8 +193,17 @@ function Dashboard() {
         </div>
 
         <div className="mt-2 grid gap-5">
+          {me.user.persona && (
+            <div className="flex flex-col gap-3 rounded-[18px] bg-[#e8f1fb] p-5 sm:flex-row sm:items-center sm:justify-between">
+              <p className="t-body text-ink">This is {me.user.name}&apos;s sample dashboard. It shows what you can change, but it&apos;s locked so every visitor sees the same sample.</p>
+              <Link href="/demo" className="btn btn-primary flex-none">Set up your own paper</Link>
+            </div>
+          )}
+
           <PaperStatus welcome={welcome} name={form.name || "there"} />
 
+          {/* Sample readers are shared by every visitor, so their settings are locked. */}
+          <fieldset disabled={me.user.persona} className="contents">
           <Section title="Profile" note="Changes apply from your next paper.">
             <form onSubmit={saveProfile}>
               <Row label="Name">
@@ -328,6 +337,8 @@ function Dashboard() {
               <span className="t-caption text-ink-60">This happens automatically every night.</span>
             </div>
           </Section>
+
+          </fieldset>
 
           <Section title="Account">
             {isDemo ? (

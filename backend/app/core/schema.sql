@@ -17,6 +17,8 @@ alter table users add column if not exists clerk_id text unique;
 alter table users add column if not exists is_demo boolean not null default false;
 alter table users add column if not exists onboarded boolean not null default false;
 alter table users add column if not exists google_sub text unique;
+-- Public sample readers on /demo: shared by every visitor, so read-only (guests are is_demo but not persona).
+alter table users add column if not exists persona boolean not null default false;
 create unique index if not exists users_email_unique on users (lower(email)) where email is not null;
 
 -- One-time email codes (only a hash is stored).

@@ -93,6 +93,8 @@ export type Edition = {
   generated_at: string;
   /** The reader's current reactions (by story id) and saved story ids. */
   state?: { reactions: Record<string, "like" | "dislike">; saved: number[] };
+  /** A public sample reader's paper: reading only, nothing is kept. */
+  read_only?: boolean;
 };
 
 export type SavedStory = {
@@ -127,7 +129,7 @@ export type Snapshot = {
 };
 
 export type Me = {
-  user: { id: string; name: string; email: string | null; city: string; reading_minutes: number; region_mix: number; onboarded: boolean; is_demo: boolean; created_at: string; google: boolean; learn_from_friends: boolean };
+  user: { id: string; name: string; email: string | null; city: string; reading_minutes: number; region_mix: number; onboarded: boolean; is_demo: boolean; persona: boolean; created_at: string; google: boolean; learn_from_friends: boolean };
   profile: { topics: Record<string, number>; entities: string[]; about: string | null; source_affinity: Record<string, number> } | null;
   anchors: { id: number; label: string; kind: string; weight: number; created_at: string }[];
   snapshots: Snapshot[];

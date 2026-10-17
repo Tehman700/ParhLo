@@ -98,12 +98,17 @@ async def _build(user: dict, edition_date: date) -> dict:
     # The lead is the front page: it must be a story we could read in full (better summary, real ✓).
     by_id = {s["id"]: s for s in stories}
     if by_id.get(layout["lead_id"], {}).get("grounded_in") != "full article":
-        full = next((s for s in stories if s.get("grounded_in") == "full article" and not s.get("discovery")), None)
-        if full:
-            layout["lead_id"] = full["id"]
-    for s in stories:  # a friend's like is the reason, said plainly
+        full = [s for s in stories if s.get("grounded_in") == "full article" and not s.get("discovery")]
+        if full:  # the strongest story we could read in full
+            layout["lead_id"] = max(full, key=lambda s: s.get("score", 0))["id"]
+    for s in stories:  # reasons that come from how a story was picked are stated by us, not the editor
+        why = layout["edits"].setdefault(s["id"], {})
         if s.get("friend"):
-            layout["edits"].setdefault(s["id"], {})["why"] = f"{s['friend']} {'saved' if s.get('friend_saved') else 'liked'} this"
+            why["why"] = f"{s['friend']} {'saved' if s.get('friend_saved') else 'liked'} this"
+        elif s.get("core"):
+            why["why"] = "One of today's biggest stories"
+        elif s.get("discovery"):
+            why["why"] = f"Something new for you: {TOPICS[s['topics'][0]]['label'] if s.get('topics') and s['topics'][0] in TOPICS else 'outside your usual topics'}"
 
     data = {
         "date": edition_date.isoformat(),
@@ -126,7 +131,8 @@ async def _build(user: dict, edition_date: date) -> dict:
                    audio_key = null, created_at = now()
                returning *""", (user["id"], edition_date, number, Jsonb(data))).fetchone()
         lead = next((st["headline"] for st in data["stories"] if st["id"] == data["lead_id"]), None)
-        friends.notify(conn, user["id"], "paper_ready", data={"date": data["date"], "lead": lead})
+        if not user.get("is_demo"):
+            friends.notify(conn, user["id"], "paper_ready", data={"date": data["date"], "lead": lead})
     return _public(row)
 
 

@@ -44,13 +44,23 @@ def onboarding_preview(topics: str = "", entities: str = ""):
 
 # ---------- reader ----------
 
+SAMPLE_READ_ONLY = "This is a sample reader, so it can't be changed. Set up your own paper to personalise it."
+
+
+def writable_user(user=Depends(current_user)):
+    """current_user, except the public sample readers (shared by every visitor) are read-only."""
+    if user.get("persona"):
+        raise AppError(SAMPLE_READ_ONLY, 403)
+    return user
+
+
 @router.get("/me")
 def me(user=Depends(current_user)):
     return profile.get_profile(user["id"])
 
 
 @router.post("/onboarding")
-async def onboarding(data: profile.OnboardingIn, user=Depends(current_user)):
+async def onboarding(data: profile.OnboardingIn, user=Depends(writable_user)):
     return await profile.onboard(user, data)
 
 
@@ -59,7 +69,7 @@ class TopicWeights(BaseModel):
 
 
 @router.patch("/me/topics")
-def update_topics(body: TopicWeights, user=Depends(current_user)):
+def update_topics(body: TopicWeights, user=Depends(writable_user)):
     from psycopg.types.json import Jsonb
 
     clean = {k: max(0.0, min(1.0, v)) for k, v in body.topics.items() if k in TOPICS}
@@ -70,7 +80,7 @@ def update_topics(body: TopicWeights, user=Depends(current_user)):
 
 
 @router.patch("/me")
-async def update_me(body: profile.ProfileUpdate, user=Depends(current_user)):
+async def update_me(body: profile.ProfileUpdate, user=Depends(writable_user)):
     return await profile.update_profile(user, body)
 
 
@@ -79,7 +89,7 @@ class TopicToggle(BaseModel):
 
 
 @router.put("/me/topics/{slug}")
-async def toggle_topic(slug: str, body: TopicToggle, user=Depends(current_user)):
+async def toggle_topic(slug: str, body: TopicToggle, user=Depends(writable_user)):
     return await profile.set_topic(user, slug, body.on)
 
 
@@ -88,17 +98,17 @@ class FollowIn(BaseModel):
 
 
 @router.post("/me/following")
-async def follow(body: FollowIn, user=Depends(current_user)):
+async def follow(body: FollowIn, user=Depends(writable_user)):
     return await profile.follow(user, body.name)
 
 
 @router.delete("/me/following")
-def unfollow(name: str, user=Depends(current_user)):
+def unfollow(name: str, user=Depends(writable_user)):
     return profile.unfollow(user, name)
 
 
 @router.delete("/me")
-def delete_me(response: Response, user=Depends(current_user)):
+def delete_me(response: Response, user=Depends(writable_user)):
     """Delete the account and all its data, and sign out."""
     if user.get("is_demo"):
         raise AppError("Demo readers can't be deleted. Use Exit demo instead.", 400)
@@ -108,7 +118,7 @@ def delete_me(response: Response, user=Depends(current_user)):
 
 
 @router.delete("/me/anchors/{anchor_id}")
-def delete_anchor(anchor_id: int, user=Depends(current_user)):
+def delete_anchor(anchor_id: int, user=Depends(writable_user)):
     with db() as conn:
         conn.execute("delete from interest_anchors where id=%s and user_id=%s", (anchor_id, user["id"]))
     return {"deleted": anchor_id}
@@ -123,12 +133,15 @@ class GenerateIn(BaseModel):
 async def generate(body: GenerateIn, user=Depends(current_user)):
     if not user.get("onboarded"):
         raise AppError("Finish onboarding first", 409)
+    if body.force and user.get("persona"):
+        raise AppError(SAMPLE_READ_ONLY, 403)
     return _with_state(user, await editions.generate_edition(user, body.date, body.force))
 
 
 def _with_state(user: dict, ed: dict) -> dict:
     """Attach the reader's likes/dislikes/saves for this paper's stories."""
-    return {**ed, "state": learn.reader_state(user["id"], [s["id"] for s in ed.get("stories", [])])}
+    return {**ed, "state": learn.reader_state(user["id"], [s["id"] for s in ed.get("stories", [])]),
+            "read_only": bool(user.get("persona"))}
 
 
 @router.get("/editions")
@@ -143,6 +156,8 @@ def edition(edition_date: dt.date, user=Depends(current_user)):
 
 @router.post("/events")
 def events(body: list[learn.EventIn], user=Depends(current_user)):
+    if user.get("persona"):  # visitors reading a sample paper don't change it for everyone else
+        return {"recorded": 0, "read_only": True}
     return learn.record_events(user, body)
 
 
@@ -159,7 +174,7 @@ def my_friends(user=Depends(current_user)):
 
 
 @router.delete("/me/friends/{friend_id}")
-def unfriend(friend_id: str, user=Depends(current_user)):
+def unfriend(friend_id: str, user=Depends(writable_user)):
     return friends.remove_friend(user, friend_id)
 
 
@@ -169,7 +184,7 @@ def invite(code: str):
 
 
 @router.post("/invites/{code}/accept")
-def accept_invite(code: str, user=Depends(current_user)):
+def accept_invite(code: str, user=Depends(writable_user)):
     return friends.accept_invite(user, code)
 
 
@@ -184,7 +199,7 @@ def notifications_read(user=Depends(current_user)):
 
 
 @router.post("/learn")
-def consolidate(user=Depends(current_user)):
+def consolidate(user=Depends(writable_user)):
     return learn.consolidate(user)
 
 
@@ -197,14 +212,14 @@ async def morning(user=Depends(current_user)):
 
 @router.get("/demo/personas")
 def personas():
-    """Seeded, onboarded demo readers (for visitors trying ParhLo without an account)."""
+    """The public sample readers on /demo (read-only, shared by every visitor)."""
     with db() as conn:
         return conn.execute(
             """select u.id, u.name, u.city, p.about,
                       (select array_agg(k order by (p.topics->>k)::float desc) from jsonb_object_keys(p.topics) k
                         where (p.topics->>k)::float >= 0.5) as top_topics
                from users u join profiles p on p.user_id = u.id
-               where u.is_demo and u.onboarded and u.name <> 'Guest' order by u.created_at limit 6""").fetchall()
+               where u.persona and u.onboarded order by u.created_at limit 6""").fetchall()
 
 
 @router.post("/demo/start")
@@ -238,15 +253,17 @@ async def cron_ingest():
 async def cron_daily():
     """05:30 PKT: learn from yesterday, then print everyone's paper."""
     with db() as conn:
-        users = conn.execute("select * from users where onboarded").fetchall()
+        users = conn.execute("select * from users where onboarded and (not is_demo or persona)").fetchall()
     done, failed = 0, []
+    removed = profile.cleanup_guests()
     for u in users:
         try:
-            learn.consolidate(u)
+            if not u["persona"]:  # sample readers stay as they are
+                learn.consolidate(u)
             await editions.generate_edition(u)
             done += 1
         except Exception as e:  # one reader's failure must not block the others
             failed.append({"user": str(u["id"]), "error": str(e)[:200]})
     if not users:
         raise NotFoundError("No onboarded readers yet")
-    return {"generated": done, "failed": failed}
+    return {"generated": done, "failed": failed, "guests_removed": removed}

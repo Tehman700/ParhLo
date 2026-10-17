@@ -40,6 +40,15 @@ export function EditionScreen({ date }: { date?: string }) {
   return (
     <>
       <TopBar right={<Link href={`/paper/${edition.edition_date}/print`} className="btn btn-primary btn-sm !py-1 !text-[12px]">Download PDF</Link>} />
+      {edition.read_only && (
+        <div className="border-b border-[#d6e6f8] bg-[#e8f1fb]">
+          <div className="mx-auto flex max-w-[1024px] flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5 t-caption">
+            <span className="text-ink">You&apos;re reading {edition.reader.name}&apos;s sample paper. Likes and saves aren&apos;t kept.</span>
+            <Link href="/demo" className="link">Read another sample</Link>
+            <Link href="/sign-in" className="link font-semibold">Make your own paper ›</Link>
+          </div>
+        </div>
+      )}
       <PaperView edition={edition} actions={
         <>
           <Link href={`/paper/${edition.edition_date}/print`} className="btn btn-primary">Download PDF</Link>
