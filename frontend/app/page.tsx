@@ -5,6 +5,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Link from "next/link";
 import { useRef } from "react";
+import { MotionLoop } from "@/components/MotionLoop";
 import { BrowserFrame, PaperMock } from "@/components/PaperMock";
 import { StartButtons, TopBar } from "@/components/ui";
 
@@ -35,6 +36,13 @@ export default function Landing() {
         y: 40, opacity: 0, stagger: 0.1, duration: 0.8, ease: "power3.out",
         scrollTrigger: { trigger: tile, start: "top 75%" },
       });
+    });
+
+    // Left/right pairs: copy enters from the left, the visual from the right; reverses when scrolled back up.
+    gsap.utils.toArray<HTMLElement>(".slide-pair").forEach((pair) => {
+      const st = { trigger: pair, start: "top 75%", toggleActions: "play none none reverse" };
+      gsap.from(pair.querySelectorAll(".slide-left"), { x: -80, opacity: 0, duration: 0.9, ease: "power3.out", scrollTrigger: st });
+      gsap.from(pair.querySelectorAll(".slide-right"), { x: 80, opacity: 0, duration: 0.9, ease: "power3.out", delay: 0.08, scrollTrigger: st });
     });
 
     gsap.from(".interest-bar", {
@@ -71,6 +79,25 @@ export default function Landing() {
           <BrowserFrame className="hero-product rounded-b-none">
             <PaperMock />
           </BrowserFrame>
+        </div>
+      </section>
+
+      {/* One shape: the whole product in 14 seconds. Copy slides in from the left, the loop from the right. */}
+      <section className="slide-pair overflow-hidden bg-canvas px-4 py-24 sm:py-32">
+        <div className="mx-auto grid max-w-[980px] items-center gap-12 md:grid-cols-[1fr_1.1fr]">
+          <div className="slide-left">
+            <p className="t-tagline text-ink-60">Your morning, in one place</p>
+            <h2 className="t-display mt-2">Everything your paper does, in one place.</h2>
+            <ul className="mt-6 space-y-3 t-body text-ink-60">
+              <li><span className="font-semibold text-ink">Printed by morning.</span> Your paper is ready when you wake up.</li>
+              <li><span className="font-semibold text-ink">Your reading time.</span> Pick 5, 10, 15 or 20 minutes.</li>
+              <li><span className="font-semibold text-ink">Your topics.</span> Switch them on and off, and see what it has learned.</li>
+              <li><span className="font-semibold text-ink">Ask your paper.</span> Questions answered from your stories, with sources.</li>
+            </ul>
+          </div>
+          <div className="slide-right">
+            <MotionLoop bg="ffffff" />
+          </div>
         </div>
       </section>
 

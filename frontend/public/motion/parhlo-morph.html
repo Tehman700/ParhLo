@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ParhLo — one shape</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@1,800&display=swap" rel="stylesheet">
+<style>
+  /* ParhLo "one shape" loop — 120 BPM, 7 bars, 14 s. Every style is computed from time in seek(t). */
+  :root { --ink:#1d1d1f; --ink60:#6e6e73; --ink48:#86868b; --hair:#e0e0e0; --blue:#0066cc; --canvas:#f4f3f1; }
+  html, body { margin:0; height:100%; background:var(--canvas); overflow:hidden; }
+  #fit { position:absolute; left:0; top:0; width:1440px; height:1440px; transform-origin:0 0; }
+  #stage { position:absolute; inset:0; background:var(--canvas); overflow:hidden; color:var(--ink);
+           font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+           -webkit-font-smoothing:antialiased; letter-spacing:-0.2px; }
+  #cam { position:absolute; left:720px; top:720px; width:0; height:0; }
+  #shape { position:absolute; overflow:hidden; }
+  .abs { position:absolute; }
+  .layer { position:absolute; display:none; }
+  .t-strong { font-weight:600; }
+  .muted { color:var(--ink60); }
+  #track { position:absolute; overflow:hidden; }
+  #fill { position:absolute; left:0; top:0; bottom:0; background:var(--blue); }
+  #knob { position:absolute; }
+  #cursor { position:absolute; left:0; top:0; width:30px; height:30px; transform-origin:4px 3px; pointer-events:none; }
+  .row { position:absolute; left:16px; width:608px; height:56px; border-radius:14px; }
+  .row .ic { position:absolute; left:12px; top:12px; width:32px; height:32px; border-radius:9px; background:#f0f0f3; }
+  .row .ic svg { position:absolute; left:6px; top:6px; }
+  .row .tx { position:absolute; left:58px; top:16px; font-size:19px; font-weight:500; white-space:nowrap; }
+  .chip { position:absolute; border:1px solid var(--hair); border-radius:8px; color:var(--ink48); font-weight:600; font-size:15px;
+          height:30px; line-height:30px; padding:0 9px; background:#fff; }
+</style>
+</head>
+<body>
+<div id="fit"><div id="stage">
+  <div id="cam">
+    <div id="shape">
+      <div id="track"><div id="fill"></div></div>
+      <div id="knob"></div>
+
+      <!-- 1 button -->
+      <div class="layer" id="L_btn" style="width:300px;height:76px">
+        <div class="abs t-strong" style="left:0;right:0;top:23px;text-align:center;font-size:23px;color:#fff">Get my paper</div>
+      </div>
+
+      <!-- 2 loader -->
+      <div class="layer" id="L_load" style="width:84px;height:84px">
+        <svg width="84" height="84" viewBox="0 0 84 84">
+          <circle cx="42" cy="42" r="27" fill="none" stroke="#e8e8ed" stroke-width="6"/>
+          <circle id="arc" cx="42" cy="42" r="27" fill="none" stroke="#0066cc" stroke-width="6" stroke-linecap="round" pathLength="1"/>
+        </svg>
+      </div>
+
+      <!-- 3 check -->
+      <div class="layer" id="L_check" style="width:84px;height:84px">
+        <svg width="84" height="84" viewBox="0 0 84 84"><path id="checkPath" d="M27 43 L37.5 53.5 L58 32" fill="none" stroke="#fff" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/></svg>
+      </div>
+
+      <!-- 4 island (compact) -->
+      <div class="layer" id="L_island" style="width:440px;height:72px;color:#fff">
+        <div class="abs t-strong" style="left:30px;top:23px;font-size:20px">6:00</div>
+        <div class="abs" style="right:28px;top:24px;font-size:18px;font-weight:500;display:flex;align-items:center;gap:10px">
+          <span style="width:10px;height:10px;border-radius:5px;background:#2997ff;display:inline-block"></span>Your paper is ready</div>
+      </div>
+
+      <!-- 5 island (expanded) -->
+      <div class="layer" id="L_islandX" style="width:600px;height:180px;color:#fff">
+        <div class="abs" style="left:36px;top:28px;font-size:16px;color:#a1a1a6;display:flex;align-items:center;gap:10px">
+          <svg width="24" height="24" viewBox="0 0 64 64"><rect width="64" height="64" rx="15" fill="#fff"/><circle cx="32" cy="37" r="12" fill="#0066cc"/><rect x="13" y="37" width="38" height="17" rx="3" fill="#fff"/><rect x="18" y="43" width="28" height="2.6" rx="1.3" fill="#1d1d1f"/></svg>
+          ParhLo · now</div>
+        <div class="abs t-strong" style="left:36px;top:62px;font-size:29px">Your paper is ready</div>
+        <div class="abs" style="left:36px;top:110px;font-size:17px;color:#a1a1a6">10 stories · No. 12 · Lahore 28° · AQI 168</div>
+        <div class="abs t-strong" style="right:32px;top:66px;height:42px;line-height:42px;padding:0 22px;border-radius:21px;background:#0066cc;font-size:17px">Read</div>
+      </div>
+
+      <!-- 6 player -->
+      <div class="layer" id="L_player" style="width:640px;height:220px">
+        <div class="abs" style="left:32px;top:28px;width:64px;height:64px;border-radius:15px;background:#1d1d1f;color:#fff;text-align:center;line-height:66px;font:italic 800 34px 'Playfair Display',Georgia,serif">P</div>
+        <div class="abs t-strong" style="left:116px;top:33px;font-size:22px">Today's paper</div>
+        <div class="abs muted" style="left:116px;top:64px;font-size:16px">No. 12 · 10 stories · 10 min</div>
+        <div class="abs" style="left:544px;top:28px;width:64px;height:64px;border-radius:32px;background:#1d1d1f">
+          <svg class="abs" style="left:20px;top:20px" width="24" height="24" viewBox="0 0 24 24"><path id="pp1" fill="#fff"/><path id="pp2" fill="#fff"/></svg>
+        </div>
+        <div class="abs muted" id="tElapsed" style="left:32px;top:178px;font-size:15px;font-variant-numeric:tabular-nums">Story 3 of 10</div>
+        <div class="abs muted" id="tLeft" style="right:32px;top:178px;font-size:15px;font-variant-numeric:tabular-nums">8 left</div>
+      </div>
+
+      <!-- 7 slider -->
+      <div class="layer" id="L_slider" style="width:640px;height:200px">
+        <div class="abs t-strong" style="left:32px;top:28px;font-size:23px">Reading time</div>
+        <div class="abs t-strong" id="sVal" style="right:32px;top:28px;font-size:23px;color:#0066cc;font-variant-numeric:tabular-nums">15 min</div>
+        <div class="abs muted" style="left:32px;top:156px;font-size:16px">5 min</div>
+        <div class="abs muted" style="left:224px;top:156px;font-size:16px;transform:translateX(-50%)">10</div>
+        <div class="abs muted" style="left:416px;top:156px;font-size:16px;transform:translateX(-50%)">15</div>
+        <div class="abs muted" style="right:32px;top:156px;font-size:16px">20 min</div>
+      </div>
+
+      <!-- 8 toggle row -->
+      <div class="layer" id="L_toggle" style="width:600px;height:120px">
+        <div class="abs t-strong" style="left:32px;top:30px;font-size:21px">Cricket</div>
+        <div class="abs muted" style="left:32px;top:63px;font-size:16px">More cricket in your paper</div>
+      </div>
+
+      <!-- 9 tabs (labels sit above the indicator) -->
+      <div class="layer" id="L_tabs" style="width:560px;height:80px">
+        <div class="abs t-strong" id="tab0" style="left:98.7px;top:27px;font-size:20px;transform:translateX(-50%)">Today</div>
+        <div class="abs t-strong" id="tab1" style="left:280px;top:27px;font-size:20px;transform:translateX(-50%)">Archive</div>
+        <div class="abs t-strong" id="tab2" style="left:461.3px;top:27px;font-size:20px;transform:translateX(-50%)">Interests</div>
+      </div>
+
+      <!-- 10 chart -->
+      <div class="layer" id="L_chart" style="width:780px;height:500px">
+        <div class="abs t-strong" style="left:60px;top:100px;font-size:26px">Your interests</div>
+        <div class="abs" style="right:60px;top:106px;font-size:16px;display:flex;gap:18px;align-items:center">
+          <span style="display:flex;align-items:center;gap:7px"><i style="width:14px;height:3px;border-radius:2px;background:#0066cc;display:inline-block"></i>Cricket</span>
+          <span class="muted" style="display:flex;align-items:center;gap:7px"><i style="width:14px;height:3px;border-radius:2px;background:#c7c7cc;display:inline-block"></i>AI</span>
+        </div>
+        <svg class="abs" style="left:0;top:0" width="780" height="500" viewBox="0 0 780 500">
+          <g stroke="#f0f0f0" stroke-width="1.5"><line x1="60" x2="720" y1="368" y2="368"/><line x1="60" x2="720" y1="264" y2="264"/><line x1="60" x2="720" y1="160" y2="160"/></g>
+          <path id="lineAI" fill="none" stroke="#c7c7cc" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/>
+          <path id="lineC" fill="none" stroke="#0066cc" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/>
+          <g id="dots"></g>
+          <circle id="hoverRing" r="13" fill="#0066cc" opacity="0.14"/>
+          <circle id="hoverDot" r="7" fill="#0066cc" stroke="#fff" stroke-width="3"/>
+        </svg>
+        <div class="abs muted" style="left:0;right:0;top:446px;font-size:16px">
+          <span class="abs" style="left:60px;transform:translateX(-50%)">Mon</span><span class="abs" style="left:170px;transform:translateX(-50%)">Tue</span>
+          <span class="abs" style="left:280px;transform:translateX(-50%)">Wed</span><span class="abs" style="left:390px;transform:translateX(-50%)">Thu</span>
+          <span class="abs" style="left:500px;transform:translateX(-50%)">Fri</span><span class="abs" style="left:610px;transform:translateX(-50%)">Sat</span>
+          <span class="abs" style="left:720px;transform:translateX(-50%)">Sun</span>
+        </div>
+        <div class="abs" id="tip" style="left:450px;top:128px;width:250px;height:70px;border-radius:14px;background:#1d1d1f;color:#fff;transform-origin:100% 100%">
+          <div class="abs t-strong" style="left:16px;top:12px;font-size:17px">Cricket · 74</div>
+          <div class="abs" style="left:16px;top:38px;font-size:14.5px;color:#a1a1a6">+12 this week · you read 3 stories</div>
+        </div>
+      </div>
+
+      <!-- 11 ⌘K: Ask your paper -->
+      <div class="layer" id="L_cmd" style="width:640px">
+        <div id="cmdInput" class="abs" style="left:0;width:640px;height:84px">
+          <svg class="abs" style="left:28px;top:31px" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#86868b" stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="7"/><path d="M16 16l5 5"/></svg>
+          <div class="abs" id="cmdPh" style="left:66px;top:28px;font-size:22px;color:#86868b">Ask your paper…</div>
+          <div class="abs" style="left:66px;top:28px;font-size:22px;white-space:pre"><span id="cmdTyped"></span><span id="caret" style="display:inline-block;width:2px;height:26px;background:#0066cc;vertical-align:-4px;margin-left:1px"></span></div>
+          <div class="chip" style="right:24px;top:27px">⌘K</div>
+        </div>
+        <div id="cmdDiv" class="abs" style="left:0;right:0;top:84px;height:1px;background:#f0f0f0"></div>
+        <div class="row" id="r0"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1d1d1f" stroke-width="2" stroke-linecap="round"><path d="M5 6h14M5 12h14M5 18h9"/></svg></div><div class="tx">Today's top stories</div></div>
+        <div class="row" id="r1"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1d1d1f" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M8.5 6.5c2 3.5 2 7.5 0 11M15.5 6.5c-2 3.5-2 7.5 0 11"/></svg></div><div class="tx">Cricket: Pakistan vs England, day 2</div></div>
+        <div class="row" id="r2"><div class="ic" id="r2ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1d1d1f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="r2svg"><path d="M4 17l5-5 4 3 7-8"/><path d="M15 7h5v5"/></svg></div><div class="tx" id="r2tx">IMF loan: what changed this week</div>
+          <div class="chip" id="enterChip" style="right:12px;top:12px">↵</div></div>
+      </div>
+
+      <!-- 12 toast -->
+      <div class="layer" id="L_toast" style="width:480px;height:76px;color:#fff">
+        <svg class="abs" style="left:20px;top:18px" width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="20" fill="#0066cc"/><path id="toastCheck" d="M12.5 20.5 L17.5 25.5 L27.5 15" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/></svg>
+        <div class="abs t-strong" style="left:76px;top:25px;font-size:21px">Saved to tomorrow's paper</div>
+      </div>
+    </div>
+  </div>
+
+  <svg id="cursor" viewBox="0 0 30 30"><path d="M4 3 L4 24.5 L9.6 19.2 L13.4 27.6 L17.2 25.9 L13.5 17.7 L21 17.7 Z" fill="#1d1d1f" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>
+</div></div>
+
+<script>
+/* ---------- time model ---------- */
+const QP = new URLSearchParams(location.search);
+if (/^[0-9a-f]{6}$/i.test(QP.get("bg") || "")) document.documentElement.style.setProperty("--canvas", "#" + QP.get("bg"));
+const LOOP = 14;                       // 120 BPM × 28 beats
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+/* Closed-form spring step response (0 → 1). z < 1: tiny overshoot; z >= 1: critically damped. */
+function sp(tau, w = 17, z = 0.8) {
+  if (tau <= 0) return 0;
+  if (z >= 1) return 1 - Math.exp(-w * tau) * (1 + w * tau);
+  const wd = w * Math.sqrt(1 - z * z);
+  return 1 - Math.exp(-z * w * tau) * (Math.cos(wd * tau) + (z * w / wd) * Math.sin(wd * tau));
+}
+/* A value that changes target many times = sum of one spring per change. keys: [v0, [t, v, w?, z?], …] */
+function tr(t, keys, w = 17, z = 0.8) {
+  let v = keys[0], prev = keys[0];
+  for (let i = 1; i < keys.length; i++) {
+    const [ti, vi, wi = w, zi = z] = keys[i];
+    v += (vi - prev) * sp(t - ti, wi, zi);
+    prev = vi;
+  }
+  return v;
+}
+const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+function trC(t, keys, w = 17, z = 1) {
+  const ch = [0, 1, 2].map(c => tr(t, [hex(keys[0])[c], ...keys.slice(1).map(([ti, h]) => [ti, hex(h)[c]])], w, z));
+  return `rgb(${ch.map(v => Math.round(clamp(v, 0, 255))).join(",")})`;
+}
+const mix = (a, b, k) => { const A = hex(a), B = hex(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * clamp(k, 0, 1))).join(",")})`; };
+/* Hand a value from one behaviour to the next at ts: spring from where it was toward the new (possibly moving) target. */
+function handoff(t, ts, prev, next, w = 17, z = 0.8) {
+  if (t < ts) return prev(t);
+  return next(t) + (prev(ts) - next(ts)) * (1 - sp(t - ts, w, z));
+}
+const crit = (tau, w) => (tau <= 0 ? 0 : 1 - Math.exp(-w * tau) * (1 + w * tau));
+/* Content swap: short blur in, short blur out; exit starts before the next layer enters. */
+function vis(t, a, b) {
+  const enter = crit(t - a, 26), exit = crit(t - b, 30);
+  return { op: enter * (1 - exit), enter, exit };
+}
+function showLayer(el, t, a, b, extra = "") {
+  const { op, enter, exit } = vis(t, a, b);
+  if (op < 0.003) { el.style.display = "none"; return 0; }
+  el.style.display = "block";
+  el.style.opacity = op.toFixed(3);
+  el.style.filter = op > 0.995 ? "none" : `blur(${((1 - op) * 7).toFixed(2)}px)`;
+  el.style.transform = `translateY(${((1 - enter) * 8 - exit * 8).toFixed(2)}px) ${extra}`;
+  return op;
+}
+
+/* ---------- the score: 28 beats, 0.5 s each ---------- */
+// One shape: width, height, radius, colour (shape spring w=17, z=0.8 → ~1.5 % overshoot)
+const W = [300, [0.75, 84], [2.5, 440], [3.0, 600], [3.5, 640], [7.5, 600], [8.5, 560], [9.5, 780], [11.0, 640], [13.0, 480], [13.5, 300]];
+const H = [76, [0.75, 84], [2.5, 72], [3.0, 180], [3.5, 220], [6.0, 200], [7.5, 120], [8.5, 80], [9.5, 500], [11.0, 84], [11.25, 300], [12.0, 170], [13.0, 76]];
+const R = [38, [0.75, 42], [2.5, 36], [3.0, 46], [3.5, 40], [6.0, 36], [7.5, 30], [8.5, 40], [9.5, 40], [11.0, 26], [11.25, 28], [13.0, 38]];
+const BG = ["#1d1d1f", [0.75, "#ffffff"], [2.0, "#0066cc"], [2.5, "#1d1d1f"], [3.5, "#ffffff"], [13.0, "#1d1d1f"]];
+const HAIR = [0, [0.75, 1], [2.0, 0], [3.5, 1], [13.0, 0]];
+const PRESS = [1, [0.5, 0.965, 30, 1], [0.62, 1, 22, 0.8], [4.0, 0.985, 30, 1], [4.1, 1, 22, 0.8], [8.0, 0.985, 30, 1], [8.1, 1, 22, 0.8],
+               [9.0, 0.985, 30, 1], [9.1, 1, 22, 0.8], [12.5, 0.985, 30, 1], [12.6, 1, 22, 0.8]];
+// Camera: zooms so each state fills the frame (slower spring, no overshoot)
+// Toast and button share one zoom, so nothing on camera moves across the loop seam.
+const ZOOM = [2.6, [2.5, 2.5], [3.0, 1.9], [3.5, 1.85], [7.5, 1.95], [8.5, 2.0], [9.5, 1.62], [11.0, 1.85], [11.25, 1.75], [12.0, 1.8], [13.0, 2.6]];
+// Cursor (world units from the centre), critically damped
+const CX = [150, [0.02, 20], [0.8, 150], [3.5, 256], [4.45, -69], [5.03, 127], [6.0, 127], [6.32, 330], [7.1, 222], [8.45, 181], [9.5, 250], [10.05, 332], [11.0, 200], [13.15, 150]];
+const CY = [110, [0.02, 8], [0.8, 120], [3.5, -48], [4.45, 52], [5.03, 52], [6.0, 32], [6.32, 34], [7.1, 4], [8.45, 4], [9.5, 120], [10.05, -24], [11.0, 160], [13.15, 110]];
+const CPRESS = [1, [0.5, 0.82, 30, 1], [0.62, 1, 30, 1], [4.0, 0.82, 30, 1], [4.1, 1, 30, 1], [5.0, 0.82, 30, 1], [5.75, 1, 30, 1],
+                [6.3, 0.82, 30, 1], [7.0, 1, 30, 1], [8.0, 0.82, 30, 1], [8.1, 1, 30, 1], [9.0, 0.82, 30, 1], [9.1, 1, 30, 1]];
+const cX = t => tr(t, CX, 10, 1), cY = t => tr(t, CY, 10, 1);
+
+/* Reading progress: advances, then direct-manipulation scrub (thumb = cursor while held) */
+const play = t => (t < 4.0 ? 0.25 : 0.25 + Math.min(t - 4.0, 1.0) * 0.13);
+const kxP = t => handoff(t, 5.0, tt => -288 + 576 * play(tt), tt => clamp(cX(Math.min(tt, 5.75)), -288, 288), 30, 1);
+/* Slider: drag past max stretches (rubber band); on release it springs back from wherever it was */
+const rub = x => (x > 288 ? 288 + (x - 288) * 0.45 : Math.max(-288, x));
+const HOLD = () => kxP(5.8);
+const dragS = t => handoff(t, 6.3, HOLD, tt => rub(cX(tt)), 30, 1);
+const V7 = () => dragS(7.0);
+const kxS = t => (t < 7.0 ? dragS(t) : 288 + (V7() - 288) * (1 - sp(t - 7.0, 14, 0.75)));
+const tabsY = t => tr(t, [0, [9.5, -202]]);
+/* Knob edges per phase [L, R, T, B]. Toggle + tabs: leading edge on a stiffer spring than the trailing edge. */
+const knobP = t => { const x = kxP(t); return [x - 10, x + 10, 40, 60]; };
+const knobS = t => { const x = kxS(t); return [x - 14, x + 14, 16, 44]; };
+const knobG = t => [tr(t, [196, [8.0, 232, 13, 0.8]]), tr(t, [236, [8.0, 272, 26, 0.8]]), -20, 20];
+const knobT = t => { const y = tabsY(t); return [tr(t, [-272, [9.0, 90.67, 13, 0.8]]), tr(t, [-90.67, [9.0, 272, 26, 0.8]]), y - 32, y + 32]; };
+const EDGE_W = [[24, 14, 17, 17], [24, 14, 17, 17]]; // moving left into toggle / tabs: L leads
+function knob(t) {
+  return [0, 1, 2, 3].map(i => {
+    const a = tt => handoff(tt, 6.0, x => knobP(x)[i], x => knobS(x)[i], 17, 0.8);
+    const b = tt => handoff(tt, 7.5, a, x => knobG(x)[i], EDGE_W[0][i], 0.8);
+    return handoff(t, 8.5, b, x => knobT(x)[i], EDGE_W[1][i], 0.8);
+  });
+}
+
+/* Chart data */
+const PX = i => 60 + i * 110, PY = w => 420 - (w - 55) / 25 * 260;
+const CRICKET = [62, 63, 65, 64, 68, 71, 74], AI = [58, 59, 57, 59, 58, 60, 59];
+const pathOf = d => d.map((w, i) => `${i ? "L" : "M"}${PX(i)} ${PY(w).toFixed(1)}`).join(" ");
+$("lineC").setAttribute("d", pathOf(CRICKET));
+$("lineAI").setAttribute("d", pathOf(AI));
+const dotsG = $("dots");
+CRICKET.forEach((w, i) => { const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  c.setAttribute("cx", PX(i)); c.setAttribute("cy", PY(w)); c.setAttribute("r", 4.5); c.setAttribute("fill", "#0066cc"); dotsG.appendChild(c); });
+const LAST = [PX(6), PY(74)];
+
+/* Play ↔ pause icon morph (two quads with matching point order) */
+const PLAY = [[[8, 5], [14, 8.43], [14, 15.57], [8, 19]], [[14, 8.43], [20, 12], [20, 12], [14, 15.57]]];
+const PAUSE = [[[7, 5], [10.5, 5], [10.5, 19], [7, 19]], [[13.5, 5], [17, 5], [17, 19], [13.5, 19]]];
+const quad = (a, b, m) => "M" + a.map((p, i) => `${(p[0] + (b[i][0] - p[0]) * m).toFixed(2)} ${(p[1] + (b[i][1] - p[1]) * m).toFixed(2)}`).join(" L") + " Z";
+
+/* ---------- seek(t): the whole frame is a pure function of time ---------- */
+function seek(time) {
+  const t = ((time % LOOP) + LOOP) % LOOP;
+  const sliderOver = t >= 6.0 && t < 7.7 ? Math.max(0, kxS(t) - 288) : 0;
+  const w = tr(t, W) + sliderOver * 0.6, h = tr(t, H), r = tr(t, R);
+  const z = tr(t, ZOOM, 9, 1);
+
+  const cam = $("cam"), shape = $("shape");
+  cam.style.transform = `scale(${z.toFixed(4)})`;
+  shape.style.width = w + "px"; shape.style.height = h + "px";
+  shape.style.left = -w / 2 + "px"; shape.style.top = -h / 2 + "px";
+  shape.style.borderRadius = Math.max(0, r) + "px";
+  shape.style.background = trC(t, BG);
+  shape.style.boxShadow = `inset 0 0 0 1px rgba(0,0,0,${(0.085 * clamp(tr(t, HAIR, 20, 1), 0, 1)).toFixed(3)})`;
+  shape.style.transform = `scale(${tr(t, PRESS).toFixed(4)})`;
+  const put = (el, L, T, extra = "") => { el.style.left = (w / 2 + L) + "px"; el.style.top = (h / 2 + T) + "px"; if (extra) el.style.transform = extra; };
+  const center = (el, lw, lh, dy = 0) => { el.style.left = (w / 2 - lw / 2) + "px"; el.style.top = (h / 2 - lh / 2 + dy) + "px"; };
+
+  // Fixed-size content layers, centred in the morphing shape (text never reflows while the shape morphs)
+  const L = id => $(id);
+  center(L("L_btn"), 300, 76);      showLayer(L("L_btn"), t, 13.56, 99) || showLayer(L("L_btn"), t, -10, 0.72);
+  center(L("L_load"), 84, 84);      showLayer(L("L_load"), t, 0.8, 1.98);
+  center(L("L_check"), 84, 84);     showLayer(L("L_check"), t, 2.04, 2.47);
+  center(L("L_island"), 440, 72);   showLayer(L("L_island"), t, 2.56, 2.98);
+  center(L("L_islandX"), 600, 180); showLayer(L("L_islandX"), t, 3.06, 3.47);
+  center(L("L_player"), 640, 220);  showLayer(L("L_player"), t, 3.56, 5.98);
+  center(L("L_slider"), 640, 200);  showLayer(L("L_slider"), t, 6.06, 7.47);
+  center(L("L_toggle"), 600, 120);  showLayer(L("L_toggle"), t, 7.56, 8.47);
+  center(L("L_chart"), 780, 500);   showLayer(L("L_chart"), t, 9.62, 10.97);
+  center(L("L_toast"), 480, 76);    showLayer(L("L_toast"), t, 13.05, 13.5);
+  const ty = tabsY(t);
+  center(L("L_tabs"), 560, 80, ty); showLayer(L("L_tabs"), t, 8.56, 10.97);
+
+  // loader + check
+  $("arc").setAttribute("stroke-dasharray", `${(0.22 + 0.78 * crit(t - 1.62, 10)).toFixed(3)} 1`);
+  $("arc").setAttribute("transform", `rotate(${((t - 0.75) * 420 - 90).toFixed(1)} 42 42)`);
+  $("checkPath").setAttribute("stroke-dashoffset", (1 - crit(t - 2.06, 14)).toFixed(3));
+
+  // shared track (player progress → slider → toggle) and knob (thumb → knob → tab indicator)
+  const [kL, kR, kT, kB] = knob(t);
+  const kx = (kL + kR) / 2;
+  const x1 = tr(t, [-288, [7.5, 192]]), x2 = tr(t, [288, [7.5, 276]]) + sliderOver;
+  const tyk = tr(t, [50, [6.0, 30], [7.5, 0]]), th = Math.max(4, tr(t, [6, [6.0, 8], [7.5, 48]]) - sliderOver * 0.05);
+  const on = clamp(tr(t, [0, [8.0, 1, 20, 1]]), 0, 1);
+  const track = $("track"), fill = $("fill"), kn = $("knob");
+  const tv = showLayer(track, t, 3.56, 8.47);
+  if (tv) {
+    track.style.left = (w / 2 + x1) + "px"; track.style.width = (x2 - x1) + "px";
+    track.style.top = (h / 2 + tyk - th / 2) + "px"; track.style.height = th + "px";
+    track.style.borderRadius = th / 2 + "px"; track.style.background = mix("#e5e5ea", "#0066cc", on);
+    fill.style.width = Math.max(0, Math.min(kx, x2) - x1) + "px";
+    fill.style.opacity = clamp(tr(t, [1, [7.5, 0]]), 0, 1).toFixed(3);
+  }
+  if (showLayer(kn, t, 3.56, 10.97)) {
+    kn.style.left = (w / 2 + kL) + "px"; kn.style.top = (h / 2 + kT) + "px";
+    kn.style.width = (kR - kL) + "px"; kn.style.height = (kB - kT) + "px";
+    kn.style.borderRadius = Math.min(kR - kL, kB - kT) / 2 + "px";
+    kn.style.background = trC(t, ["#1d1d1f", [7.5, "#ffffff"], [8.5, "#1d1d1f"]]);
+    const g = clamp(tr(t, [0, [7.5, 1], [8.5, 0]], 17, 1), 0, 1);
+    kn.style.boxShadow = g > 0.01 ? `0 1px 3px rgba(0,0,0,${(0.22 * g).toFixed(3)})` : "none";
+  }
+
+  // player: play → pause morph, live times
+  const m = clamp(tr(t, [0, [4.0, 1, 22, 0.85]]), 0, 1);
+  $("pp1").setAttribute("d", quad(PLAY[0], PAUSE[0], m));
+  $("pp2").setAttribute("d", quad(PLAY[1], PAUSE[1], m));
+  const p = clamp((kxP(t) + 288) / 576, 0, 1), story = Math.min(10, 1 + Math.floor(p * 10));
+  $("tElapsed").textContent = `Story ${story} of 10`; $("tLeft").textContent = `${10 - story} left`;
+  // slider value follows the knob
+  $("sVal").textContent = Math.round(5 + 15 * clamp((kxS(t) + 288) / 576, 0, 1)) + " min";
+
+  // tabs: label colour follows indicator coverage
+  [-181.33, 0, 181.33].forEach((c, i) => {
+    const cov = clamp((Math.min(kR, c + 40) - Math.max(kL, c - 40)) / 80, 0, 1) * clamp((Math.min(kB, ty + 10) - Math.max(kT, ty - 10)) / 20, 0, 1);
+    $("tab" + i).style.color = mix("#1d1d1f", "#ffffff", cov);
+  });
+
+  // chart draws itself; tooltip on hover
+  const draw = crit(t - 9.95, 7.5);
+  $("lineC").setAttribute("stroke-dasharray", "1 1"); $("lineC").setAttribute("stroke-dashoffset", (1 - draw).toFixed(4));
+  $("lineAI").setAttribute("stroke-dasharray", "1 1"); $("lineAI").setAttribute("stroke-dashoffset", (1 - crit(t - 10.05, 7.5)).toFixed(4));
+  [...dotsG.children].forEach((c, i) => c.setAttribute("opacity", clamp((draw - i / 6) * 10, 0, 1).toFixed(2)));
+  const hv = vis(t, 10.55, 10.97);
+  $("hoverDot").setAttribute("cx", LAST[0]); $("hoverDot").setAttribute("cy", LAST[1]);
+  $("hoverDot").setAttribute("opacity", Math.max(clamp((draw - 1) * 8 + 1, 0, 1) * 0.0, hv.op).toFixed(3));
+  $("hoverRing").setAttribute("cx", LAST[0]); $("hoverRing").setAttribute("cy", LAST[1]);
+  $("hoverRing").setAttribute("r", (8 + 8 * hv.enter).toFixed(2)); $("hoverRing").setAttribute("opacity", (0.16 * hv.op).toFixed(3));
+  const tip = $("tip");
+  tip.style.opacity = hv.op.toFixed(3);
+  tip.style.transform = `scale(${(0.94 + 0.06 * hv.enter).toFixed(3)})`;
+  tip.style.filter = hv.op > 0.995 ? "none" : `blur(${((1 - hv.op) * 5).toFixed(2)}px)`;
+
+  // ⌘K: type to filter → enter
+  const cmd = $("L_cmd");
+  cmd.style.left = (w / 2 - 320) + "px"; cmd.style.top = "0px"; cmd.style.height = h + "px";
+  if (showLayer(cmd, t, 11.04, 12.97)) {
+    $("cmdInput").style.top = "0px";
+    const typed = t < 11.5 ? "" : t < 11.62 ? "i" : t < 11.74 ? "im" : "imf";
+    $("cmdTyped").textContent = typed;
+    $("cmdPh").style.opacity = typed ? 0 : 1;
+    $("caret").style.opacity = (typed && t < 12.0) || Math.floor((t - 11.0) * 2.4) % 2 === 0 ? 1 : 0;
+    $("caret").style.marginLeft = typed ? "1px" : "-1px";
+    $("cmdDiv").style.opacity = clamp((h - 90) / 30, 0, 1).toFixed(3);
+    const rowTop = s => 92 + s * 64;
+    const ro = [vis(t, 11.32, 11.9), vis(t, 11.37, 11.92)]; // leave before the IMF row slides through their slots
+    ["r0", "r1"].forEach((id, i) => { const e = $(id); e.style.top = rowTop(i) + "px"; e.style.opacity = ro[i].op.toFixed(3);
+      e.style.filter = ro[i].op > 0.995 ? "none" : `blur(${((1 - ro[i].op) * 6).toFixed(2)}px)`;
+      e.style.transform = `translateY(${((1 - ro[i].enter) * 8).toFixed(2)}px)`; });
+    const r2 = $("r2"), v2 = vis(t, 11.42, 99);
+    r2.style.top = rowTop(tr(t, [2, [12.0, 0]])) + "px";
+    r2.style.opacity = v2.op.toFixed(3);
+    r2.style.transform = `translateY(${((1 - v2.enter) * 8).toFixed(2)}px)`;
+    const sel = clamp(tr(t, [0, [12.0, 1]], 20, 1), 0, 1), flash = clamp(tr(t, [0, [12.5, 1, 26, 1], [12.68, 0, 18, 1]]), 0, 1);
+    r2.style.background = flash > 0.01 ? mix("#f2f2f7", "#0066cc", flash) : `rgba(242,242,247,${sel.toFixed(3)})`;
+    $("r2tx").style.color = mix("#1d1d1f", "#ffffff", flash);
+    $("r2ic").style.background = mix("#f0f0f3", "#ffffff", flash);
+    $("enterChip").style.opacity = sel.toFixed(3);
+    $("enterChip").style.transform = `scale(${(1 - 0.12 * clamp(tr(t, [0, [12.5, 1, 30, 1], [12.62, 0, 22, 0.8]]), 0, 1)).toFixed(3)})`;
+  }
+  $("toastCheck").setAttribute("stroke-dashoffset", (1 - crit(t - 13.12, 14)).toFixed(3));
+
+  // cursor lives in screen space (constant size), positioned through the camera
+  const cur = $("cursor");
+  cur.style.transform = `translate(${(720 + cX(t) * z - 4).toFixed(2)}px, ${(720 + cY(t) * z - 3).toFixed(2)}px) scale(${(1.5 * tr(t, CPRESS)).toFixed(3)})`;
+}
+
+/* ---------- fit + playback (rAF only drives time; nothing carries state between frames) ---------- */
+function fit() {
+  const s = Math.min(innerWidth, innerHeight) / 1440;
+  const f = $("fit");
+  f.style.transform = `translate(${(innerWidth - 1440 * s) / 2}px, ${(innerHeight - 1440 * s) / 2}px) scale(${s})`;
+}
+addEventListener("resize", fit); fit();
+window.seek = seek;
+const q = new URLSearchParams(location.search);
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+if (q.has("t")) seek(parseFloat(q.get("t")));
+else if (reduce) seek(0.1);
+else {
+  let t0 = null, visible = true;
+  if ("IntersectionObserver" in window) new IntersectionObserver(([e]) => (visible = e.isIntersecting)).observe(document.body);
+  const loop = now => { if (t0 === null) t0 = now; if (visible && !document.hidden) seek((now - t0) / 1000); requestAnimationFrame(loop); };
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
