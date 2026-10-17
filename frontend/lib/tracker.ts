@@ -26,7 +26,7 @@ export function useTracker(editionId: number | undefined) {
     const batch = queue.current.splice(0);
     try {
       await fetch(`${API_URL}/api/events`, {
-        method: "POST", keepalive: true,
+        method: "POST", keepalive: true, credentials: "include",
         headers: { "Content-Type": "application/json", ...(await headers()) },
         body: JSON.stringify(batch),
       });

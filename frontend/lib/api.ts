@@ -15,6 +15,7 @@ export async function request<T>(path: string, init: RequestInit & { json?: unkn
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {
+      credentials: "include",
       ...rest,
       headers: { ...(json !== undefined ? { "Content-Type": "application/json" } : {}), ...headers },
       body: json !== undefined ? JSON.stringify(json) : rest.body,

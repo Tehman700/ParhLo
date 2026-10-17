@@ -16,6 +16,20 @@ create table if not exists users (
 alter table users add column if not exists clerk_id text unique;
 alter table users add column if not exists is_demo boolean not null default false;
 alter table users add column if not exists onboarded boolean not null default false;
+alter table users add column if not exists google_sub text unique;
+create unique index if not exists users_email_unique on users (lower(email)) where email is not null;
+
+-- One-time email codes (only a hash is stored).
+create table if not exists otp_codes (
+    id          bigserial primary key,
+    email       text not null,
+    code_hash   text not null,
+    attempts    int not null default 0,
+    used        boolean not null default false,
+    expires_at  timestamptz not null,
+    created_at  timestamptz not null default now()
+);
+create index if not exists otp_codes_email on otp_codes (lower(email), created_at desc);
 
 -- Explicit, editable preferences. Topic weights are learned over time.
 create table if not exists profiles (

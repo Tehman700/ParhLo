@@ -7,7 +7,6 @@ import Link from "next/link";
 import { useRef } from "react";
 import { LogoMark } from "@/components/Logo";
 import { TopBar } from "@/components/ui";
-import { CLERK_ENABLED } from "@/lib/auth";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -28,7 +27,7 @@ const FEATURES = [
 
 export default function Landing() {
   const root = useRef<HTMLDivElement>(null);
-  const start = CLERK_ENABLED ? "/sign-up" : "/demo";
+  const start = "/sign-in";
 
   useGSAP(() => {
     const tl = gsap.timeline({ defaults: { ease: "power3.out" } });

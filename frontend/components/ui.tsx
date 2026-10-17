@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { CLERK_ENABLED, useSession } from "@/lib/auth";
+import { useSession } from "@/lib/auth";
 import { Logo } from "./Logo";
 
 export function TopBar({ right }: { right?: ReactNode }) {
@@ -28,8 +28,8 @@ export function TopBar({ right }: { right?: ReactNode }) {
             </button>
           ) : (
             <>
-              {CLERK_ENABLED && <Link href="/sign-in" className="btn btn-ghost !text-[14px]">Sign in</Link>}
-              <Link href={CLERK_ENABLED ? "/sign-up" : "/demo"} className="btn btn-primary !px-4 !py-2 !text-[14px]">Get my paper</Link>
+              <Link href="/sign-in" className="btn btn-ghost !text-[14px]">Sign in</Link>
+              <Link href="/sign-in" className="btn btn-primary !px-4 !py-2 !text-[14px]">Get my paper</Link>
             </>
           )}
         </div>

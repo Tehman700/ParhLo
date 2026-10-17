@@ -40,9 +40,11 @@ class Settings(BaseSettings):
 
     cron_secret: str = ""  # Vercel Cron sends it as a Bearer token
 
-    # --- Auth (Clerk) ---
-    next_public_clerk_publishable_key: str = ""  # provisioned by the Clerk integration; issuer is derived from it
-    clerk_issuers: list[str] = []  # extra trusted issuers (custom Clerk domains)
+    # --- Auth (own: email OTP via SES + Google OAuth; signed session cookie) ---
+    session_secret: str = ""  # signs session JWTs; set in Vercel env
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    public_url: str = "http://localhost:3000"  # where the browser sees the app (OAuth redirect base)
     allow_demo_users: bool = True  # X-Demo-User header for seeded personas (two-persona demo)
 
     # --- AWS (S3 media, Polly audio, SES email) ---

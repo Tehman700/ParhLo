@@ -1,24 +1,27 @@
 "use client";
 
-import { ClerkProvider, useAuth, useClerk } from "@clerk/nextjs";
-import { createContext, useCallback, useContext, useMemo, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { request, type Headers } from "./api";
 
-/** One session API for the app: Clerk (Google / email OTP) when configured, plus demo readers for judges. */
-export const CLERK_ENABLED = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+/** One session API for the app: our own login (email OTP / Google → httpOnly session cookie) + demo readers. */
 const DEMO_KEY = "parhlo.demoUser";
+
+export type SessionUser = { id: string; name: string; email: string | null; onboarded: boolean; is_demo: boolean };
 
 type Session = {
   ready: boolean;
   signedIn: boolean;
+  user: SessionUser | null;
   demoUser: string | null;
   setDemoUser: (id: string | null) => void;
+  refresh: () => Promise<SessionUser | null>;
   signOut: () => Promise<void>;
   headers: () => Promise<Headers>;
 };
 
 const Ctx = createContext<Session | null>(null);
 
+// Demo reader id lives in localStorage (per browser).
 const listeners = new Set<() => void>();
 const readDemo = () => {
   try {
@@ -36,9 +39,27 @@ const subscribe = (cb: () => void) => {
   };
 };
 
-function useDemo() {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const demoUser = useSyncExternalStore(subscribe, readDemo, () => null);
-  const loaded = useSyncExternalStore(subscribe, () => true, () => false);
+  const hydrated = useSyncExternalStore(subscribe, () => true, () => false);
+  const [user, setUser] = useState<SessionUser | null>(null);
+  const [checked, setChecked] = useState(false);
+
+  const fetchMe = useCallback(
+    () => request<{ user: SessionUser }>("/api/auth/me").then((r) => r.user).catch(() => null),
+    [],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchMe().then((u) => {
+      if (cancelled) return;
+      setUser(u);
+      setChecked(true);
+    });
+    return () => { cancelled = true; };
+  }, [fetchMe]);
+
   const setDemoUser = useCallback((id: string | null) => {
     try {
       if (id) localStorage.setItem(DEMO_KEY, id);
@@ -46,53 +67,28 @@ function useDemo() {
     } catch {}
     listeners.forEach((l) => l());
   }, []);
-  return useMemo(() => ({ demoUser, setDemoUser, loaded }), [demoUser, setDemoUser, loaded]);
-}
 
-function ClerkBridge({ children }: { children: ReactNode }) {
-  const { isLoaded, isSignedIn, getToken } = useAuth();
-  const clerk = useClerk();
-  const demo = useDemo();
   const value = useMemo<Session>(() => ({
-    ready: isLoaded && demo.loaded,
-    signedIn: Boolean(isSignedIn) || Boolean(demo.demoUser),
-    demoUser: demo.demoUser,
-    setDemoUser: demo.setDemoUser,
+    ready: hydrated && checked,
+    signedIn: Boolean(user) || Boolean(demoUser),
+    user,
+    demoUser,
+    setDemoUser,
+    refresh: async () => {
+      const u = await fetchMe();
+      setUser(u);
+      return u;
+    },
     signOut: async () => {
-      demo.setDemoUser(null);
-      if (isSignedIn) await clerk.signOut();
+      setDemoUser(null);
+      if (user) await request("/api/auth/logout", { method: "POST" }).catch(() => {});
+      setUser(null);
     },
-    headers: async (): Promise<Headers> => {
-      if (demo.demoUser) return { "X-Demo-User": demo.demoUser };
-      const token = await getToken();
-      return token ? { Authorization: `Bearer ${token}` } : {};
-    },
-  }), [isLoaded, isSignedIn, getToken, clerk, demo]);
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
-}
+    // Real readers authenticate with the session cookie; demo readers with this header.
+    headers: async (): Promise<Headers> => (demoUser ? { "X-Demo-User": demoUser } : {}),
+  }), [hydrated, checked, user, demoUser, setDemoUser, fetchMe]);
 
-function DemoOnly({ children }: { children: ReactNode }) {
-  const demo = useDemo();
-  const value = useMemo<Session>(() => ({
-    ready: demo.loaded,
-    signedIn: Boolean(demo.demoUser),
-    demoUser: demo.demoUser,
-    setDemoUser: demo.setDemoUser,
-    signOut: async () => demo.setDemoUser(null),
-    headers: async (): Promise<Headers> => (demo.demoUser ? { "X-Demo-User": demo.demoUser } : {}),
-  }), [demo]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
-}
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-  if (CLERK_ENABLED) {
-    return (
-      <ClerkProvider afterSignOutUrl="/" signInFallbackRedirectUrl="/start" signUpFallbackRedirectUrl="/start">
-        <ClerkBridge>{children}</ClerkBridge>
-      </ClerkProvider>
-    );
-  }
-  return <DemoOnly>{children}</DemoOnly>;
 }
 
 export function useSession(): Session {

@@ -7,13 +7,13 @@ export const maxDuration = 60;
 const CHROMIUM_PACK = "https://github.com/Sparticuz/chromium/releases/download/v153.0.0/chromium-v153.0.0-pack.x64.tar";
 
 /** GET /pdf/2026-10-17 → the edition as a print-ready A4 PDF (headless Chromium).
- *  Auth is forwarded from the caller (Authorization or X-Demo-User) to the backend. */
+ *  Auth is forwarded from the caller (session cookie or X-Demo-User) to the backend. */
 export async function GET(req: Request, ctx: RouteContext<"/pdf/[date]">) {
   const { date } = await ctx.params;
   const origin = new URL(req.url).origin;
   const backend = process.env.NEXT_PUBLIC_API_URL || origin;
   const fwd: Record<string, string> = {};
-  for (const h of ["authorization", "x-demo-user"]) {
+  for (const h of ["cookie", "authorization", "x-demo-user"]) {
     const v = req.headers.get(h);
     if (v) fwd[h] = v;
   }

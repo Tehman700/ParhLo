@@ -30,13 +30,13 @@ export default function PrintPage() {
     setError(null);
     try {
       const h = await headers();
-      const res = await fetch(`/pdf/${date}`, { headers: h });
+      const res = await fetch(`/pdf/${date}`, { headers: h, credentials: "include" });
       if (!res.ok) throw new Error(`PDF failed (${res.status})`);
       const url = URL.createObjectURL(await res.blob());
       const a = Object.assign(document.createElement("a"), { href: url, download: `ParhLo-${date}.pdf` });
       a.click();
       URL.revokeObjectURL(url);
-      void fetch(`${API_URL}/api/events`, { method: "POST", headers: { "Content-Type": "application/json", ...h },
+      void fetch(`${API_URL}/api/events`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", ...h },
         body: JSON.stringify([{ type: "pdf", edition_id: edition?.id }]) });
     } catch (e) {
       setError((e as Error).message);
