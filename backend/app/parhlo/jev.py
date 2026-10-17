@@ -30,6 +30,7 @@ IMPORTANCE_LEVELS = [
     "Important: affects many people in Pakistan or the region",
     "Major: top national or world news of the day",
 ]
+SUPPORTED_BELOW = 0.3  # unsupported-claim probability under which a summary earns the ✓
 JUNK_QUESTION = ("Is this NOT a real news report — e.g. a quiz, podcast or video listing, tag or round-up page, "
                  "advertisement, press release, crypto/exchange promotion, or clickbait?")
 
@@ -144,4 +145,6 @@ async def check_summary(source_text: str, summary: str, points: list[str]) -> Su
         p = float(answers["unsupported"]["noul"])
     except (KeyError, TypeError, ValueError):
         return None
-    return SummaryCheck(supported=p < 0.5, unsupported_probability=round(p, 3), confidence=round(abs(p - 0.5) * 2, 3))
+    # ✓ only when Jev is clearly sure there is nothing unsupported (p < 0.3 → ≥40% confidence).
+    return SummaryCheck(supported=p < SUPPORTED_BELOW, unsupported_probability=round(p, 3),
+                        confidence=round(abs(p - 0.5) * 2, 3))

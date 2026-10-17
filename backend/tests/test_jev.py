@@ -48,7 +48,7 @@ async def test_classify_many_is_noop_without_key():
     assert out == [None, None, None]
 
 
-@pytest.mark.parametrize("noul,supported,confidence", [(0.08, True, 0.84), (0.98, False, 0.96), (0.5, False, 0.0)])
+@pytest.mark.parametrize("noul,supported,confidence", [(0.08, True, 0.84), (0.98, False, 0.96), (0.5, False, 0.0), (0.42, False, 0.16)])
 async def test_check_summary_mapping(fake_jev, noul, supported, confidence):
     fake_jev["answers"] = {"unsupported": {"type": "noul", "noul": noul}}
     c = await jev.check_summary("source text", "summary", ["point"])
