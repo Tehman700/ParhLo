@@ -1,0 +1,11 @@
+flowchart LR
+  Q["Question<br/>or 'Ask about this story'"] --> JR["Jev Choice · ~0.4 s<br/>which story is it about?<br/>whole paper? not in the paper?"]
+  JR --> CX["Context<br/>all summaries of your paper<br/>+ full text of the chosen stories"]
+  CX --> GM["gpt-5-mini<br/>answers only from your paper<br/>never invents or expands"]
+  GM --> OUT["Answer · sources · follow-ups<br/>says so when it isn't covered"]
+  JR -.->|"Jev unavailable"| KW["Keyword fallback"]
+  KW -.-> CX
+  OUT -.->|"asking = reading signal (+0.5)"| L["Learning"]
+
+  classDef ai fill:#e8f1fb,stroke:#0066cc,color:#1d1d1f
+  class JR,GM ai

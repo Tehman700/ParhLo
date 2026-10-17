@@ -1,0 +1,38 @@
+flowchart LR
+  subgraph SIG["Signals, as you read"]
+    O["open +0.6<br/>read time up to +0.4"]
+    LK["like / save +1<br/>ask +0.5"]
+    NG["skip −0.3<br/>dislike −1"]
+  end
+  subgraph NOW["Straight away"]
+    AS["Story state<br/>undo = stops counting"]
+    AN["Memory from the story<br/>+0.8 like · −0.8 dislike<br/>(its embedding)"]
+  end
+  subgraph NIGHT["Every night"]
+    TW["Topics move toward<br/>what you read<br/>(≤ ±0.12 a night)"]
+    FD["Fade<br/>unused topics ×0.98<br/>sign-up picks ≈ 2-month<br/>half-life, floor 0.3"]
+    CL["Stories read properly<br/>become memories (0.5)"]
+    SN["Snapshot<br/>what changed and why"]
+  end
+  CTRL["You, on the dashboard<br/>switch topics · follow<br/>about you · remove memories"]
+  RK["Ranking in Postgres<br/>0.40 interest match + 0.17 topic<br/>+ 0.11 recency + 0.08 importance<br/>+ source · region · outlet<br/>− 0.55 match to dislikes"]
+  GR["Guardrails<br/>2 Top stories for all · ~15% new<br/>variety (MMR) · same event once<br/>switched-off topics never"]
+  P["Your paper<br/>tomorrow, or reprinted<br/>in ~2.5 s"]
+
+  O --> AS
+  LK --> AS
+  NG --> AS
+  AS --> AN
+  AS --> TW
+  TW --> FD --> CL --> SN
+  AN --> RK
+  SN --> RK
+  CTRL --> RK
+  RK --> P
+  GR --> P
+  SN -.->|"shown as Recent changes"| CTRL
+
+  classDef ai fill:#e8f1fb,stroke:#0066cc,color:#1d1d1f
+  classDef data fill:#eaf6ec,stroke:#1a7f37,color:#1d1d1f
+  class AN,RK data
+  class P ai

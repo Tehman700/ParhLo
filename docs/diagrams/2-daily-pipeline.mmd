@@ -1,0 +1,24 @@
+flowchart TB
+  subgraph I["1 · Ingest  ·  Vercel Cron 00:00 UTC (05:00 PKT)"]
+    direction LR
+    F["Fetch 28 feeds<br/>+ Google News for<br/>followed names"] --> P["Clean<br/>drop section pages,<br/>spam, duplicates"] --> E["Embed<br/>text-embedding-3-small"] --> J["Jev<br/>topic · junk · importance<br/>~0.4 s each, 12 at a time"] --> C["Cluster<br/>same event across<br/>outlets"] --> SB["Story bank<br/>summaries pre-written for<br/>the ~120 biggest stories"]
+  end
+  subgraph PR["2 · Print  ·  00:30 UTC (05:30 PKT), for every reader"]
+    direction LR
+    L["Learn<br/>yesterday's signals<br/>→ interests"] --> R["Rank in Postgres<br/>pgvector vs interest anchors<br/>+ topic · recency · importance<br/>· source · region"] --> S["Select<br/>personal picks (MMR)<br/>2 Top stories for all<br/>~15% something new<br/>friend picks"] --> SU["Summaries<br/>full text → gpt-5-nano<br/>→ Jev check ✓"] --> ED["AI editor · gpt-5-mini<br/>headlines · why-lines<br/>sections · note<br/>3 things · quiz"] --> FR["Frozen edition<br/>(JSON)"]
+  end
+  subgraph O["3 · Deliver"]
+    direction LR
+    W["Web paper<br/>+ archive"]
+    PDF["Newspaper PDF"]
+    EM["Email queue<br/>→ inbox 06:00 PKT"]
+  end
+  SB --> L
+  FR --> W
+  FR --> PDF
+  FR --> EM
+
+  classDef ai fill:#e8f1fb,stroke:#0066cc,color:#1d1d1f
+  classDef data fill:#eaf6ec,stroke:#1a7f37,color:#1d1d1f
+  class E,J,SU,ED ai
+  class R,SB,FR data

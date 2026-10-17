@@ -1,0 +1,24 @@
+sequenceDiagram
+  autonumber
+  actor R as Reader
+  participant D as Dashboard / paper page
+  participant A as FastAPI
+  participant DB as Postgres + pgvector
+  participant N as n8n Cloud
+  participant AI as OpenAI + Jev
+  R->>D: Switch "Formula 1" on
+  D->>A: PUT /me/topics/motorsport
+  A->>DB: save · stamp interests_changed_at
+  A-->>N: signed event (reader, change time)
+  Note over D: waits 0.9 s in case of more changes
+  D->>A: POST /editions/refresh
+  A->>DB: rank in SQL · stored summaries (no AI)
+  A-->>D: new paper in the response (server ≈ 0.2 s)
+  D->>R: new paper on screen ≈ 2.5 s after the click
+  D->>A: POST /editions/polish
+  A->>AI: missing summaries + AI editor
+  A-->>D: polished paper ≈ 15 s later, swapped in silently
+  N->>N: Wait 8 s
+  N->>A: POST /internal/paper/check
+  A-->>N: already up to date → skip
+  Note over N,A: If the page was closed, n8n calls /internal/paper/refresh:<br/>fast reprint + polish run on the server, and the reader gets a notification

@@ -1,0 +1,63 @@
+erDiagram
+  USERS ||--|| PROFILES : has
+  USERS ||--o{ INTEREST_ANCHORS : remembers
+  USERS ||--o{ PROFILE_SNAPSHOTS : "learning history"
+  USERS ||--o{ EDITIONS : receives
+  USERS ||--o{ EVENTS : "reads, likes, skips"
+  USERS ||--o{ ARTICLE_STATE : "likes, saves"
+  USERS ||--o{ FRIENDSHIPS : "friends with"
+  USERS ||--o{ NOTIFICATIONS : gets
+  USERS ||--o{ EMAIL_JOBS : "morning emails"
+  USERS ||--o{ SUPPORT_MESSAGES : sends
+  ARTICLES ||--o{ EVENTS : about
+  ARTICLES ||--o{ ARTICLE_STATE : about
+  EDITIONS ||--o{ EMAIL_JOBS : "sent as"
+
+  USERS {
+    uuid id PK
+    text email
+    text city
+    int reading_minutes
+    real region_mix
+    bool persona
+    bool learn_from_friends
+    bool email_morning
+    timestamptz interests_changed_at
+  }
+  PROFILES {
+    jsonb topics "weight per topic"
+    jsonb entities "people, teams, companies"
+    text about
+    jsonb source_affinity
+  }
+  INTEREST_ANCHORS {
+    text label
+    text kind "chose, follow, liked, read, disliked"
+    real weight
+    vector embedding "1536-d"
+  }
+  ARTICLES {
+    bigint id PK
+    text title
+    text source
+    text_array topics
+    vector embedding "HNSW index"
+    real importance "Jev"
+    real junk "Jev"
+    text ai_summary
+    bigint cluster_id
+  }
+  EDITIONS {
+    date edition_date
+    jsonb data "frozen paper"
+    text phase "fast or full"
+  }
+  EVENTS {
+    text type "open, dwell, like, save, ask..."
+    real value
+  }
+  EMAIL_JOBS {
+    text status "queued, sending, sent, failed"
+    int attempts
+    timestamptz run_after
+  }

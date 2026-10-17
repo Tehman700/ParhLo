@@ -1,0 +1,12 @@
+flowchart LR
+  SQ["Search: 'fuel prices'"] --> EM["Embed the query<br/>(cached)"]
+  EM --> SQL["One SQL query<br/>pgvector: meaning<br/>+ Postgres full text: words"]
+  SQL --> DD["Clean up<br/>same event once<br/>no spam or junk"]
+  DD --> RK2["Order<br/>your paper first<br/>liked topics a little higher"]
+  RK2 --> RES["Results<br/>open the original · Save<br/>Ask · Follow"]
+  RES -->|"Follow"| RP["Instant reprint<br/>of today's paper"]
+
+  classDef ai fill:#e8f1fb,stroke:#0066cc,color:#1d1d1f
+  classDef data fill:#eaf6ec,stroke:#1a7f37,color:#1d1d1f
+  class EM ai
+  class SQL data

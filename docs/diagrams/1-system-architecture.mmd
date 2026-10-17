@@ -1,0 +1,46 @@
+flowchart LR
+  subgraph U["Readers"]
+    B["Browser / phone<br/>web paper · dashboard<br/>search · Ask your paper"]
+    M["Inbox<br/>morning email 6 AM"]
+  end
+  subgraph V["Vercel · one project, two services"]
+    FE["Next.js 16 frontend<br/>React 19 · Tailwind 4 · GSAP<br/>PDF route · headless Chromium"]
+    BE["FastAPI backend<br/>Python 3.12 · /api/*"]
+    CR["Vercel Cron<br/>ingest 00:00 · print 00:30<br/>email 01:00 UTC"]
+  end
+  PG[("Neon Postgres + pgvector<br/>articles · editions · interest vectors<br/>events · job queues")]
+  subgraph AI["AI"]
+    OA["OpenAI<br/>gpt-5-mini · gpt-5-nano<br/>text-embedding-3-small"]
+    JEV["TypeSafe Jev<br/>topic · junk · importance<br/>summary check · Ask routing"]
+  end
+  subgraph EXT["Outside services"]
+    SRC["News sources<br/>28 RSS feeds + Google News<br/>Dawn · Tribune · Geo · BBC · F1"]
+    N8N["n8n Cloud<br/>interest-change workflow"]
+    MAIL["Gmail SMTP<br/>AWS SES fallback"]
+    WX["Open-Meteo · ER-API<br/>weather · air · PKR"]
+    G["Google OAuth"]
+  end
+  CI["GitHub Actions<br/>CI on every push<br/>smoke test on every deploy"]
+
+  B <--> FE
+  FE -->|"/api/*"| BE
+  CR --> BE
+  BE <--> PG
+  BE --> OA
+  BE --> JEV
+  BE --> SRC
+  BE <-->|"signed events"| N8N
+  BE --> MAIL --> M
+  BE --> WX
+  B -.->|"sign in"| G
+  G -.-> BE
+  CI -.-> V
+
+  classDef ai fill:#e8f1fb,stroke:#0066cc,color:#1d1d1f
+  classDef data fill:#eaf6ec,stroke:#1a7f37,color:#1d1d1f
+  classDef ext fill:#fff8e6,stroke:#b7791f,color:#1d1d1f
+  classDef app fill:#ffffff,stroke:#1d1d1f,color:#1d1d1f
+  class OA,JEV ai
+  class PG data
+  class SRC,N8N,MAIL,WX,G,CI ext
+  class FE,BE,CR app

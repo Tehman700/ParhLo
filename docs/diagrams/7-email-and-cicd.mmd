@@ -1,0 +1,21 @@
+flowchart LR
+  subgraph EQ["Morning email · a job queue in Postgres (no Redis or Celery)"]
+    direction LR
+    PR["Nightly print"] --> EN["Enqueue one job<br/>per reader per paper<br/>(unique: never twice)"]
+    EN --> CLM["Worker claims due jobs<br/>FOR UPDATE SKIP LOCKED"]
+    CLM --> SND["Send 4 at a time<br/>Gmail SMTP → SES fallback"]
+    SND -->|"ok"| SENT["sent"]
+    SND -->|"error"| RT["retry in 5, then 10 min"]
+    RT -->|"3rd failure"| FL["failed"]
+  end
+  subgraph CICD["CI/CD"]
+    direction LR
+    PUSH["git push main"] --> GA["GitHub Actions CI<br/>ruff · 66 tests<br/>typegen · tsc · ESLint · build"]
+    PUSH --> VD["Vercel deploy<br/>(auto)"]
+    VD --> SM["Smoke test<br/>waits for the deployed commit<br/>→ API checks + 7 pages"]
+  end
+
+  classDef data fill:#eaf6ec,stroke:#1a7f37,color:#1d1d1f
+  classDef ext fill:#fff8e6,stroke:#b7791f,color:#1d1d1f
+  class EN,CLM data
+  class GA,SM ext
