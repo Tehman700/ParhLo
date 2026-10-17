@@ -17,7 +17,7 @@
 
 | Time | Show (what's on screen) | Say |
 |---|---|---|
-| **0:00–0:20** | Landing page, scroll a little (headline, paper mock). | "News apps give you an endless feed. ParhLo gives you one short paper every morning, made for you, that you can actually finish. It reads the news from trusted outlets in Pakistan and around the world, picks what matters to you, and explains every choice." |
+| **0:00–0:25** | Landing page, scroll slowly (headline, paper mock). | "We started with research. 42% of people now avoid the news because it feels like too much, trust in news is at 37%, and only 20% trust AI answers about news. A BBC study found half of AI assistants' news answers had real problems. So ParhLo gives you one short paper every morning that you can finish, from trusted outlets in Pakistan and around the world, with every AI summary checked against the original article." |
 | **0:20–1:00** | **Get started** → Continue with Google → onboarding: name + city → pick 3 topics and watch the **live front-page preview** fill in → swipe 2–3 headlines → **Create my paper** → dashboard shows the paper ready. | "Onboarding takes a minute. The front page updates live as I pick topics, and these headline swipes adapt: pass on a topic twice and it stops appearing. … I click Create my paper, and it's ready in about three seconds." |
 | **1:00–1:45** | **Read it now** → the paper: masthead with your name and city, morning box (weather, air quality, PKR), lead story. Point at **Why this story**, hover **✓ Checked against source**, point at a **Top story** badge and a **New for you** badge. Click **Download PDF**, scroll the PDF for 3 s. | "Every story says why it's here. Summaries are written from the original article and checked against it by Jev, a fast decision model; this percentage is its confidence. Two Top stories are the same for everyone, so I never miss the day's biggest news, and a few stories are deliberately outside my interests. The same paper as a newspaper PDF." |
 | **1:45–2:20** | **Dashboard** → Topics → switch **Formula 1** on → the pill says *Updating your paper…* → *Updated for your new interests* (~3 s) → open **Today**: F1 now leads. Switch to the **n8n Executions** tab for 3 s. | "If my interests change, the paper changes now, not tomorrow. Formula 1 on … and in about three seconds the new paper is here, with F1 leading. The first version is printed without AI in the way; AI polish lands in the background a few seconds later. n8n orchestrates this too, so it happens even if I close the tab." |
@@ -26,6 +26,13 @@
 | **3:20–4:15** | **How it learns** (see the full narration below): like + dislike on the paper → dashboard **What ParhLo remembers** → **Recent changes** → inbox tab with the morning email for 3 s. | "Here's how it gets better every day…" (narration below) |
 | **4:15–4:45** | Architecture diagram (or README). Then the GitHub README with green **CI** and **Smoke test** badges. | "Under the hood: Next.js and FastAPI on Vercel, Postgres with pgvector on Neon. Jev classifies every story for topic, junk and importance and checks every summary. Ranking runs inside the database in about two hundred milliseconds, gpt-5 models write and edit, and the morning email is a job queue in Postgres. Every push runs CI, and every deploy runs a live smoke test." |
 | **4:45–5:00** | Back to the landing page. | "ParhLo: your news, in one paper. Short, personal, checked, and it gets better the more you read. Thanks for watching." |
+
+## The research, if a judge asks "why this design?" (or as a 30 s insert after the paper demo)
+
+| Show | Say |
+|---|---|
+| README section **"Why we built it this way"** (the table) | "Every feature answers something people told us or that the research showed. People feel overloaded, so the paper is finite and sized to your reading time. They don't trust AI with news, so every summary is checked against its source and Ask your paper refuses to go beyond your paper. Asking follow-up questions is the most valued AI news feature, so Ask your paper exists. Young Pakistanis get news from WhatsApp and see TV as biased, so ParhLo puts trusted Pakistani and world outlets in one place, with the morning basics people check every day: dollar rate, smog and cricket." |
+| The competitor table | "ChatGPT Pulse, Google News, newsletters and the Dawn app each do part of this. None of them combines a real edition, learning you can see and control, AI that shows its work, and Pakistan plus the world. That's the gap ParhLo fills." |
 
 ## The learning part (3:20–4:15): narration and what to show
 
@@ -49,7 +56,7 @@ ParhLo: your personal morning paper (NaSCon'26 · Eynvision)
 ParhLo turns the day's news into one short, personal paper you can finish. It reads trusted outlets in Pakistan and around the world every night, picks what matters to you, explains why each story is there, and checks every AI summary against the original article.
 
 In this video:
-0:00 The idea
+0:00 Why: what people think about news and AI (research)
 0:20 Onboarding with a live front-page preview
 1:00 The paper: why-lines, checked summaries, Top stories, PDF
 1:45 Change your interests → new paper in ~3 seconds

@@ -28,6 +28,34 @@
 - **Search:** by meaning ("fuel prices" finds "petrol cut by Rs3.93") and by name; your paper first; Follow / Save / Ask from results; opens the original.
 - **Morning email** at ~6 AM (newspaper layout, one-click unsubscribe), **friends** (invite links, notifications, opt-in "Learn from friends"), **saved stories**, **dashboard** to edit everything ParhLo remembers, **Help & contact**, privacy policy, account deletion.
 
+## Why we built it this way (market research)
+
+Before building, we studied how people actually feel about news today, and what goes wrong when AI touches it. Every major feature answers one of these findings. Sources and more detail: [docs/research/02-market.md](docs/research/02-market.md) and [docs/research/03-competitors.md](docs/research/03-competitors.md).
+
+### What people think about news
+| What people say or do | The evidence | What we built |
+|---|---|---|
+| **"It's too much."** People are switching off. | **42%** sometimes or often avoid the news (up from 29% in 2017); constant updates "risk creating a sense of overload" (Reuters Institute Digital News Report 2026, ~100k people, 48 markets). | A **finite** paper sized to your reading time (5–20 min) that **ends**, plus "3 things to remember" so you finish knowing something. |
+| **"I don't know what to trust."** | Trust in news is **37%**, the lowest since 2015; trust in news on social media 22%; 62% worry about fake news. In Pakistan, **9 in 10** see misinformation as a problem and only 3 in 10 can always spot it. | Trusted outlets only, **every summary checked against its source** (✓ with confidence), every story links to the original, and the same event appears once, not five times. |
+| **"I don't trust AI with news."** And they're right. | Only **20%** trust chatbot news answers. A BBC study found **51%** of AI assistants' news answers had significant issues and **13%** of quotes were altered or invented. Apple **switched off** AI news summaries after a false headline. | Summaries written **only from the article text**, verified by a second model (Jev), excerpt-only stories labelled as such, and Ask your paper **refuses** to answer beyond your paper. |
+| **"Let me ask follow-up questions."** | Asking follow-ups is the **most valued** AI news feature (42%), and 42% click through to sources. | **Ask your paper**, with sources on every answer and "Ask about this story" on every card. |
+| **"My news is scattered everywhere."** | Platforms (54%) now beat going direct to publishers (51%). Young Pakistanis get news from **WhatsApp (93%)** and Facebook (83%) and see TV channels as biased. | **One place**: Pakistani and world outlets in one paper, on the web, as a PDF and in your inbox, ranked for you. |
+| **"Why am I seeing this?"** | Personal feeds feel like black boxes, and 48% worry about missing important news. | **Why-lines on every story**, a dashboard showing everything ParhLo remembers (removable), and **two Top stories for everyone** so you never miss the big news. |
+| **"I like a paper, not a feed."** | A Dawn reader calls the paper "mandatory intake with my breakfast"; short newsletters with a clear editor's voice get **~45% open rates** (Morning Brew, TLDR). | A real **edition**: masthead, lead, sections, editor's note, a newspaper-style PDF, an archive, and a 6 AM email. |
+| **"Give me the morning basics."** | Pakistanis check the dollar rate, petrol prices, weather and smog, and cricket every morning. | A **morning box**: weather, air quality with smog alerts, PKR rates, the latest cricket. |
+
+### The competition, and the gap
+| Product | Strength | What's missing |
+|---|---|---|
+| ChatGPT Pulse | Proactive, personal morning cards | Pro-only, not a newspaper, chatbot trust ~20% |
+| Google News / Apple News | Huge coverage, personal feed | Infinite feed, little explanation, no edition |
+| Morning Brew, TLDR | Habit and voice (~45% opens) | The same email for everyone |
+| Digest, Readless | Merge your sources into one AI email | Plain email, no learning you can see or control |
+| PaperLater | Proof that people love a *paper* object | Manual, no AI |
+| Dawn app / e-paper | Trusted brand | No personalization, one source, scanned e-paper |
+
+**No product combines all four:** a real **edition** (finite, newspaper-designed, web + PDF + archive), **visible, controllable learning**, **AI that shows its work** (grounded, checked, sourced), and **Pakistan plus the world** in one paper with the morning essentials. That's ParhLo: *"one finite, newspaper-quality paper each morning that is personal, verifiable, and gets smarter every day."*
+
 ## Architecture
 
 ```
