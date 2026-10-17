@@ -64,7 +64,7 @@ All secrets are in Vercel env and the root `.env` (gitignored). Never commit or 
 
 ## Run / test
 ```powershell
-cd backend; uv run pytest -q                      # 42 offline tests
+cd backend; uv run --extra starter pytest -q      # offline tests (starter extra needed)
 cd frontend; npx tsc --noEmit; npx next build     # type + build check
 # production checks: https://parhlo-brown.vercel.app/api/health
 ```
