@@ -53,20 +53,17 @@ All secrets are in Vercel env and the root `.env` (gitignored). Never commit or 
 | Account batch: demo/login fix, OTP to any email, `/dashboard`, privacy/terms/about/how-it-works, footer | ✅ live, E2E 32/32 |
 | Background first paper, animated How it works, persistent reactions + saved, friends (invites, bell, Learn from friends) | ✅ live |
 | **D** Full flow test | ✅ live, E2E 31/31 with two accounts |
-| E Demo readers · F Compare · G Ask your paper · H Audio · I Email | ⬜ |
+| **E** Demo readers (2 read-only sample readers, guest cleanup) | ✅ live, E2E 23/23 |
+| F Compare · G Ask your paper · H Audio · I Email | ⬜ |
 | J Submission (README, diagram, Loom) | from 19:15 |
 
 ## Known issues and notes
 - **Dawn blocks Vercel's IPs;** we use Google News `site:dawn.com` instead. Those links can't be read in full, so those summaries use the excerpt, and the lead story must be full-text.
 - **Email:** Gmail stays primary even though SES is out of sandbox, because SES sending from a gmail.com address fails DMARC and lands in spam. Move to SES once we own a domain.
-- **Demo personas** are recognised only by `is_demo and name <> 'Guest'`. A guest who onboards with a name shows up as a persona, and demo readers can edit their shared profile. Add a `persona` flag in Module E. Demo readers can't delete themselves (400).
+- **Sample readers:** `users.persona` (Ayesha `e9079294-…`, Omar `104a8db0-…`). Read-only; nightly cron prints their paper but never consolidates them. Demo guests (`is_demo and not persona`) are deleted after 3 days.
 - **Web app copy is a general consumer product:** no event or hackathon names anywhere in the UI.
 - **Full flow E2E:** `ui/full_flow.mjs` (two accounts, ~4 min, deletes both at the end).
 - **Production E2E scripts** live in the session scratchpad (`ui/batch_e2e.mjs`, `ui/mkotp.py` creates a sign-in code in the DB without sending email; `ui/cleanup.py` deletes `rivonna.ai+e2e*` test accounts).
-- **Test readers in the DB:**
-  - Ayesha `e9079294-e5aa-4719-92bd-1da7db1b88fd` (Lahore, AI/tech)
-  - Omar `104a8db0-b1bb-4853-85b5-7606ff152ced` (Karachi, business/cricket)
-  - "Fixture Reader" `3f905069-…` (to delete in Module E)
 - **Windows dev:** set `PYTHONUTF8=1`. Python from bash can't read `/tmp`, so use the scratchpad.
 
 ## Run / test

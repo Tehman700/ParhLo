@@ -178,7 +178,7 @@ function Dashboard() {
             </span>
             <div>
               <h1 className="t-section">{displayName}</h1>
-              <p className="t-caption text-ink-60">{isDemo ? "Demo reader" : `${me.user.email} · Reading since ${since}`}</p>
+              <p className="t-caption text-ink-60">{me.user.persona ? "Sample reader" : isDemo ? "Demo reader" : `${me.user.email} · Reading since ${since}`}</p>
             </div>
           </div>
           <div className="flex flex-wrap gap-3">
