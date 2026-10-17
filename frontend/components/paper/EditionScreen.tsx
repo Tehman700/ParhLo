@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import type { Edition } from "@/lib/api";
 import { useApi, useSession } from "@/lib/auth";
 import { ErrorNote, TopBar } from "../ui";
+import { AskPaper } from "./AskPaper";
 import { PaperView } from "./PaperView";
 import { PrintingPress } from "./PrintingPress";
 
@@ -55,6 +56,7 @@ export function EditionScreen({ date }: { date?: string }) {
           <Link href="/archive" className="btn btn-secondary">Past papers</Link>
         </>
       } />
+      <AskPaper edition={edition} />
     </>
   );
 }

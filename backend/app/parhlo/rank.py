@@ -48,8 +48,21 @@ def story_count(minutes: int) -> int:
     return STORIES_FOR_MINUTES[best]
 
 
-def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 36) -> list[dict]:
+def _words(title: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z]{4,}", title.lower())}
+
+
+def same_story(a: str, b: str) -> bool:
+    """Headline overlap check for stories two outlets worded differently (Jaccard ≥ 0.3 on 4+ letter words)."""
+    wa, wb = _words(a), _words(b)
+    return bool(wa and wb) and len(wa & wb) / len(wa | wb) >= 0.3
+
+
+def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 36,
+                  avoid_titles: list[str] | None = None) -> list[dict]:
+    """avoid_titles: headlines from the reader's previous paper, so yesterday's events don't come back reworded."""
     exclude_ids = exclude_ids or set()
+    avoid_titles = [t for t in (avoid_titles or []) if t]
     with db() as conn:
         prof = conn.execute("select topics, source_affinity from profiles where user_id=%s", (user["id"],)).fetchone()
         anchors = conn.execute("select label, weight, embedding from interest_anchors where user_id=%s",
@@ -113,11 +126,13 @@ def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 
         key = s["cluster_id"] or s["id"]
         if key not in best_by_cluster or s["score"] > best_by_cluster[key]["score"]:
             best_by_cluster[key] = s
-    pool, seen_titles = [], set()
+    # Outlets word the same event differently and embeddings don't always cluster them: keep the best version
+    # of each event (headline overlap), and drop events already in the previous paper.
+    pool: list[dict] = []
     for s in sorted(best_by_cluster.values(), key=lambda s: -s["score"]):
-        key = re.sub(r"[^a-z0-9]+", " ", s["title"].lower()).strip()
-        if key not in seen_titles:  # same headline via two URLs
-            seen_titles.add(key)
+        if any(same_story(s["title"], t) for t in avoid_titles):
+            continue
+        if not any(same_story(s["title"], p["title"]) for p in pool):
             pool.append(s)
     return pool
 

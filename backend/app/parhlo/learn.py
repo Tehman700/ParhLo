@@ -1,6 +1,6 @@
 """⑤ LEARN — events (short-term memory) → profile + interest anchors (long-term memory) → snapshot.
 
-Signal values: like/save +1 · open +0.6 · dwell up to +0.4 · skip −0.3 · dislike −1 · quiz_correct +0.2
+Signal values: like/save +1 · open +0.6 · ask +0.5 · dwell up to +0.4 · skip −0.3 · dislike −1 · quiz_correct +0.2
 Immediate: like / save / dislike set the story's state (article_state) and its memory anchor, so "more like this"
 works at once; unreact / unsave undo them. Only the current state counts when consolidating.
 Consolidate (nightly cron or "update my paper"): topic weights, click anchors, source affinity, decay, snapshot.
@@ -17,7 +17,7 @@ from app.parhlo import friends
 from app.parhlo.profile import add_anchors
 from app.parhlo.topics import TOPICS
 
-SIGNAL = {"like": 1.0, "save": 1.0, "open": 0.6, "skip": -0.3, "dislike": -1.0, "quiz_correct": 0.2}
+SIGNAL = {"like": 1.0, "save": 1.0, "open": 0.6, "ask": 0.5, "skip": -0.3, "dislike": -1.0, "quiz_correct": 0.2}
 MARKS = {"like", "dislike", "unreact", "save", "unsave"}
 EVENT_TYPES = {*SIGNAL, *MARKS, "dwell", "listen", "ask", "pdf", "quiz_wrong"}
 ONBOARDING_DECAY = 0.988  # per nightly consolidation → half-life ≈ 57 days

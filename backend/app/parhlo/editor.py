@@ -63,7 +63,7 @@ async def edit_paper(user: dict, stories: list[dict], top_topics: list[str], mor
         f"Reader's strongest interests: {', '.join(top_topics)}.\n"
         f"Today in {user['city']}: {weather.get('temp', '?')}°C, {weather.get('condition', '')}; "
         f"air quality {air.get('aqi', '?')} ({air.get('label', '')}).\n\n"
-        "Lay out today's paper from these stories. Rules: pick the most important + most relevant story as lead, "
+        "Lay out today's paper from these stories. Rules: pick the reader's most relevant PERSONAL story as lead (never a CORE or DISCOVERY story), "
         "preferring stories marked 'full article'; "
         "group the rest into 2-5 sections ordered by the reader's interests; every story id appears exactly once "
         "(lead included in a section); headlines and facts must come only from the summaries.\n\n"

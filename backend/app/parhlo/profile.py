@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.core.database import db
 from app.parhlo.embed import embed_texts
+from app.parhlo.rank import same_story
 from app.parhlo.topics import TOPICS, topic_text
 from app.services.llm import get_llm
 
@@ -163,14 +164,6 @@ def _candidates(require_image: bool) -> list[dict]:
             (list(TRUSTED_SOURCES),)).fetchall()
 
 
-def _words(title: str) -> set[str]:
-    return {w for w in re.findall(r"[a-z]{4,}", title.lower())}
-
-
-def same_story(a: str, b: str) -> bool:
-    """Headline overlap check for stories two outlets worded differently (Jaccard ≥ 0.3 on 4+ letter words)."""
-    wa, wb = _words(a), _words(b)
-    return bool(wa and wb) and len(wa & wb) / len(wa | wb) >= 0.3
 
 
 def _real_headlines(rows: list[dict]) -> list[dict]:

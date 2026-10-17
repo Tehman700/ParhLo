@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from app.core.config import get_settings
 from app.core.database import db
 from app.core.errors import AppError, NotFoundError
-from app.parhlo import editions, friends, learn, profile
+from app.parhlo import ask, editions, friends, learn, profile
 from app.parhlo.auth import AuthError, clear_session, current_user
 from app.parhlo.ingest import ingest, jev_backfill
 from app.parhlo.morning import morning_box
@@ -159,6 +159,12 @@ def events(body: list[learn.EventIn], user=Depends(current_user)):
     if user.get("persona"):  # visitors reading a sample paper don't change it for everyone else
         return {"recorded": 0, "read_only": True}
     return learn.record_events(user, body)
+
+
+@router.post("/ask")
+async def ask_paper(body: ask.AskIn, user=Depends(current_user)):
+    """Ask your paper: answered only from the reader's edition, with sources."""
+    return await ask.ask_paper(user, body)
 
 
 @router.get("/me/saved")

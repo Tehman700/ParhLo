@@ -82,7 +82,8 @@ async def _build(user: dict, edition_date: date) -> dict:
         entities = (prof or {}).get("entities") or []
         await ingest(extra_queries=entities[:6])
 
-    pool = rank_for_user(user, exclude_ids=prior_ids)
+    prior_titles = [t for s in (prior["data"]["stories"] if prior else []) for t in (s.get("title"), s.get("headline"))]
+    pool = rank_for_user(user, exclude_ids=prior_ids, avoid_titles=prior_titles)
     if not pool:
         raise NotFoundError("No articles available yet — try again in a minute.")
     picks = select_stories(pool, story_count(user["reading_minutes"]))
@@ -95,12 +96,14 @@ async def _build(user: dict, edition_date: date) -> dict:
     top_topics = [TOPICS[t]["label"] for t, _ in sorted(topics.items(), key=lambda kv: -kv[1])[:5] if t in TOPICS]
     morning = await morning_box(user["city"], user["lat"], user["lon"])
     layout = await edit_paper(user, stories, top_topics, morning)
-    # The lead is the front page: it must be a story we could read in full (better summary, real ✓).
-    by_id = {s["id"]: s for s in stories}
-    if by_id.get(layout["lead_id"], {}).get("grounded_in") != "full article":
-        full = [s for s in stories if s.get("grounded_in") == "full article" and not s.get("discovery")]
-        if full:  # the strongest story we could read in full
-            layout["lead_id"] = max(full, key=lambda s: s.get("score", 0))["id"]
+    # The lead is the reader's front page: one of THEIR stories (Top stories are shared by everyone and keep their
+    # badge further down), and one we could read in full (better summary, real ✓).
+    personal = [s for s in stories if not s.get("core") and not s.get("discovery")]
+    chosen = next((s for s in personal if s["id"] == layout["lead_id"]), None)
+    if not chosen or chosen.get("grounded_in") != "full article":
+        full = [s for s in personal if s.get("grounded_in") == "full article"]
+        pick = max(full or personal or stories, key=lambda s: s.get("score", 0))
+        layout["lead_id"] = pick["id"]
     for s in stories:  # reasons that come from how a story was picked are stated by us, not the editor
         why = layout["edits"].setdefault(s["id"], {})
         if s.get("friend"):

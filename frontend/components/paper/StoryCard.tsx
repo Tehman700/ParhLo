@@ -4,6 +4,7 @@ import gsap from "gsap";
 import { useEffect, useRef, useState } from "react";
 import type { Story } from "@/lib/api";
 import { timeAgo, topicLabel } from "@/lib/topics";
+import { askAbout } from "./AskPaper";
 
 type Mark = "open" | "like" | "dislike" | "unreact" | "save" | "unsave" | "skip";
 type Tracker = { track: (t: Mark, id: number) => void; observe: (el: HTMLElement | null, id: number) => (() => void) | void };
@@ -25,13 +26,14 @@ const Icon = {
   down: <path d="M7 13V5H4v8h3Zm2-8h7.5a2 2 0 0 1 2 1.6l1.2 6a2 2 0 0 1-2 2.4H14v3.5a2.5 2.5 0 0 1-2.5 2.5L9 14V5Z" />,
   save: <path d="M6 3h12v18l-6-4-6 4V3Z" />,
   hide: <path d="M6 6l12 12M18 6 6 18" />,
+  ask: <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z" />,
 };
 
 function IconButton({ label, active, onClick, kind, activeClass }: { label: string; active?: boolean; onClick: () => void; kind: keyof typeof Icon; activeClass: string }) {
   return (
     <button aria-label={label} title={label} onClick={onClick} data-react={kind}
       className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-parchment ${active ? activeClass : "text-ink-48 hover:text-ink"}`}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill={active && kind !== "hide" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{Icon[kind]}</svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill={active && kind !== "hide" && kind !== "ask" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{Icon[kind]}</svg>
     </button>
   );
 }
@@ -65,7 +67,7 @@ export function StoryCard({ story, variant = "normal", tracker, initial }: { sto
   if (hidden) return null;
 
   return (
-    <article ref={ref} className={`story-card overflow-hidden ${lead ? "" : "border-t border-hairline pt-5"}`}>
+    <article ref={ref} id={`story-${story.id}`} className={`story-card scroll-mt-20 overflow-hidden ${lead ? "" : "border-t border-hairline pt-5"}`}>
       <div className="flex items-center gap-2">
         <p className="kicker">{topicLabel(story.topics[0])}</p>
         {story.core && <span className="rounded-full bg-ink px-2 py-0.5 t-fine font-semibold text-white">Top story</span>}
@@ -92,6 +94,7 @@ export function StoryCard({ story, variant = "normal", tracker, initial }: { sto
       <div className="mt-3 flex items-center gap-1">
         <span className="mr-auto t-caption text-ink-48">{story.source} · {timeAgo(story.published_at)}</span>
         {!lead && story.points.length > 0 && <button className="mr-1 t-caption text-primary" onClick={() => setOpen(!open)}>{open ? "Less" : "Key points"}</button>}
+        <IconButton label="Ask about this story" kind="ask" activeClass="" onClick={() => askAbout(story.id)} />
         <IconButton label="More like this" kind="up" active={reaction === "like"} activeClass="text-primary" onClick={() => react("like")} />
         <IconButton label="Less like this" kind="down" active={reaction === "dislike"} activeClass="text-danger" onClick={() => react("dislike")} />
         <IconButton label={saved ? "Saved. Click to remove" : "Save"} kind="save" active={saved} activeClass="text-primary" onClick={() => { setSaved(!saved); tracker.track(saved ? "unsave" : "save", story.id); }} />
