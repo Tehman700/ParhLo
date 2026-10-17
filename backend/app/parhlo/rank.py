@@ -57,36 +57,61 @@ def _words(title: str) -> set[str]:
     return {w for w in re.findall(r"[a-z]{4,}", title.lower())}
 
 
+def _overlap(wa: set[str], wb: set[str]) -> bool:
+    return bool(wa and wb) and len(wa & wb) / len(wa | wb) >= 0.3
+
+
 def same_story(a: str, b: str) -> bool:
     """Headline overlap check for stories two outlets worded differently (Jaccard ≥ 0.3 on 4+ letter words)."""
-    wa, wb = _words(a), _words(b)
-    return bool(wa and wb) and len(wa & wb) / len(wa | wb) >= 0.3
+    return _overlap(_words(a), _words(b))
+
+
+POOL_MAX = 150  # candidates kept for selection (best personal scores + biggest stories + discovery material)
+
+# Interest matching runs in Postgres (pgvector): only scores travel, not ~1,300 × 1,536-float embeddings.
+RANK_SQL = """
+with cand as (
+  select a.id, a.title, a.source, a.source_region, a.topics, a.published_at, a.image_url, a.url, a.rss_summary,
+         a.cluster_id, a.importance, a.embedding
+  from articles a
+  where a.embedding is not null and a.published_at > now() - make_interval(hours => %(hours)s)
+    and coalesce(a.junk, 0) < %(junk)s
+),
+cl as (
+  select cluster_id, count(distinct source) as cluster_size, array_agg(distinct source) as sources
+  from articles where cluster_id in (select cluster_id from cand where cluster_id is not null)
+  group by cluster_id
+),
+anc as (select label, kind, weight, embedding from interest_anchors where user_id = %(uid)s),
+pos as (
+  select distinct on (c.id) c.id, (1 - (c.embedding <=> anc.embedding)) * least(anc.weight, 1) as s, anc.label, anc.kind
+  from cand c cross join anc where anc.weight > 0
+  order by c.id, (1 - (c.embedding <=> anc.embedding)) * least(anc.weight, 1) desc
+),
+neg as (
+  select c.id, max((1 - (c.embedding <=> anc.embedding)) * least(-anc.weight, 1)) as s
+  from cand c cross join anc where anc.weight < 0 group by c.id
+)
+select c.id, c.title, c.source, c.source_region, c.topics, c.published_at, c.image_url, c.url, c.rss_summary,
+       c.cluster_id, c.importance, coalesce(cl.cluster_size, 0) as cluster_size, cl.sources,
+       coalesce(pos.s, 0) as pos_s, pos.label as pos_label, pos.kind as pos_kind, coalesce(neg.s, 0) as neg_s
+from cand c left join cl on cl.cluster_id = c.cluster_id left join pos on pos.id = c.id left join neg on neg.id = c.id
+"""
 
 
 def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 36,
                   avoid_titles: list[str] | None = None) -> list[dict]:
     """avoid_titles: headlines from the reader's previous paper, so yesterday's events don't come back reworded."""
     exclude_ids = exclude_ids or set()
-    avoid_titles = [t for t in (avoid_titles or []) if t]
+    avoid_words = [w for w in (_words(t) for t in (avoid_titles or []) if t) if w]
     with db() as conn:
         prof = conn.execute("select topics, source_affinity from profiles where user_id=%s", (user["id"],)).fetchone()
-        anchors = conn.execute("select label, weight, embedding from interest_anchors where user_id=%s",
-                               (user["id"],)).fetchall()
-        arts = conn.execute(
-            """select a.id, a.title, a.source, a.source_region, a.topics, a.published_at, a.image_url,
-                      a.url, a.rss_summary, a.cluster_id, a.embedding, a.importance, a.junk,
-                      (select count(distinct b.source) from articles b where b.cluster_id = a.cluster_id) as cluster_size,
-                      (select array_agg(distinct b.source) from articles b where b.cluster_id = a.cluster_id
-                         and b.source <> a.source) as also_sources
-               from articles a
-               where a.embedding is not null and a.published_at > now() - make_interval(hours => %s)""",
-            (hours,)).fetchall()
+        arts = conn.execute(RANK_SQL, {"hours": hours, "junk": JUNK_THRESHOLD, "uid": user["id"]}).fetchall()
         # Already-seen stories (earlier editions) shouldn't repeat.
         seen = {r["article_id"] for r in conn.execute(
             "select distinct article_id from events where user_id=%s and article_id is not null", (user["id"],))}
     arts = [a for a in arts if a["id"] not in exclude_ids and a["id"] not in seen and not SPAM.search(a["title"])
-            and source_quality(a["source"]) > 0 and len(re.findall(r"[A-Za-z]{3,}", a["title"])) >= 4
-            and (a["junk"] or 0) < JUNK_THRESHOLD]
+            and source_quality(a["source"]) > 0 and len(re.findall(r"[A-Za-z]{3,}", a["title"])) >= 4]
     if not arts:
         return []
 
@@ -95,35 +120,22 @@ def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 
     region_mix = float(user.get("region_mix", 0.5))
     now = datetime.now(timezone.utc)
 
-    E = np.stack([as_np(a["embedding"]) for a in arts])
-    pos = [a for a in anchors if a["weight"] > 0]
-    neg = [a for a in anchors if a["weight"] < 0]
-
-    def best_match(group):
-        if not group:
-            return np.zeros(len(arts)), [None] * len(arts)
-        A = np.stack([as_np(g["embedding"]) for g in group])
-        w = np.array([abs(g["weight"]) for g in group], dtype=np.float32)
-        S = (E @ A.T) * np.minimum(w, 1.0)
-        idx = S.argmax(axis=1)
-        return S.max(axis=1), [group[i]["label"] for i in idx]
-
-    pos_s, pos_label = best_match(pos)
-    neg_s, _ = best_match(neg)
-
     scored = []
-    for i, a in enumerate(arts):
+    for a in arts:
         age_h = max(0.0, (now - a["published_at"]).total_seconds() / 3600)
         topic_w = max([topics.get(t, 0.1) for t in a["topics"]] or [0.1])
         region_fit = region_mix if a["source_region"] == "pakistan" else 1 - region_mix
         importance = a["importance"] if a["importance"] is not None else 0.4  # neutral until Jev has scored it
-        score = (0.40 * pos_s[i] + 0.17 * topic_w + 0.11 * math.exp(-age_h / 24) + 0.08 * importance
+        pos_s, neg_s = float(a["pos_s"]), float(a["neg_s"])
+        score = (0.40 * pos_s + 0.17 * topic_w + 0.11 * math.exp(-age_h / 24) + 0.08 * importance
                  + 0.05 * coverage(a["cluster_size"])
                  + 0.08 * source_quality(a["source"]) + 0.07 * region_fit
-                 + 0.05 * float(affinity.get(a["source"], 0)) - 0.55 * neg_s[i]
+                 + 0.05 * float(affinity.get(a["source"], 0)) - 0.55 * neg_s
                  - (0.04 if "news.google.com" in a["url"] else 0.0))  # prefer links we can read in full
-        scored.append({**a, "score": float(score), "match": pos_label[i], "match_sim": float(pos_s[i]),
-                       "topic_weight": topic_w, "embedding": E[i], "importance": importance})
+        also = [x for x in (a["sources"] or []) if x != a["source"]]
+        match = a["pos_label"] if a["pos_kind"] in ("onboarding", "entity") else None
+        scored.append({**a, "also_sources": also, "score": float(score), "match": match, "match_sim": pos_s,
+                       "topic_weight": topic_w, "importance": importance})
 
     # One article per story: keep the best-scoring version of each cluster.
     best_by_cluster: dict[int, dict] = {}
@@ -131,14 +143,32 @@ def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 
         key = s["cluster_id"] or s["id"]
         if key not in best_by_cluster or s["score"] > best_by_cluster[key]["score"]:
             best_by_cluster[key] = s
+    ranked = sorted(best_by_cluster.values(), key=lambda s: -s["score"])
+    # Only these can be chosen: the best personal scores, the day's biggest stories, and discovery material.
+    keep = {s["id"] for s in ranked[:110]}
+    keep |= {s["id"] for s in sorted(ranked, key=lambda s: -core_score(s))[:40]}
+    keep |= {s["id"] for s in sorted((s for s in ranked if OFF_WEIGHT < s["topic_weight"] < 0.3),
+                                     key=lambda s: -(core_score(s) + 0.5 * source_quality(s["source"])))[:40]}
     # Outlets word the same event differently and embeddings don't always cluster them: keep the best version
     # of each event (headline overlap), and drop events already in the previous paper.
     pool: list[dict] = []
-    for s in sorted(best_by_cluster.values(), key=lambda s: -s["score"]):
-        if any(same_story(s["title"], t) for t in avoid_titles):
+    kept_words: list[set[str]] = []
+    for s in ranked:
+        if s["id"] not in keep:
             continue
-        if not any(same_story(s["title"], p["title"]) for p in pool):
-            pool.append(s)
+        w = _words(s["title"])
+        if any(_overlap(w, aw) for aw in avoid_words) or any(_overlap(w, kw) for kw in kept_words):
+            continue
+        pool.append(s)
+        kept_words.append(w)
+        if len(pool) >= POOL_MAX:
+            break
+    # Embeddings only for the pool (MMR variety in select_stories needs them).
+    with db() as conn:
+        emb = {r["id"]: as_np(r["embedding"]) for r in conn.execute(
+            "select id, embedding from articles where id = any(%s)", ([p["id"] for p in pool],)).fetchall()}
+    for p in pool:
+        p["embedding"] = emb[p["id"]]
     return pool
 
 

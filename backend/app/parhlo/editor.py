@@ -107,7 +107,8 @@ def fallback_layout(user: dict, stories: list[dict]) -> dict:
         "lead_id": stories[0]["id"],
         "sections": [{"name": k, "story_ids": v} for k, v in by_topic.items()],
         "edits": {s["id"]: {"headline": s["title"],
-                            "why": "Something new, outside your usual topics" if s.get("discovery") else f"Matches your interest in {s.get('match')}"}
+                            "why": "Something new, outside your usual topics" if s.get("discovery")
+                            else (f"Because you follow {s['match']}" if s.get("match") else None)}
                   for s in stories},
         "three_things": [{"text": s["summary"].split(". ")[0][:160], "story_id": s["id"]} for s in stories[:3]],
         "quiz": [],

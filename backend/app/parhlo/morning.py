@@ -4,6 +4,7 @@ All sources are free and keyless (Open-Meteo, open.er-api.com). Each part fails 
 """
 
 import asyncio
+import time
 
 import httpx
 
@@ -76,7 +77,22 @@ async def _retry(make, attempts: int = 3):
             await asyncio.sleep(0.4 * (i + 1))
 
 
+_CACHE: dict[str, tuple[float, dict]] = {}
+CACHE_S = 20 * 60  # weather, air and rates are the same for everyone in a city
+
+
 async def morning_box(city: str, lat: float, lon: float) -> dict:
+    key = f"{city}:{round(lat, 2)}:{round(lon, 2)}"
+    hit = _CACHE.get(key)
+    if hit and time.monotonic() - hit[0] < CACHE_S:
+        return hit[1]
+    box = await _morning_box(city, lat, lon)
+    if box["weather"] and box["rates"]:  # don't cache a partial box
+        _CACHE[key] = (time.monotonic(), box)
+    return box
+
+
+async def _morning_box(city: str, lat: float, lon: float) -> dict:
     async with httpx.AsyncClient(timeout=10) as client:
         w, a, r = await asyncio.gather(_retry(lambda: weather(client, lat, lon)), _retry(lambda: air(client, lat, lon)),
                                        _retry(lambda: rates(client)))

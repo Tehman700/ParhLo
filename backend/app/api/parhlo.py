@@ -172,8 +172,18 @@ def edition_status(user=Depends(current_user)):
 
 @router.post("/editions/refresh")
 async def edition_refresh(user=Depends(writable_user)):
-    """Fallback when the n8n event didn't arrive: the paper page asks for the reprint itself."""
-    return await refresh.refresh(str(user["id"]), None)
+    """The page asks for the fast reprint ~1 s after the reader's last change; the new paper comes back here."""
+    out = await refresh.refresh(str(user["id"]), None)
+    if out.get("edition"):
+        out["edition"] = _with_state(user, out["edition"])
+    return out
+
+
+@router.post("/editions/polish")
+async def edition_polish(user=Depends(writable_user)):
+    """Upgrade a fast reprint with AI summaries and the AI editor (the page calls this right after a reprint)."""
+    ed = await editions.polish_edition(user, editions.today_pkt())
+    return {"status": "polished" if ed else "nothing to polish", "edition": _with_state(user, ed) if ed else None}
 
 
 # ---------- n8n callbacks (authenticated by the signed token in the event, not a session) ----------
@@ -325,7 +335,8 @@ async def cron_ingest():
         rows = conn.execute("select entities from profiles").fetchall()
     queries = list(dict.fromkeys(e for r in rows for e in (r["entities"] or [])))[:12]
     stats = await ingest(extra_queries=queries)
-    return {**stats, **(await jev_backfill())}
+    from app.parhlo.summarize import prewarm
+    return {**stats, **(await jev_backfill()), **(await prewarm())}
 
 
 @router.get("/cron/daily", dependencies=[Depends(_cron_auth)])

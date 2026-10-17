@@ -30,14 +30,14 @@ export function PaperStatus({ welcome, name }: { welcome: boolean; name: string 
   const [attempt, setAttempt] = useState(0);
   const [justUpdated, setJustUpdated] = useState(false);
   const [pillDone, setPillDone] = useState(false);
-  // Interests changed → n8n reprints today's paper; swap the new one in when it lands.
-  const fresh = usePaperFreshness(!!edition && !edition.read_only, () => {
-    api.post<Edition>("/api/editions/generate", {}).then((e) => {
-      setEdition(e);
+  // Interests changed → a fast reprint lands in ~1–2 s, then the AI polish swaps in silently.
+  const fresh = usePaperFreshness(!!edition && !edition.read_only, (e, kind) => {
+    setEdition(e);
+    if (kind === "reprint") {
       setJustUpdated(true);
       setPillDone(true);
-      setTimeout(() => setPillDone(false), 7000);
-    }).catch(() => {});
+      setTimeout(() => setPillDone(false), 6000);
+    }
   });
 
   useEffect(() => {
@@ -73,7 +73,7 @@ export function PaperStatus({ welcome, name }: { welcome: boolean; name: string 
 
   // Readers change topics far down the page: a floating pill shows the reprint wherever they are.
   // Portalled to <body> so the dashboard's GSAP transforms can't turn "fixed" into "relative to a card".
-  const pill = (fresh !== "fresh" || pillDone) && typeof document !== "undefined" && createPortal(
+  const pill = (fresh === "updating" || pillDone) && typeof document !== "undefined" && createPortal(
     <div role="status" className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full bg-ink px-5 py-3 text-[14px] text-white shadow-[0_12px_32px_-8px_rgba(0,0,0,.45)]">
       {pillDone ? (
         <>
@@ -83,7 +83,7 @@ export function PaperStatus({ welcome, name }: { welcome: boolean; name: string 
       ) : (
         <>
           <span className="flex gap-1"><span className="dot h-1.5 w-1.5 rounded-full bg-white" /><span className="dot h-1.5 w-1.5 rounded-full bg-white" /><span className="dot h-1.5 w-1.5 rounded-full bg-white" /></span>
-          {fresh === "building" ? "Reprinting today's paper for your new interests…" : "Interests saved. Updating today's paper in a moment…"}
+          Updating your paper for your new interests…
         </>
       )}
     </div>, document.body);
@@ -97,13 +97,10 @@ export function PaperStatus({ welcome, name }: { welcome: boolean; name: string 
       <div className="p-6 sm:p-8">
         {error ? (
           <ErrorNote error={error} onRetry={() => { setError(null); setElapsed(0); setAttempt((a) => a + 1); }} />
-        ) : edition && fresh !== "fresh" ? (
+        ) : edition && fresh === "updating" ? (
           <div className="updating">
-            <p className="t-caption font-semibold text-primary">{fresh === "building" ? "Reprinting now" : "Your interests changed"}</p>
-            <p className="mt-2 t-tagline">Updating today&apos;s paper for your new interests…</p>
-            <p className="mt-1 t-caption text-ink-60">
-              {fresh === "building" ? "Choosing stories, writing and checking summaries. About half a minute." : "Waiting a few seconds in case you change anything else, then reprinting once."}
-            </p>
+            <p className="t-caption font-semibold text-primary">Your interests changed</p>
+            <p className="mt-2 t-tagline">Updating today&apos;s paper…</p>
             <div className="mt-4 h-1 overflow-hidden rounded-full bg-parchment"><div className="h-full w-1/3 animate-[slide_1.2s_ease-in-out_infinite] rounded-full bg-primary" /></div>
           </div>
         ) : edition ? (
@@ -111,7 +108,10 @@ export function PaperStatus({ welcome, name }: { welcome: boolean; name: string 
             <div className="min-w-0">
               <p className="t-caption font-semibold text-success">✓ {justUpdated ? "Updated for your new interests" : welcome && edition.number === 1 ? "Your first paper is ready" : "Today's paper is ready"}</p>
               {lead && <p className="headline mt-2 text-[22px] sm:text-[24px]">{lead.headline}</p>}
-              <p className="mt-1 t-caption text-ink-60">{edition.stories.length} stories · No. {edition.number}</p>
+              <p className="mt-1 t-caption text-ink-60">
+                {edition.stories.length} stories · No. {edition.number}
+                {fresh === "polishing" && <span className="ml-2 text-ink-48">· Writing summaries and headlines…</span>}
+              </p>
             </div>
             <div className="flex flex-none gap-3">
               <Link href="/paper" className="btn btn-primary">Read it now</Link>

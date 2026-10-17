@@ -88,6 +88,20 @@ async def verify(source_text: str, summary: str, points: list[str]) -> dict:
     return {"by": "llm", "supported": v.supported, "confidence": None, "ms": round((time.perf_counter() - t) * 1000)}
 
 
+def cached_summaries(article_ids: list[int]) -> dict[int, dict]:
+    """Summaries already written (no AI calls) — the fast reprint uses these and excerpts for the rest."""
+    with db() as conn:
+        rows = conn.execute("select id, ai_summary, ai_points, summary_verified from articles "
+                            "where id = any(%s) and ai_summary is not null", (article_ids,)).fetchall()
+    return {r["id"]: _summary_out(r) for r in rows}
+
+
+def _summary_out(r: dict) -> dict:
+    meta = r["ai_points"] if isinstance(r["ai_points"], dict) else json.loads(r["ai_points"] or "{}")
+    return {"summary": r["ai_summary"], "points": meta.get("points", []), "grounded_in": meta.get("grounded_in"),
+            "verified": r["summary_verified"], "check": meta.get("check")}
+
+
 async def ensure_summaries(article_ids: list[int]) -> dict[int, dict]:
     """Summarize any of these articles that don't have a summary yet; return all summaries by id."""
     with db() as conn:
@@ -110,9 +124,17 @@ async def ensure_summaries(article_ids: list[int]) -> dict[int, dict]:
             rows = conn.execute(
                 "select id, ai_summary, ai_points, summary_verified from articles where id = any(%s)",
                 (article_ids,)).fetchall()
-    out = {}
-    for r in rows:
-        meta = r["ai_points"] if isinstance(r["ai_points"], dict) else json.loads(r["ai_points"] or "{}")
-        out[r["id"]] = {"summary": r["ai_summary"], "points": meta.get("points", []),
-                        "grounded_in": meta.get("grounded_in"), "verified": r["summary_verified"], "check": meta.get("check")}
-    return out
+    return {r["id"]: _summary_out(r) for r in rows if r["ai_summary"]}
+
+
+async def prewarm(limit: int = 120, hours: int = 30) -> dict:
+    """Story bank: summarize the day's most important unsummarized stories ahead of time (shared by every reader),
+    so reprints and first papers rarely wait for a summary."""
+    with db() as conn:
+        ids = [r["id"] for r in conn.execute(
+            """select id from articles where ai_summary is null and embedding is not null and coalesce(junk, 0) < 0.78
+                 and published_at > now() - make_interval(hours => %s)
+               order by coalesce(importance, 0.4) desc, published_at desc limit %s""", (hours, limit)).fetchall()]
+    if ids:
+        await ensure_summaries(ids)
+    return {"prewarmed": len(ids)}
