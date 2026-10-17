@@ -163,7 +163,8 @@ def select_stories(pool: list[dict], n: int, discovery_share: float = 0.15, n_co
 
     n_disc = max(1, round(n * discovery_share)) if n >= 6 else 0
     n_personal = n - len(core) - n_disc
-    personal = mmr([p for p in pool if p["id"] not in taken and (p["topic_weight"] >= 0.3 or p["match_sim"] >= 0.35)],
+    personal = mmr([p for p in pool if p["id"] not in taken and p["topic_weight"] > OFF_WEIGHT
+                    and (p["topic_weight"] >= 0.3 or p["match_sim"] >= 0.35)],
                    n_personal, avoid=core)
     taken |= {p["id"] for p in personal}
     # "Something new" comes from outside the reader's interests, but never from topics they switched off (0.05).
