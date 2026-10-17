@@ -47,6 +47,9 @@ class Settings(BaseSettings):
 
     # --- AWS (S3 media, Polly audio, SES email) ---
     aws_region: str = "ap-south-1"
+    # Vercel reserves AWS_* names, so the app's IAM user (parhlo-vercel) uses its own prefix.
+    parhlo_aws_access_key_id: str = ""
+    parhlo_aws_secret_access_key: str = ""
     s3_bucket: str = "parhlo-media-109257212304"
     email_from: str = "tehmanhassan@gmail.com"
 
