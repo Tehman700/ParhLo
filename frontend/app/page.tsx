@@ -5,11 +5,15 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Link from "next/link";
 import { useRef } from "react";
+import { LogoMark } from "@/components/Logo";
 import { MotionLoop } from "@/components/MotionLoop";
 import { BrowserFrame, PaperMock } from "@/components/PaperMock";
 import { StartButtons, TopBar } from "@/components/ui";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
+
+/** The blue word in the headline: "Your ___ news, in one paper." */
+const ROTATING = ["cricket", "tech", "Pakistan", "business", "AI", "world", "Formula 1"];
 
 const INTERESTS = [
   { label: "Technology", value: 92 }, { label: "Cricket", value: 78 }, { label: "Economy", value: 64 },
@@ -22,6 +26,10 @@ export default function Landing() {
   useGSAP(() => {
     gsap.timeline({ defaults: { ease: "power3.out" } })
       .from(".hero-eyebrow", { y: 10, opacity: 0, duration: 0.5 })
+      // The mark: the sun rises behind the paper, rays pop out, the paper's lines draw across.
+      .from(".hero-mark .logo-sun", { y: 18, duration: 1.1, ease: "power2.out" }, "<")
+      .from(".hero-mark .logo-rays line", { scale: 0, opacity: 0, transformOrigin: "32px 37px", stagger: 0.06, duration: 0.45 }, "-=0.6")
+      .from(".hero-mark .logo-line", { scaleX: 0, transformOrigin: "left center", stagger: 0.12, duration: 0.45 }, "-=0.3")
       .from(".hero-title", { y: 24, opacity: 0, duration: 0.8 }, "-=0.25")
       .from(".hero-sub", { y: 16, opacity: 0, duration: 0.6 }, "-=0.5")
       .from(".hero-cta > *", { y: 10, opacity: 0, stagger: 0.08, duration: 0.5 }, "-=0.35")
@@ -63,14 +71,53 @@ export default function Landing() {
     });
   }, { scope: root });
 
+  // Headline: the blue word scrolls up and the next one scrolls in; the line resizes to fit each word.
+  useGSAP((_, contextSafe) => {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let cancelled = false;
+    const start = contextSafe!(() => {
+      const box = root.current?.querySelector<HTMLElement>(".rotator");
+      const words = gsap.utils.toArray<HTMLElement>(".rot-word", root.current);
+      if (!box || words.length < 2) return;
+      const widths = words.map((w) => w.offsetWidth);
+      gsap.set(box, { width: widths[0] });
+      gsap.set(words, { yPercent: 110, opacity: 0 });
+      gsap.set(words[0], { yPercent: 0, opacity: 1 });
+      const tl = gsap.timeline({ repeat: -1, delay: 1.4 });
+      words.forEach((w, i) => {
+        const j = (i + 1) % words.length;
+        // Old word leaves while the line resizes; the new word enters only once the old one is nearly gone.
+        tl.to(w, { yPercent: -110, opacity: 0, duration: 0.4, ease: "power3.in" }, "+=1.6")
+          .to(box, { width: widths[j], duration: 0.55, ease: "power3.inOut" }, "<")
+          .fromTo(words[j], { yPercent: 110, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 0.55, ease: "power3.out" }, "<0.34");
+      });
+    });
+    document.fonts.ready.then(() => { if (!cancelled) start(); });
+    return () => { cancelled = true; };
+  }, { scope: root });
+
   return (
     <div ref={root} className="overflow-x-hidden">
       <TopBar />
 
       {/* Hero */}
       <section className="bg-parchment px-4 pt-16 text-center sm:pt-24">
-        <p className="hero-eyebrow t-tagline text-ink-60">ParhLo</p>
-        <h1 className="hero-title t-hero mx-auto mt-3 max-w-3xl">Your news, in one paper.</h1>
+        <div className="hero-eyebrow inline-flex items-center gap-3">
+          <LogoMark size={56} className="hero-mark" />
+          <span className="font-masthead text-[40px] leading-none sm:text-[46px]">ParhLo</span>
+        </div>
+        <h1 className="hero-title t-hero mx-auto mt-6 max-w-3xl" aria-label="Your news, in one paper.">
+          <span aria-hidden="true">
+            Your{" "}
+            <span className="rotator relative inline-block align-bottom text-primary" style={{ height: "1.07em", clipPath: "inset(-0.1em -0.15em -0.3em -0.15em)" }}>
+              <span className="invisible whitespace-nowrap">{ROTATING[0]}</span>
+              {ROTATING.map((w, i) => (
+                <span key={w} className="rot-word absolute left-0 top-0 whitespace-nowrap" style={{ opacity: i ? 0 : 1 }}>{w}</span>
+              ))}
+            </span>{" "}
+            news, in one paper.
+          </span>
+        </h1>
         <p className="hero-sub t-lead mx-auto mt-4 max-w-2xl text-ink-60">
           ParhLo reads the news for you each night and puts what you care about into one short paper every morning.
         </p>
