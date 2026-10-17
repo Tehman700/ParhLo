@@ -176,3 +176,6 @@ create table if not exists email_jobs (
 );
 create unique index if not exists email_jobs_once on email_jobs(user_id, edition_id) where kind = 'morning';
 create index if not exists email_jobs_due on email_jobs(run_after) where status = 'queued';
+
+-- Interest changes reprint today's paper (debounced by the n8n workflow; see app/parhlo/refresh.py).
+alter table users add column if not exists interests_changed_at timestamptz;

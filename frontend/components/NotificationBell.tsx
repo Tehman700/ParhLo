@@ -12,6 +12,7 @@ function message(n: Notification): { text: string; href: string } {
     case "invite_accepted": return { text: `${n.actor ?? "A friend"} accepted your invite. You're now friends.`, href: "/dashboard#friends" };
     case "friend_added": return { text: `You're now friends with ${n.actor ?? "your friend"}.`, href: "/dashboard#friends" };
     case "paper_ready": return { text: `Your paper for ${n.data.date ? formatDate(n.data.date, { weekday: "long", day: "numeric", month: "long" }) : "today"} is ready.${n.data.lead ? ` ${n.data.lead}` : ""}`, href: n.data.date ? `/paper/${n.data.date}` : "/paper" };
+    case "paper_updated": return { text: "Today's paper was updated for your new interests.", href: "/paper" };
     default: return { text: "Something new in ParhLo.", href: "/dashboard" };
   }
 }

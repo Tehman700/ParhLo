@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { Edition } from "@/lib/api";
 import { useApi, useSession } from "@/lib/auth";
+import { usePaperFreshness } from "@/lib/freshness";
 import { ErrorNote, TopBar } from "../ui";
 import { AskPaper } from "./AskPaper";
 import { PaperView } from "./PaperView";
@@ -20,6 +21,15 @@ export function EditionScreen({ date }: { date?: string }) {
   const [error, setError] = useState<string | null>(null);
 
   const [attempt, setAttempt] = useState(0);
+  const [toast, setToast] = useState(false);
+  // Today's paper only: if your interests changed, it is being reprinted (n8n) — swap it in when ready.
+  const fresh = usePaperFreshness(!date && !!edition && !edition.read_only, () => {
+    api.post<Edition>("/api/editions/generate", {}).then((e) => {
+      setEdition(e);
+      setToast(true);
+      setTimeout(() => setToast(false), 4000);
+    }).catch(() => {});
+  });
 
   useEffect(() => {
     if (!ready) return;
@@ -42,6 +52,18 @@ export function EditionScreen({ date }: { date?: string }) {
   return (
     <>
       <TopBar right={<Link data-tour="pdf" href={`/paper/${edition.edition_date}/print`} className="btn btn-primary btn-sm !py-1 !text-[12px]">Download PDF</Link>} />
+      {(fresh !== "fresh" || toast) && (
+        <div className="sticky top-11 z-30 border-b border-[#d6e6f8] bg-[#e8f1fb]" role="status">
+          <div className="mx-auto flex max-w-[1024px] items-center gap-3 px-4 py-2.5 t-caption text-ink">
+            {toast ? <span className="font-semibold text-success">✓ Updated for your new interests</span> : (
+              <>
+                <span className="flex gap-1"><span className="dot h-1.5 w-1.5 rounded-full bg-primary" /><span className="dot h-1.5 w-1.5 rounded-full bg-primary" /><span className="dot h-1.5 w-1.5 rounded-full bg-primary" /></span>
+                Updating your paper for your new interests. You can keep reading; the new version appears here.
+              </>
+            )}
+          </div>
+        </div>
+      )}
       {edition.read_only && (
         <div className="border-b border-[#d6e6f8] bg-[#e8f1fb]">
           <div className="mx-auto flex max-w-[1024px] flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5 t-caption">
@@ -51,7 +73,7 @@ export function EditionScreen({ date }: { date?: string }) {
           </div>
         </div>
       )}
-      <PaperView edition={edition} actions={
+      <PaperView key={edition.generated_at} edition={edition} actions={
         <>
           <Link href={`/paper/${edition.edition_date}/print`} className="btn btn-primary">Download PDF</Link>
           <Link href="/archive" className="btn btn-secondary">Past papers</Link>

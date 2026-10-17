@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     session_secret: str = ""  # signs session JWTs; set in Vercel env
     google_client_id: str = ""
     google_client_secret: str = ""
+    n8n_webhook_url: str = ""  # n8n workflow that debounces interest changes and asks us to reprint
     public_url: str = "http://localhost:3000"  # where the browser sees the app (OAuth redirect base)
     allow_demo_users: bool = True  # X-Demo-User header for seeded personas (two-persona demo)
 

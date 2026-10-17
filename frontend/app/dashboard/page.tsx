@@ -14,6 +14,7 @@ import { MotionLoop } from "@/components/MotionLoop";
 import { ErrorNote, Spinner, TopBar } from "@/components/ui";
 import type { Edition, Me } from "@/lib/api";
 import { useApi, useSession } from "@/lib/auth";
+import { interestsChanged } from "@/lib/freshness";
 import { TOPIC_LABELS, topicLabel } from "@/lib/topics";
 
 gsap.registerPlugin(useGSAP);
@@ -88,6 +89,7 @@ function Dashboard() {
     setError(null);
     try {
       apply(await fn());
+      if (["profile", "follow", "unfollow", "about"].includes(label)) interestsChanged();
       if (done) flash(done);
     } catch (e) {
       setError((e as Error).message);
@@ -112,6 +114,7 @@ function Dashboard() {
     setMe((m) => (m && m.profile ? { ...m, profile: { ...m.profile, topics: { ...m.profile.topics, [slug]: on ? 0.8 : 0.05 } } } : m));
     try {
       apply(await api.put<Me>(`/api/me/topics/${slug}`, { on }));
+      interestsChanged();
     } catch (e) {
       setError((e as Error).message);
       api.get<Me>("/api/me").then(apply).catch(() => {});
@@ -128,7 +131,7 @@ function Dashboard() {
   }
 
   async function removeAnchor(id: number) {
-    await api.del(`/api/me/anchors/${id}`).catch((e) => setError(e.message));
+    await api.del(`/api/me/anchors/${id}`).then(interestsChanged).catch((e) => setError(e.message));
     setMe((m) => (m ? { ...m, anchors: m.anchors.filter((a) => a.id !== id) } : m));
   }
 

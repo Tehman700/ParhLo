@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { Edition } from "@/lib/api";
 import { useApi } from "@/lib/auth";
+import { usePaperFreshness } from "@/lib/freshness";
 import { ErrorNote } from "../ui";
 
 gsap.registerPlugin(useGSAP);
@@ -26,6 +27,11 @@ export function PaperStatus({ welcome, name }: { welcome: boolean; name: string 
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [justUpdated, setJustUpdated] = useState(false);
+  // Interests changed → n8n reprints today's paper; swap the new one in when it lands.
+  const fresh = usePaperFreshness(!!edition && !edition.read_only, () => {
+    api.post<Edition>("/api/editions/generate", {}).then((e) => { setEdition(e); setJustUpdated(true); }).catch(() => {});
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -66,10 +72,19 @@ export function PaperStatus({ welcome, name }: { welcome: boolean; name: string 
       <div className="p-6 sm:p-8">
         {error ? (
           <ErrorNote error={error} onRetry={() => { setError(null); setElapsed(0); setAttempt((a) => a + 1); }} />
+        ) : edition && fresh !== "fresh" ? (
+          <div className="updating">
+            <p className="t-caption font-semibold text-primary">{fresh === "building" ? "Reprinting now" : "Your interests changed"}</p>
+            <p className="mt-2 t-tagline">Updating today&apos;s paper for your new interests…</p>
+            <p className="mt-1 t-caption text-ink-60">
+              {fresh === "building" ? "Choosing stories, writing and checking summaries. About half a minute." : "Waiting a few seconds in case you change anything else, then reprinting once."}
+            </p>
+            <div className="mt-4 h-1 overflow-hidden rounded-full bg-parchment"><div className="h-full w-1/3 animate-[slide_1.2s_ease-in-out_infinite] rounded-full bg-primary" /></div>
+          </div>
         ) : edition ? (
           <div className="ready flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <p className="t-caption font-semibold text-success">✓ {welcome && edition.number === 1 ? "Your first paper is ready" : "Today's paper is ready"}</p>
+              <p className="t-caption font-semibold text-success">✓ {justUpdated ? "Updated for your new interests" : welcome && edition.number === 1 ? "Your first paper is ready" : "Today's paper is ready"}</p>
               {lead && <p className="headline mt-2 text-[22px] sm:text-[24px]">{lead.headline}</p>}
               <p className="mt-1 t-caption text-ink-60">{edition.stories.length} stories · No. {edition.number}</p>
             </div>

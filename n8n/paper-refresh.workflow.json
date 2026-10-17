@@ -1,0 +1,133 @@
+{
+  "name": "ParhLo · Reprint the paper when interests change",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "parhlo-interests",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "4b1c2a10-0001-4c7e-9a01-parhlo000001",
+      "name": "Interests changed",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "parhlo-interests"
+    },
+    {
+      "parameters": {
+        "amount": 8,
+        "unit": "seconds"
+      },
+      "id": "4b1c2a10-0002-4c7e-9a01-parhlo000002",
+      "name": "Wait for more changes",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [240, 0],
+      "webhookId": "parhlo-interests-wait"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Interests changed').item.json.body.callback }}/check",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ user_id: $('Interests changed').item.json.body.user_id, changed_ms: $('Interests changed').item.json.body.changed_ms, token: $('Interests changed').item.json.body.token }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "4b1c2a10-0003-4c7e-9a01-parhlo000003",
+      "name": "Still the latest change?",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "4b1c2a10-0004-4c7e-9a01-parhlo00000a",
+              "leftValue": "={{ $json.act }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "4b1c2a10-0004-4c7e-9a01-parhlo000004",
+      "name": "Paper out of date?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Interests changed').item.json.body.callback }}/refresh",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ user_id: $('Interests changed').item.json.body.user_id, changed_ms: $('Interests changed').item.json.body.changed_ms, token: $('Interests changed').item.json.body.token }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "4b1c2a10-0005-4c7e-9a01-parhlo000005",
+      "name": "Reprint today's paper",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, -100],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {},
+      "id": "4b1c2a10-0006-4c7e-9a01-parhlo000006",
+      "name": "Skip (newer change, up to date, or limit)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [960, 100]
+    }
+  ],
+  "connections": {
+    "Interests changed": {
+      "main": [[{ "node": "Wait for more changes", "type": "main", "index": 0 }]]
+    },
+    "Wait for more changes": {
+      "main": [[{ "node": "Still the latest change?", "type": "main", "index": 0 }]]
+    },
+    "Still the latest change?": {
+      "main": [[{ "node": "Paper out of date?", "type": "main", "index": 0 }]]
+    },
+    "Paper out of date?": {
+      "main": [
+        [{ "node": "Reprint today's paper", "type": "main", "index": 0 }],
+        [{ "node": "Skip (newer change, up to date, or limit)", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

@@ -148,6 +148,7 @@ body {
   .switch:focus-visible { outline: 2px solid var(--color-primary-focus); outline-offset: 2px; }
 }
 
+@keyframes slide { 0% { transform: translateX(-100%) } 100% { transform: translateX(300%) } }
 @keyframes pulse-dot { 0%, 80%, 100% { opacity: .25 } 40% { opacity: 1 } }
 .dot { animation: pulse-dot 1.2s infinite ease-in-out; }
 .dot:nth-child(2) { animation-delay: .15s; }

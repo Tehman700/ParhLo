@@ -59,9 +59,11 @@ def same_story(a: str, b: str) -> bool:
 
 
 def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 36,
-                  avoid_titles: list[str] | None = None) -> list[dict]:
-    """avoid_titles: headlines from the reader's previous paper, so yesterday's events don't come back reworded."""
+                  avoid_titles: list[str] | None = None, keep_ids: set[int] | None = None) -> list[dict]:
+    """avoid_titles: headlines from the reader's previous paper, so yesterday's events don't come back reworded.
+    keep_ids: stories the reader already engaged with in today's paper (a reprint keeps them eligible and favoured)."""
     exclude_ids = exclude_ids or set()
+    keep_ids = keep_ids or set()
     avoid_titles = [t for t in (avoid_titles or []) if t]
     with db() as conn:
         prof = conn.execute("select topics, source_affinity from profiles where user_id=%s", (user["id"],)).fetchone()
@@ -79,7 +81,7 @@ def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 
         # Already-seen stories (earlier editions) shouldn't repeat.
         seen = {r["article_id"] for r in conn.execute(
             "select distinct article_id from events where user_id=%s and article_id is not null", (user["id"],))}
-    arts = [a for a in arts if a["id"] not in exclude_ids and a["id"] not in seen
+    arts = [a for a in arts if a["id"] not in exclude_ids and (a["id"] not in seen or a["id"] in keep_ids)
             and source_quality(a["source"]) > 0 and len(re.findall(r"[A-Za-z]{3,}", a["title"])) >= 4
             and (a["junk"] or 0) < JUNK_THRESHOLD]
     if not arts:
@@ -116,7 +118,8 @@ def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 
                  + 0.05 * coverage(a["cluster_size"])
                  + 0.08 * source_quality(a["source"]) + 0.07 * region_fit
                  + 0.05 * float(affinity.get(a["source"], 0)) - 0.55 * neg_s[i]
-                 - (0.04 if "news.google.com" in a["url"] else 0.0))  # prefer links we can read in full
+                 - (0.04 if "news.google.com" in a["url"] else 0.0)  # prefer links we can read in full
+                 + (0.15 if a["id"] in keep_ids else 0.0))
         scored.append({**a, "score": float(score), "match": pos_label[i], "match_sim": float(pos_s[i]),
                        "topic_weight": topic_w, "embedding": E[i], "importance": importance})
 

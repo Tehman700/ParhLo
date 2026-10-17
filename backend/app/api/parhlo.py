@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from app.core.config import get_settings
 from app.core.database import db
 from app.core.errors import AppError, NotFoundError
-from app.parhlo import ask, digest, editions, friends, learn, profile
+from app.parhlo import ask, digest, editions, friends, learn, profile, refresh
 from app.parhlo.auth import AuthError, clear_session, current_user
 from app.parhlo.ingest import ingest, jev_backfill
 from app.parhlo.morning import morning_box
@@ -73,19 +73,28 @@ class TopicWeights(BaseModel):
 
 
 @router.patch("/me/topics")
-def update_topics(body: TopicWeights, user=Depends(writable_user)):
+async def update_topics(body: TopicWeights, user=Depends(writable_user)):
     from psycopg.types.json import Jsonb
 
     clean = {k: max(0.0, min(1.0, v)) for k, v in body.topics.items() if k in TOPICS}
     with db() as conn:
         conn.execute("update profiles set topics = topics || %s, updated_at=now() where user_id=%s",
                      (Jsonb(clean), user["id"]))
+    await refresh.interests_changed(user, "topics")
     return profile.get_profile(user["id"])
 
 
 @router.patch("/me")
 async def update_me(body: profile.ProfileUpdate, user=Depends(writable_user)):
-    return await profile.update_profile(user, body)
+    out = await profile.update_profile(user, body)
+    # Fields that change which stories you get; the form always sends them, so compare with what was stored.
+    changed = sorted(f for f in ("city", "reading_minutes", "region_mix") if f in body.model_fields_set
+                     and getattr(body, f) is not None and getattr(body, f) != user.get(f))
+    if "about" in body.model_fields_set:
+        changed.append("about")
+    if changed:
+        await refresh.interests_changed(user, ",".join(changed))
+    return out
 
 
 class TopicToggle(BaseModel):
@@ -94,7 +103,9 @@ class TopicToggle(BaseModel):
 
 @router.put("/me/topics/{slug}")
 async def toggle_topic(slug: str, body: TopicToggle, user=Depends(writable_user)):
-    return await profile.set_topic(user, slug, body.on)
+    out = await profile.set_topic(user, slug, body.on)
+    await refresh.interests_changed(user, f"topic {slug} {'on' if body.on else 'off'}")
+    return out
 
 
 class FollowIn(BaseModel):
@@ -103,12 +114,16 @@ class FollowIn(BaseModel):
 
 @router.post("/me/following")
 async def follow(body: FollowIn, user=Depends(writable_user)):
-    return await profile.follow(user, body.name)
+    out = await profile.follow(user, body.name)
+    await refresh.interests_changed(user, f"follow {body.name}")
+    return out
 
 
 @router.delete("/me/following")
-def unfollow(name: str, user=Depends(writable_user)):
-    return profile.unfollow(user, name)
+async def unfollow(name: str, user=Depends(writable_user)):
+    out = profile.unfollow(user, name)
+    await refresh.interests_changed(user, f"unfollow {name}")
+    return out
 
 
 @router.delete("/me")
@@ -122,9 +137,10 @@ def delete_me(response: Response, user=Depends(writable_user)):
 
 
 @router.delete("/me/anchors/{anchor_id}")
-def delete_anchor(anchor_id: int, user=Depends(writable_user)):
+async def delete_anchor(anchor_id: int, user=Depends(writable_user)):
     with db() as conn:
         conn.execute("delete from interest_anchors where id=%s and user_id=%s", (anchor_id, user["id"]))
+    await refresh.interests_changed(user, "memory item removed")
     return {"deleted": anchor_id}
 
 
@@ -146,6 +162,30 @@ def _with_state(user: dict, ed: dict) -> dict:
     """Attach the reader's likes/dislikes/saves for this paper's stories."""
     return {**ed, "state": learn.reader_state(user["id"], [s["id"] for s in ed.get("stories", [])]),
             "read_only": bool(user.get("persona"))}
+
+
+@router.get("/editions/status")
+def edition_status(user=Depends(current_user)):
+    """Is today's paper out of date with the reader's interests, and is a reprint running?"""
+    return refresh.status(user)
+
+
+@router.post("/editions/refresh")
+async def edition_refresh(user=Depends(writable_user)):
+    """Fallback when the n8n event didn't arrive: the paper page asks for the reprint itself."""
+    return await refresh.refresh(str(user["id"]), None)
+
+
+# ---------- n8n callbacks (authenticated by the signed token in the event, not a session) ----------
+
+@router.post("/internal/paper/check")
+def internal_paper_check(body: refresh.RefreshEvent):
+    return refresh.check(body)
+
+
+@router.post("/internal/paper/refresh")
+async def internal_paper_refresh(body: refresh.RefreshEvent):
+    return await refresh.refresh_event(body)
 
 
 @router.get("/editions")

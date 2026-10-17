@@ -27,7 +27,8 @@ def today_pkt() -> date:
 JOB_STALE_MIN = 3
 
 
-async def generate_edition(user: dict, edition_date: date | None = None, force: bool = False) -> dict:
+async def generate_edition(user: dict, edition_date: date | None = None, force: bool = False,
+                           keep_today: bool = False) -> dict:
     """Build (or return) a reader's paper. Only one build runs per reader and date: a second request
     (e.g. the dashboard and the paper page at once) waits for the first one's result."""
     edition_date = edition_date or today_pkt()
@@ -45,7 +46,7 @@ async def generate_edition(user: dict, edition_date: date | None = None, force: 
     if not claimed:
         return await _wait_for_edition(user["id"], edition_date, started if force else None)
     try:
-        return await _build(user, edition_date)
+        return await _build(user, edition_date, keep_today)
     finally:
         with db() as conn:
             conn.execute("delete from edition_jobs where user_id=%s and edition_date=%s", (user["id"], edition_date))
@@ -66,8 +67,18 @@ async def _wait_for_edition(user_id, edition_date: date, newer_than: datetime | 
     raise AppError("Your paper is taking longer than usual. Please try again in a moment.", 503)
 
 
-async def _build(user: dict, edition_date: date) -> dict:
+async def _build(user: dict, edition_date: date, keep_today: bool = False) -> dict:
     with db() as conn:
+        # Reprinting today's paper (new interests): stories the reader already opened, liked or saved stay eligible.
+        keep: set[int] = set()
+        if keep_today:
+            cur = conn.execute("select id, data from editions where user_id=%s and edition_date=%s",
+                               (user["id"], edition_date)).fetchone()
+            if cur:
+                ids = [s["id"] for s in cur["data"]["stories"]]
+                keep = {r["article_id"] for r in conn.execute(
+                    "select distinct article_id from events where user_id=%s and edition_id=%s and article_id = any(%s) "
+                    "and type in ('open','dwell','like','save','ask')", (user["id"], cur["id"], ids)).fetchall()}
         fresh = conn.execute("select count(*) as n from articles where embedding is not null "
                              "and fetched_at > now() - interval '3 hours'").fetchone()["n"]
         prof = conn.execute("select topics, entities from profiles where user_id=%s", (user["id"],)).fetchone()
@@ -83,7 +94,7 @@ async def _build(user: dict, edition_date: date) -> dict:
         await ingest(extra_queries=entities[:6])
 
     prior_titles = [t for s in (prior["data"]["stories"] if prior else []) for t in (s.get("title"), s.get("headline"))]
-    pool = rank_for_user(user, exclude_ids=prior_ids, avoid_titles=prior_titles)
+    pool = rank_for_user(user, exclude_ids=prior_ids, avoid_titles=prior_titles, keep_ids=keep)
     if not pool:
         raise NotFoundError("No articles available yet — try again in a minute.")
     picks = select_stories(pool, story_count(user["reading_minutes"]))
