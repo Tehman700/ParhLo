@@ -171,7 +171,6 @@ export function AuthCard() {
                     {busy ? <Spinner dark label={busy} /> : "Email me a code"}
                   </button>
                 </form>
-                <div id="clerk-captcha" className="mt-3" />
               </>
             ) : (
               <>
@@ -191,6 +190,9 @@ export function AuthCard() {
               </>
             )}
           </div>
+
+          {/* Clerk bot protection renders here; must stay mounted through the whole flow */}
+          <div id="clerk-captcha" className="mt-3" />
 
           {error && <p className="mt-4 rounded-[11px] bg-[#fbe9e7] px-4 py-3 text-[14px] text-danger" role="alert">{error}</p>}
 
