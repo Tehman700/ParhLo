@@ -48,7 +48,7 @@ class LLMService:
             )
         if self._client is None:
             self._client = AsyncOpenAI(
-                api_key=self.settings.llm_api_key,
+                api_key=self.settings.llm_key,
                 base_url=self.settings.llm_base_url or None,
                 timeout=self.settings.llm_timeout,
             )
@@ -65,11 +65,10 @@ class LLMService:
         json_mode: bool = False,
         max_tokens: int | None = None,
     ) -> LLMReply:
-        kwargs: dict[str, Any] = {
-            "model": model or self.settings.llm_model,
-            "messages": messages,
-            "temperature": self.settings.llm_temperature if temperature is None else temperature,
-        }
+        kwargs: dict[str, Any] = {"model": model or self.settings.llm_model, "messages": messages}
+        temp = self.settings.llm_temperature if temperature is None else temperature
+        if temp is not None:
+            kwargs["temperature"] = temp
         if tools:
             kwargs["tools"] = tools
             if tool_choice:
@@ -77,7 +76,7 @@ class LLMService:
         if json_mode:
             kwargs["response_format"] = {"type": "json_object"}
         if max_tokens:
-            kwargs["max_tokens"] = max_tokens
+            kwargs["max_completion_tokens"] = max_tokens
 
         try:
             resp = await self.client.chat.completions.create(**kwargs)
@@ -135,11 +134,9 @@ class LLMService:
     async def stream(self, messages: list[Message], *, model: str | None = None) -> AsyncIterator[str]:
         """Yield text deltas as they arrive."""
         try:
+            extra = {} if self.settings.llm_temperature is None else {"temperature": self.settings.llm_temperature}
             stream = await self.client.chat.completions.create(
-                model=model or self.settings.llm_model,
-                messages=messages,
-                temperature=self.settings.llm_temperature,
-                stream=True,
+                model=model or self.settings.llm_model, messages=messages, stream=True, **extra
             )
             async for chunk in stream:
                 if chunk.choices and chunk.choices[0].delta.content:

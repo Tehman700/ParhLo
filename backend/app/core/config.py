@@ -10,24 +10,37 @@ ROOT_DIR = Path(__file__).resolve().parents[3]
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=(ROOT_DIR / ".env", ROOT_DIR / "backend" / ".env"),
+        # .env.local is written by `vercel env pull` (DATABASE_URL, VERCEL_OIDC_TOKEN, ...)
+        env_file=(ROOT_DIR / ".env", ROOT_DIR / ".env.local", ROOT_DIR / "backend" / ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
 
-    app_name: str = "NaSCon AI Starter"
+    app_name: str = "ParhLo"
 
-    # --- LLM (any OpenAI-compatible API) ---
+    # --- LLM (any OpenAI-compatible API; defaults to Vercel AI Gateway) ---
     llm_api_key: str = ""
-    llm_base_url: str | None = None  # None = api.openai.com
-    llm_model: str = "gpt-4o-mini"
+    ai_gateway_api_key: str = ""
+    vercel_oidc_token: str = ""
+    llm_base_url: str | None = "https://ai-gateway.vercel.sh/v1"
+    llm_model: str = "openai/gpt-5-mini"  # editor / reasoning
+    llm_fast_model: str = "openai/gpt-5-nano"  # per-article summaries, cheap and fast
     llm_vision_model: str | None = None  # falls back to llm_model
-    llm_temperature: float = 0.2
-    llm_timeout: float = 60.0
+    llm_temperature: float | None = None  # None = provider default (gpt-5 models reject custom values)
+    llm_timeout: float = 90.0
 
-    # --- Embeddings: "local" (offline, scikit-learn hashing) or "api" (LLM provider) ---
-    embedding_provider: str = "local"
-    embedding_model: str = "text-embedding-3-small"
+    # --- Embeddings: "api" (gateway) or "local" (offline, scikit-learn hashing) ---
+    embedding_provider: str = "api"
+    embedding_model: str = "openai/text-embedding-3-small"
+    embedding_dim: int = 1536
+
+    # --- Database (Neon Postgres + pgvector) ---
+    database_url: str = ""
+
+    # --- AWS (S3 media, Polly audio, SES email) ---
+    aws_region: str = "ap-south-1"
+    s3_bucket: str = "parhlo-media-109257212304"
+    email_from: str = "tehmanhassan@gmail.com"
 
     # --- Feature switches ---
     enable_rag: bool = True
@@ -42,8 +55,13 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
     @property
+    def llm_key(self) -> str:
+        """Explicit key > AI Gateway key > Vercel OIDC token (local dev via `vercel env pull`)."""
+        return self.llm_api_key or self.ai_gateway_api_key or self.vercel_oidc_token
+
+    @property
     def llm_configured(self) -> bool:
-        return bool(self.llm_api_key)
+        return bool(self.llm_key)
 
     @property
     def uploads_dir(self) -> Path:

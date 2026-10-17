@@ -5,7 +5,8 @@ import tempfile
 
 # Must be set before the app (and its cached settings) is imported.
 os.environ["DATA_DIR"] = tempfile.mkdtemp(prefix="nascon-test-")
-os.environ["LLM_API_KEY"] = ""
+for key in ("LLM_API_KEY", "AI_GATEWAY_API_KEY", "VERCEL_OIDC_TOKEN", "DATABASE_URL"):
+    os.environ[key] = ""
 os.environ["EMBEDDING_PROVIDER"] = "local"
 for flag in ("ENABLE_RAG", "ENABLE_ML", "ENABLE_VISION"):
     os.environ[flag] = "true"
