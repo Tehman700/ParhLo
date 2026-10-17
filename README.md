@@ -55,6 +55,36 @@
 
 More: [docs/architecture.md](docs/architecture.md) · decisions and trade-offs: [docs/decisions.md](docs/decisions.md)
 
+## How ParhLo learns (and gets better every day)
+
+ParhLo's memory has three layers, all in Postgres:
+
+| Layer | What it is | Example |
+|---|---|---|
+| **Short-term: reading events** | Every open, read, like, dislike, save, skip and question, as it happens | "Opened the Verstappen story, read it for 70 s" |
+| **Long-term: interests** | A weight per topic (0–1), the outlets you prefer, and **interest anchors**: vectors for things you care about | Formula 1 0.8 · "Babar Azam" · a story you liked |
+| **History: snapshots** | What changed each night, and why | "Cricket 0.62 → 0.71 · You engaged with 2 Cricket stories" |
+
+**1. Every action is a signal.** Like or save **+1**, open **+0.6**, asking about a story **+0.5**, reading time up to **+0.4** (about a minute of reading), skip **−0.3**, dislike **−1**. If you undo a like or a save, it stops counting.
+
+**2. Strong signals act straight away.** A like, save or dislike turns that story's meaning (its embedding) into an anchor: **+0.8** for "more like this", **−0.8** for "less like this". The very next print ranks every story against these anchors in Postgres (pgvector), so similar stories rise and disliked kinds of story sink.
+
+**3. Every night, ParhLo consolidates** what you did that day:
+- **Topics move toward what you actually read:** each topic shifts by up to 0.12 per night, in proportion to that day's signals (bounded, so one evening can't flip your paper).
+- **Unused interests fade slowly,** by 2% a night.
+- **Stories you read properly become memories** (weight 0.5), so ParhLo learns specific interests your topic picks don't capture, like "Pakistan's IT exports".
+- **Your onboarding choices fade gradually** (a half-life of about 2 months, never below 0.3), so **what you read takes over from what you said**, the way Spotify treats its onboarding. Older one-off memories decay too (3% a night).
+- **The outlets you engage with** get a small preference.
+- **A snapshot records every change with a reason,** shown on your dashboard.
+
+**4. You stay in control.** The dashboard shows everything ParhLo remembers ("You chose Cricket", "You follow Nvidia", "You liked …") and you can remove any of it. Switching topics, following a name (or tapping **Follow** in search), or describing yourself in your own words (the AI extracts interests and names) **reprints today's paper in about 2.5 seconds**. **Update now** runs the nightly learning on demand.
+
+**5. It learns without trapping you.** Every paper keeps **two Top stories for everyone** and about **15% "something new"** from topics you haven't chosen (never ones you switched off). Variety (MMR) avoids five near-identical stories, the same event appears once, and yesterday's events aren't repeated. With **Learn from friends** on (both people opt in), your interests drift slightly toward friends' strong interests, at most +0.03 per topic per night.
+
+**What it looks like over time.** On day 1 your paper comes from the topics you picked and a few swipes. After a few days of reading, the stories you open and like shape it more than your initial picks, specific interests appear as their own memories, and the topics you skip quietly shrink. By week three it's built mostly from what you actually read. Every step is visible and reversible on the dashboard.
+
+Ranking, for the curious: `score = 0.40·best interest match + 0.17·topic weight + 0.11·recency + 0.08·importance (Jev) + 0.08·source quality + 0.07·Pakistan/world fit + 0.05·outlet coverage + 0.05·outlet preference − 0.55·match to things you disliked`.
+
 ## Measured on production
 
 | | |
