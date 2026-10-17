@@ -55,6 +55,12 @@ async def generate_edition(user: dict, edition_date: date | None = None, force: 
     top_topics = [TOPICS[t]["label"] for t, _ in sorted(topics.items(), key=lambda kv: -kv[1])[:5] if t in TOPICS]
     morning = await morning_box(user["city"], user["lat"], user["lon"])
     layout = await edit_paper(user, stories, top_topics, morning)
+    # The lead is the front page: it must be a story we could read in full (better summary, real ✓).
+    by_id = {s["id"]: s for s in stories}
+    if by_id.get(layout["lead_id"], {}).get("grounded_in") != "full article":
+        full = next((s for s in stories if s.get("grounded_in") == "full article" and not s.get("discovery")), None)
+        if full:
+            layout["lead_id"] = full["id"]
 
     data = {
         "date": edition_date.isoformat(),

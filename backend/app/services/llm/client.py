@@ -64,6 +64,7 @@ class LLMService:
         tool_choice: str | dict | None = None,
         json_mode: bool = False,
         max_tokens: int | None = None,
+        reasoning_effort: str | None = None,
     ) -> LLMReply:
         kwargs: dict[str, Any] = {"model": self.settings.model_name(model or self.settings.llm_model), "messages": messages}
         temp = self.settings.llm_temperature if temperature is None else temperature
@@ -77,6 +78,8 @@ class LLMService:
             kwargs["response_format"] = {"type": "json_object"}
         if max_tokens:
             kwargs["max_completion_tokens"] = max_tokens
+        if reasoning_effort and kwargs["model"].split("/")[-1].startswith(("gpt-5", "o3", "o4")):
+            kwargs["reasoning_effort"] = reasoning_effort  # minimal | low | medium | high
 
         try:
             resp = await self.client.chat.completions.create(**kwargs)

@@ -59,12 +59,14 @@ async def edit_paper(user: dict, stories: list[dict], top_topics: list[str], mor
         f"Reader's strongest interests: {', '.join(top_topics)}.\n"
         f"Today in {user['city']}: {weather.get('temp', '?')}°C, {weather.get('condition', '')}; "
         f"air quality {air.get('aqi', '?')} ({air.get('label', '')}).\n\n"
-        "Lay out today's paper from these stories. Rules: pick the most important + most relevant story as lead; "
+        "Lay out today's paper from these stories. Rules: pick the most important + most relevant story as lead, "
+        "preferring stories marked 'full article'; "
         "group the rest into 2-5 sections ordered by the reader's interests; every story id appears exactly once "
         "(lead included in a section); headlines and facts must come only from the summaries.\n\n"
         + "\n".join(_story_brief(s) for s in stories))
     try:
-        out: EditorOut = await get_llm().json([{"role": "user", "content": prompt}], schema=EditorOut)
+        out: EditorOut = await get_llm().json([{"role": "user", "content": prompt}], schema=EditorOut,
+                                              reasoning_effort="low")
         return _validate(out, stories, ids)
     except Exception as e:
         log.warning("editor fell back to deterministic layout: %s", e)

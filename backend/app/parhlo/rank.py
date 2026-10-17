@@ -6,6 +6,7 @@ then: one article per story cluster → MMR for variety → ~15% "discovery" slo
 """
 
 import math
+import re
 from datetime import datetime, timezone
 
 import numpy as np
@@ -21,6 +22,11 @@ KNOWN_GOOD = {"Reuters", "Associated Press", "AP News", "Al Jazeera", "CNN", "CN
               "Forbes", "Fortune", "Axios", "Politico", "Pakistan Today", "ARY News", "Samaa TV", "Arab News"}
 BLOCKED_HINTS = ("kucoin", "bitget", "binance", "mexc", "coin", "crypto.news", "biggo", "prnewswire", "globenewswire")
 STORIES_FOR_MINUTES = {5: 6, 10: 10, 15: 13, 20: 16}
+
+
+def as_np(v) -> np.ndarray:
+    """pgvector returns Vector objects; numpy needs plain arrays."""
+    return v.to_numpy().astype(np.float32) if hasattr(v, "to_numpy") else np.asarray(v, dtype=np.float32)
 
 
 def source_quality(source: str) -> float:
@@ -56,7 +62,7 @@ def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 
         seen = {r["article_id"] for r in conn.execute(
             "select distinct article_id from events where user_id=%s and article_id is not null", (user["id"],))}
     arts = [a for a in arts if a["id"] not in exclude_ids and a["id"] not in seen
-            and source_quality(a["source"]) > 0]
+            and source_quality(a["source"]) > 0 and len(re.findall(r"[A-Za-z]{3,}", a["title"])) >= 4]
     if not arts:
         return []
 
@@ -65,14 +71,14 @@ def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 
     region_mix = float(user.get("region_mix", 0.5))
     now = datetime.now(timezone.utc)
 
-    E = np.stack([np.asarray(a["embedding"], dtype=np.float32) for a in arts])
+    E = np.stack([as_np(a["embedding"]) for a in arts])
     pos = [a for a in anchors if a["weight"] > 0]
     neg = [a for a in anchors if a["weight"] < 0]
 
     def best_match(group):
         if not group:
             return np.zeros(len(arts)), [None] * len(arts)
-        A = np.stack([np.asarray(g["embedding"], dtype=np.float32) for g in group])
+        A = np.stack([as_np(g["embedding"]) for g in group])
         w = np.array([abs(g["weight"]) for g in group], dtype=np.float32)
         S = (E @ A.T) * np.minimum(w, 1.0)
         idx = S.argmax(axis=1)
@@ -89,7 +95,8 @@ def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 
         score = (0.42 * pos_s[i] + 0.18 * topic_w + 0.12 * math.exp(-age_h / 24)
                  + 0.08 * min(1.0, math.log1p(a["cluster_size"] or 1) / math.log(6))
                  + 0.08 * source_quality(a["source"]) + 0.07 * region_fit
-                 + 0.05 * float(affinity.get(a["source"], 0)) - 0.55 * neg_s[i])
+                 + 0.05 * float(affinity.get(a["source"], 0)) - 0.55 * neg_s[i]
+                 - (0.04 if "news.google.com" in a["url"] else 0.0))  # prefer links we can read in full
         scored.append({**a, "score": float(score), "match": pos_label[i], "match_sim": float(pos_s[i]),
                        "topic_weight": topic_w, "embedding": E[i]})
 
@@ -99,7 +106,12 @@ def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 
         key = s["cluster_id"] or s["id"]
         if key not in best_by_cluster or s["score"] > best_by_cluster[key]["score"]:
             best_by_cluster[key] = s
-    pool = sorted(best_by_cluster.values(), key=lambda s: -s["score"])
+    pool, seen_titles = [], set()
+    for s in sorted(best_by_cluster.values(), key=lambda s: -s["score"]):
+        key = re.sub(r"[^a-z0-9]+", " ", s["title"].lower()).strip()
+        if key not in seen_titles:  # same headline via two URLs
+            seen_titles.add(key)
+            pool.append(s)
     return pool
 
 

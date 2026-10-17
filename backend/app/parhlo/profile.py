@@ -50,7 +50,7 @@ async def extract_about(about: str) -> AboutExtraction:
     )
     try:
         return await get_llm().json([{"role": "user", "content": prompt}], schema=AboutExtraction,
-                                    model=None)
+                                    reasoning_effort="minimal")
     except Exception:
         return AboutExtraction()
 

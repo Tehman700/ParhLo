@@ -25,6 +25,10 @@ MAX_AGE = timedelta(hours=48)
 CLUSTER_SIM = 0.84  # cosine similarity above which two articles are "the same story"
 
 
+def norm_title(title: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", title.lower()).strip()
+
+
 def clean_text(raw: str | None, limit: int = 600) -> str:
     text = html.unescape(re.sub(r"<[^>]+>", " ", raw or ""))
     text = re.sub(r"\s+", " ", text).strip()
@@ -65,6 +69,8 @@ def parse_feed(feed: dict, body: bytes) -> list[dict]:
             if outlet:
                 source = outlet
                 title = re.sub(rf"\s+-\s+{re.escape(outlet)}$", "", title)
+        if len(re.findall(r"[A-Za-z]{3,}", title)) < 4:  # section pages like "Business & Finance - Dawn"
+            continue
         items.append({
             "url": url, "title": title, "source": source, "region": feed["region"],
             "summary": clean_text(e.get("summary") or e.get("description")),
@@ -114,7 +120,16 @@ async def ingest(extra_queries: list[str] | None = None) -> dict:
         known = {r["url"] for r in conn.execute(
             "select url from articles where url = any(%s)", ([i["url"] for i in items],)
         )}
-    new = [i for i in items if i["url"] not in known]
+        # The same story can arrive twice from one outlet (direct feed + Google News fallback).
+        seen_titles = {(r["source"], norm_title(r["title"])) for r in conn.execute(
+            "select source, title from articles where fetched_at > now() - interval '3 days'")}
+    new, batch_titles = [], set()
+    for i in items:
+        key = (i["source"], norm_title(i["title"]))
+        if i["url"] in known or key in seen_titles or key in batch_titles:
+            continue
+        batch_titles.add(key)
+        new.append(i)
     if not new:
         return {"fetched": len(items), "new": 0, "feeds": len(feeds), "errors": errors,
                 "seconds": round(time.perf_counter() - start, 1)}

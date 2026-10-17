@@ -52,19 +52,24 @@ async def summarize_one(client: httpx.AsyncClient, art: dict, sem: asyncio.Semap
         grounded_in = "full article" if content else "headline and excerpt"
         llm, fast = get_llm(), get_settings().llm_fast_model
         try:
+            style = ("Write 2-3 plain sentences." if content else
+                     "The source is only a headline and a short excerpt: write ONE plain sentence saying what happened. "
+                     "Do not repeat the headline word for word, never write 'the article discusses', "
+                     "and return at most 1 key point.")
             s: Summary = await llm.json([{"role": "user", "content": (
-                "Summarize this news article for a busy reader. Use ONLY facts stated in the source. "
-                "No speculation, no outside knowledge, no opinions.\n\n"
-                f"TITLE: {art['title']}\nSOURCE TEXT:\n{source_text}")}], schema=Summary, model=fast)
+                "Summarize this news article for a busy reader in plain English. Use ONLY facts stated in the source. "
+                f"No speculation, no outside knowledge, no opinions. {style}\n\n"
+                f"TITLE: {art['title']}\nSOURCE TEXT:\n{source_text}")}], schema=Summary, model=fast, reasoning_effort="minimal")
             v: Verdict = await llm.json([{"role": "user", "content": (
                 "Fact-check the SUMMARY against the SOURCE. A claim is supported only if the source states it. "
                 f"\n\nSOURCE:\n{source_text}\n\nSUMMARY:\n{s.summary}\n" + "\n".join(f"- {p}" for p in s.points))}],
-                schema=Verdict, model=fast)
+                schema=Verdict, model=fast, reasoning_effort="minimal")
             verified = v.supported
         except Exception as e:
             log.warning("summary failed for %s: %s", art["id"], e)
             s, verified = Summary(summary=art.get("rss_summary") or art["title"], points=[]), None
-        return {"id": art["id"], "content": content, "summary": s.summary, "points": s.points,
+        points = s.points if content else s.points[:1]  # excerpt-only: don't pad with near-duplicate points
+        return {"id": art["id"], "content": content, "summary": s.summary, "points": points,
                 "verified": verified, "grounded_in": grounded_in}
 
 
