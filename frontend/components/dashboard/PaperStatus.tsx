@@ -4,6 +4,7 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Edition } from "@/lib/api";
 import { useApi } from "@/lib/auth";
 import { usePaperFreshness } from "@/lib/freshness";
@@ -28,9 +29,15 @@ export function PaperStatus({ welcome, name }: { welcome: boolean; name: string 
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [justUpdated, setJustUpdated] = useState(false);
+  const [pillDone, setPillDone] = useState(false);
   // Interests changed → n8n reprints today's paper; swap the new one in when it lands.
   const fresh = usePaperFreshness(!!edition && !edition.read_only, () => {
-    api.post<Edition>("/api/editions/generate", {}).then((e) => { setEdition(e); setJustUpdated(true); }).catch(() => {});
+    api.post<Edition>("/api/editions/generate", {}).then((e) => {
+      setEdition(e);
+      setJustUpdated(true);
+      setPillDone(true);
+      setTimeout(() => setPillDone(false), 7000);
+    }).catch(() => {});
   });
 
   useEffect(() => {
@@ -64,8 +71,26 @@ export function PaperStatus({ welcome, name }: { welcome: boolean; name: string 
   const lead = edition?.stories.find((s) => s.id === edition.lead_id) ?? edition?.stories[0];
   const step = STEPS.filter((s) => elapsed >= s.at).length - 1;
 
+  // Readers change topics far down the page: a floating pill shows the reprint wherever they are.
+  // Portalled to <body> so the dashboard's GSAP transforms can't turn "fixed" into "relative to a card".
+  const pill = (fresh !== "fresh" || pillDone) && typeof document !== "undefined" && createPortal(
+    <div role="status" className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full bg-ink px-5 py-3 text-[14px] text-white shadow-[0_12px_32px_-8px_rgba(0,0,0,.45)]">
+      {pillDone ? (
+        <>
+          <span className="text-[#30d158]">✓</span> Today&apos;s paper was updated for your new interests
+          <Link href="/paper" className="font-semibold text-[#2997ff]">Read it ›</Link>
+        </>
+      ) : (
+        <>
+          <span className="flex gap-1"><span className="dot h-1.5 w-1.5 rounded-full bg-white" /><span className="dot h-1.5 w-1.5 rounded-full bg-white" /><span className="dot h-1.5 w-1.5 rounded-full bg-white" /></span>
+          {fresh === "building" ? "Reprinting today's paper for your new interests…" : "Interests saved. Updating today's paper in a moment…"}
+        </>
+      )}
+    </div>, document.body);
+
   return (
     <section ref={root} className="panel overflow-hidden rounded-[18px] bg-canvas">
+      {pill}
       {(building || !edition) && !error && (
         <div className="h-1 bg-parchment"><div className="build-bar h-full w-0 bg-primary" /></div>
       )}

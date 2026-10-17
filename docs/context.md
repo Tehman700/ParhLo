@@ -56,6 +56,7 @@ All secrets are in Vercel env and the root `.env` (gitignored). Never commit or 
 | **E** Demo readers (2 read-only sample readers, guest cleanup) | ✅ live, E2E 23/23 |
 | **G** Ask your paper + personal front page fix | ✅ live, E2E 13/13 |
 | **I** Morning email (Postgres queue) | ✅ live, E2E 18/18 |
+| Reprint on interest change (n8n workflow + page fallback) | ✅ live (fallback); n8n Cloud URL pending |
 | CI/CD (GitHub Actions + production smoke test) | ✅ |
 | F Compare · H Audio | ✂ dropped (user decision) |
 | J Submission (README, diagram, Loom) | from 19:15 |
@@ -65,6 +66,7 @@ All secrets are in Vercel env and the root `.env` (gitignored). Never commit or 
 - **Email:** Gmail stays primary even though SES is out of sandbox, because SES sending from a gmail.com address fails DMARC and lands in spam. Move to SES once we own a domain.
 - **Sample readers:** `users.persona` (Ayesha `e9079294-…`, Omar `104a8db0-…`). Read-only; nightly cron prints their paper but never consolidates them. Demo guests (`is_demo and not persona`) are deleted after 3 days.
 - **Web app copy is a general consumer product:** no event or hackathon names anywhere in the UI.
+- **n8n:** workflow lives in `n8n/paper-refresh.workflow.json` (import into n8n, activate, copy the Webhook node's Production URL into Vercel env `N8N_WEBHOOK_URL`, redeploy). Without it, the paper page asks for the reprint itself after 25 s. Local test n8n: `docker run … n8nio/n8n` with `MSYS_NO_PATHCONV=1` in Git Bash.
 - **CI:** every push runs `.github/workflows/ci.yml`; every production deploy runs `smoke.yml`. The frontend build retries once (Google Fonts fetch is flaky on runners). Another Claude session also pushes UI work to `main`: always `git pull --rebase` before pushing.
 - **Local `PUBLIC_URL` is localhost** (production has the real one); links built locally (emails, unsubscribe) point at localhost.
 - **Full flow E2E:** `ui/full_flow.mjs` (two accounts, ~4 min, deletes both at the end).
