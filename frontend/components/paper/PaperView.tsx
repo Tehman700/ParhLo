@@ -17,6 +17,12 @@ export function PaperView({ edition, actions }: { edition: Edition; actions?: Re
   const tracker = useTracker(edition.id);
   const byId = useMemo(() => new Map(edition.stories.map((s) => [s.id, s])), [edition]);
   const lead = byId.get(edition.lead_id) ?? edition.stories[0];
+  const flow = useMemo(() => {
+    const seen = new Set<number>(lead ? [lead.id] : []);
+    return edition.sections.flatMap((sec) => sec.story_ids
+      .filter((id) => byId.has(id) && !seen.has(id) && Boolean(seen.add(id)))
+      .map((id, i) => ({ story: byId.get(id) as Story, section: sec.name, first: i === 0 })));
+  }, [edition.sections, byId, lead]);
   const initial = (id: number): StoryState => ({
     reaction: edition.state?.reactions[String(id)] ?? null, saved: edition.state?.saved.includes(id) ?? false,
   });
@@ -45,7 +51,7 @@ export function PaperView({ edition, actions }: { edition: Edition; actions?: Re
 
   return (
     <div ref={root} className="paper min-h-screen pb-24">
-      <div className="mx-auto max-w-[1080px] px-4 sm:px-6">
+      <div className="mx-auto max-w-[1200px] px-4 sm:px-6">
         {/* Masthead */}
         <div className="mast-meta flex flex-wrap items-center justify-between gap-2 border-b border-hairline pb-3 pt-6 t-caption text-ink-60">
           <span>No. {edition.number}</span>
@@ -96,19 +102,20 @@ export function PaperView({ edition, actions }: { edition: Edition; actions?: Re
           </aside>
         </div>
 
-        {/* Sections */}
-        {edition.sections.map((sec) => {
-          const stories = sec.story_ids.filter((id) => id !== lead?.id).map((id) => byId.get(id)).filter(Boolean) as Story[];
-          if (!stories.length) return null;
-          return (
-            <section key={sec.name} id={`sec-${slug(sec.name)}`} className="section-block scroll-mt-16 pt-12">
-              <h2 className="t-section">{sec.name}</h2>
-              <div className="mt-2 grid gap-x-8 gap-y-8 md:grid-cols-2 lg:grid-cols-3">
-                {stories.map((s) => <StoryCard key={s.id} story={s} tracker={tracker} initial={initial(s.id)} />)}
-              </div>
-            </section>
-          );
-        })}
+        {/* The rest of the paper: one continuous grid that fills every row (no half-empty section rows).
+            Each card names its section; "In this paper" links jump to a section's first story. */}
+        {flow.length > 0 && (
+          <section className="section-block pt-12">
+            <h2 className="t-section">More in today&apos;s paper</h2>
+            <div className="mt-2 grid items-start gap-x-8 gap-y-10 md:grid-cols-2 lg:grid-cols-3">
+              {flow.map(({ story: s, section, first }) => (
+                <div key={s.id} id={first ? `sec-${slug(section)}` : undefined} className="min-w-0 scroll-mt-20">
+                  <StoryCard story={s} section={section} tracker={tracker} initial={initial(s.id)} />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* End */}
         <div className="end-card mx-auto mt-20 max-w-[640px] rounded-[18px] bg-parchment p-10 text-center">

@@ -19,13 +19,15 @@ function badge(s: Story) {
   return `<span class="muted">AI summary</span>`;
 }
 
-function story(s: Story, lead = false) {
+function story(s: Story, lead = false, section?: string) {
+  const topic = topicLabel(s.topics[0]);
+  const label = section && section !== topic ? `<span class="sect">${esc(section)}</span> · ${esc(topic)}` : esc(section ?? topic);
   return `<article class="${lead ? "lead" : "story"}">
-    <div class="kicker">${esc(topicLabel(s.topics[0]))}${s.core ? ' <span class="disc">Top story</span>' : ""}${s.discovery ? ' <span class="disc">New for you</span>' : ""}</div>
-    ${lead && s.image ? `<img class="lead-img" src="${esc(s.image)}" alt="">` : ""}
+    <div class="kicker">${label}${s.core ? ' <span class="disc">Top story</span>' : ""}${s.discovery ? ' <span class="disc">New for you</span>' : ""}</div>
+    ${lead && s.image ? `<img class="lead-img" src="${esc(s.image)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}
     <h3><a href="${esc(s.url)}">${esc(s.headline)}</a></h3>
     <p class="${lead ? "deck dropcap" : "deck"}">${esc(s.summary)}</p>
-    ${lead && s.points.length ? `<ul class="points">${s.points.map((p) => `<li>${esc(p)}</li>`).join("")}</ul>` : ""}
+    ${s.points.length ? `<ul class="points">${(lead ? s.points : s.points.slice(0, 2)).map((p) => `<li>${esc(p)}</li>`).join("")}</ul>` : ""}
     ${s.why ? `<p class="why"><b>Why this story:</b> ${esc(s.why)}</p>` : ""}
     <p class="meta">${esc(s.source)} · ${badge(s)}${s.also_reported_by.length ? ` · Also: ${esc(s.also_reported_by.slice(0, 3).join(", "))}` : ""}<br>
       <a href="${esc(s.url)}">${esc(domain(s.url))}</a></p>
@@ -39,11 +41,11 @@ export function buildPrintHtml(ed: Edition): string {
   const m = ed.morning;
   const rates = m.rates ? Object.entries(m.rates.pkr).map(([k, v]) => `${k} Rs ${v.toFixed(2)}`).join(" · ") : "—";
 
-  const sections = ed.sections.map((sec) => {
-    const items = sec.story_ids.filter((id) => id !== lead?.id).map((id) => byId.get(id)).filter(Boolean) as Story[];
-    if (!items.length) return "";
-    return `<section><h2 class="sec">${esc(sec.name)}</h2><div class="cols">${items.map((s) => story(s)).join("")}</div></section>`;
-  }).join("");
+  // The rest of the paper flows as one newspaper column set (no half-empty section rows); each story carries its section.
+  const seen = new Set<number>(lead ? [lead.id] : []);
+  const flow = ed.sections.flatMap((sec) => sec.story_ids.filter((id) => !seen.has(id) && seen.add(id))
+    .map((id) => byId.get(id)).filter(Boolean).map((st) => story(st as Story, false, sec.name))).join("");
+  const sections = flow ? `<section><h2 class="sec">More in today's paper</h2><div class="cols">${flow}</div></section>` : "";
 
   return `<!doctype html><html><head><meta charset="utf-8"><title>ParhLo — ${esc(ed.edition_date)}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -86,7 +88,10 @@ export function buildPrintHtml(ed: Edition): string {
   .side h4 { font: 700 7pt Inter; letter-spacing: .1em; text-transform: uppercase; color: #7a7a7a; margin: 10pt 0 3pt; }
   section { break-inside: auto; }
   .sec { font: 700 15pt "Playfair Display", serif; border-top: 2.4pt solid #1d1d1f; padding-top: 3pt; margin: 12pt 0 4pt; break-after: avoid; }
-  .cols { column-count: 3; column-gap: 12pt; column-rule: 0.6pt solid #e0e0e0; }
+  .cols { column-count: 3; column-gap: 14pt; column-rule: 0.6pt solid #e0e0e0; column-fill: balance; }
+  .kicker .sect { color: #1d1d1f; }
+  .story .points { font-size: 8.6pt; margin: 3pt 0; }
+  @media screen { body { padding: 32px 40px 40px; } }
   .story { break-inside: avoid; padding: 0 0 8pt; margin-bottom: 8pt; border-bottom: 0.6pt solid #e0e0e0; }
   .story h3 { font: 700 12.5pt/1.15 "Playfair Display", serif; margin: 2pt 0 3pt; }
   .end { margin-top: 14pt; text-align: center; border-top: 3pt double #1d1d1f; padding-top: 8pt; font: italic 10pt "Source Serif 4", serif; color: #6e6e73; }

@@ -40,12 +40,13 @@ function IconButton({ label, active, onClick, kind, activeClass }: { label: stri
 
 export type StoryState = { reaction: "like" | "dislike" | null; saved: boolean };
 
-export function StoryCard({ story, variant = "normal", tracker, initial }: { story: Story; variant?: "lead" | "normal"; tracker: Tracker; initial?: StoryState }) {
+export function StoryCard({ story, variant = "normal", tracker, initial, section }: { story: Story; variant?: "lead" | "normal"; tracker: Tracker; initial?: StoryState; section?: string }) {
   const ref = useRef<HTMLElement>(null);
   const [reaction, setReaction] = useState<"like" | "dislike" | null>(initial?.reaction ?? null);
   const [saved, setSaved] = useState(initial?.saved ?? false);
   const [hidden, setHidden] = useState(false);
-  const [open, setOpen] = useState(variant === "lead");
+  const [open, setOpen] = useState(true); // key points shown by default; readers can hide them
+  const topic = topicLabel(story.topics[0]);
   const [imgFailed, setImgFailed] = useState(false);
   const lead = variant === "lead";
 
@@ -68,8 +69,10 @@ export function StoryCard({ story, variant = "normal", tracker, initial }: { sto
 
   return (
     <article ref={ref} id={`story-${story.id}`} className={`story-card scroll-mt-20 overflow-hidden ${lead ? "" : "border-t border-hairline pt-5"}`}>
-      <div className="flex items-center gap-2">
-        <p className="kicker">{topicLabel(story.topics[0])}</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="kicker">
+          {section && section !== topic ? <>{section}<span className="font-normal text-ink-48"> · {topic}</span></> : section ?? topic}
+        </p>
         {story.core && <span className="rounded-full bg-ink px-2 py-0.5 t-fine font-semibold text-white">Top story</span>}
         {story.discovery && <span className="rounded-full bg-parchment px-2 py-0.5 t-fine font-semibold text-ink-60">New for you</span>}
         {story.friend && <span className="rounded-full bg-[#e8f1fb] px-2 py-0.5 t-fine font-semibold text-primary">From {story.friend}</span>}
@@ -91,9 +94,11 @@ export function StoryCard({ story, variant = "normal", tracker, initial }: { sto
         <VerifiedBadge story={story} />
         {story.also_reported_by.length > 0 && <span className="t-caption text-ink-48">Also in {story.also_reported_by.slice(0, 3).join(", ")}</span>}
       </div>
-      <div className="mt-3 flex items-center gap-1">
-        <span className="mr-auto min-w-0 truncate t-caption text-ink-48">{story.source} · {timeAgo(story.published_at)}</span>
-        {!lead && story.points.length > 0 && <button className="mr-1 whitespace-nowrap t-caption text-primary" onClick={() => setOpen(!open)}>{open ? "Less" : "Key points"}</button>}
+      <p className="mt-3 t-caption text-ink-48">{story.source} · {timeAgo(story.published_at)}</p>
+      <div className="mt-1 flex items-center gap-1">
+        <span className="mr-auto">
+          {!lead && story.points.length > 0 && <button className="whitespace-nowrap t-caption text-primary" onClick={() => setOpen(!open)}>{open ? "Hide points" : "Key points"}</button>}
+        </span>
         <IconButton label="Ask about this story" kind="ask" activeClass="" onClick={() => askAbout(story.id)} />
         <IconButton label="More like this" kind="up" active={reaction === "like"} activeClass="text-primary" onClick={() => react("like")} />
         <IconButton label="Less like this" kind="down" active={reaction === "dislike"} activeClass="text-danger" onClick={() => react("dislike")} />
