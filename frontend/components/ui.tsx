@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useSession } from "@/lib/auth";
 import { LogoMark } from "./Logo";
@@ -15,7 +15,6 @@ const APP_LINKS = [
 /** Global nav (apple-DESIGN.md → global-nav / sub-nav-frosted): 44px, frosted, 12px links. */
 export function TopBar({ right }: { right?: ReactNode }) {
   const { ready, signedIn, isDemo, user, signOut } = useSession();
-  const router = useRouter();
   const path = usePathname();
   const initial = (user?.name && user.name !== "Reader" ? user.name : user?.email ?? "?").charAt(0).toUpperCase();
 
@@ -44,13 +43,13 @@ export function TopBar({ right }: { right?: ReactNode }) {
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-ink text-[11px] font-semibold text-white">{initial}</span>
                 <span className="hidden max-w-[120px] truncate sm:inline">{user.name !== "Reader" ? user.name : user.email}</span>
               </Link>
-              <button className="text-ink/80 hover:text-ink" onClick={() => signOut().then(() => router.push("/"))}>Sign out</button>
+              <button className="text-ink/80 hover:text-ink" onClick={() => signOut()}>Sign out</button>
             </>
           ) : isDemo ? (
             <>
               <span className="rounded-full bg-[#e8f1fb] px-2 py-0.5 font-semibold text-primary">Demo</span>
               <Link href="/sign-in" className="text-ink/80 hover:text-ink">Create an account</Link>
-              <button className="text-ink/80 hover:text-ink" onClick={() => signOut().then(() => router.push("/"))}>Exit demo</button>
+              <button className="text-ink/80 hover:text-ink" onClick={() => signOut()}>Exit demo</button>
             </>
           ) : (
             <>

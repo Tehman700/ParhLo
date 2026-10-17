@@ -146,7 +146,6 @@ export default function Dashboard() {
     try {
       await api.del("/api/me");
       await signOut();
-      router.replace("/");
     } catch (e) {
       setError((e as Error).message);
       setBusy(null);
@@ -330,7 +329,7 @@ export default function Dashboard() {
                 <p className="t-body text-ink-60">You&apos;re using a demo reader. Create an account to keep your own paper.</p>
                 <div className="flex gap-3">
                   <Link href="/sign-in" className="btn btn-primary">Create an account</Link>
-                  <button className="btn btn-light" onClick={() => signOut().then(() => router.push("/"))}>Exit demo</button>
+                  <button className="btn btn-light" onClick={() => signOut()}>Exit demo</button>
                 </div>
               </div>
             ) : (
@@ -341,7 +340,7 @@ export default function Dashboard() {
                   <p className="t-body sm:text-right"><Link href="/privacy" className="link">How ParhLo uses your data ›</Link></p>
                 </Row>
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-t border-divider pt-6">
-                  <button className="btn btn-light" onClick={() => signOut().then(() => router.push("/"))}>Sign out</button>
+                  <button className="btn btn-light" onClick={() => signOut()}>Sign out</button>
                   {confirmDelete ? (
                     <div className="flex flex-wrap items-center gap-3">
                       <span className="t-caption text-danger">This deletes your profile, interests and papers. It can&apos;t be undone.</span>

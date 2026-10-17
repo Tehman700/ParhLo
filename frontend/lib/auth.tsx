@@ -17,6 +17,7 @@ type Session = {
   demoUser: string | null;
   setDemoUser: (id: string | null) => void;
   refresh: () => Promise<SessionUser | null>;
+  /** Ends the session and reloads to the home page. */
   signOut: () => Promise<void>;
   headers: () => Promise<Headers>;
 };
@@ -84,10 +85,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(u);
       return u;
     },
+    // A full page load, not a state change: protected pages would otherwise see "signed out" first and jump to /sign-in.
     signOut: async () => {
-      setDemoUser(null);
+      try { localStorage.removeItem(DEMO_KEY); } catch {}
       if (user) await request("/api/auth/logout", { method: "POST" }).catch(() => {});
-      setUser(null);
+      window.location.replace("/");
     },
     // Real readers authenticate with the session cookie; only demo readers send this header.
     headers: async (): Promise<Headers> => (!user && demoUser ? { "X-Demo-User": demoUser } : {}),
