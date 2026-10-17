@@ -90,7 +90,7 @@ def test_common_core_picks_biggest_stories_once():
     pool = [_story(1, 0.2), _story(2, 0.3), _story(3, 0.95, topic_weight=0.1, cluster=5),
             _story(4, 0.9, topic_weight=0.1, cluster=1), _story(5, 0.4), _story(6, 0.5),
             _story(7, 0.1, topic_weight=0.1), _story(8, 0.3), _story(9, 0.2), _story(10, 0.6),
-            _story(11, 0.1, topic_weight=0.05)]
+            _story(11, 0.1, topic_weight=0.1)]  # outside the profile (0.05 would mean switched off)
     picks = rank.select_stories(pool, 10)
     core = [p["id"] for p in picks if p.get("core")]
     assert core == [3, 4]                                   # highest importance (+ coverage), even off-profile
