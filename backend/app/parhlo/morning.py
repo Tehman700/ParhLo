@@ -65,11 +65,21 @@ def cricket_headline() -> dict | None:
                and published_at > now() - interval '24 hours' order by published_at desc limit 1""").fetchone()
 
 
+async def _retry(make, attempts: int = 3):
+    """Open-Meteo fails intermittently (about 1 call in 2 at times): retry with a short backoff."""
+    for i in range(attempts):
+        try:
+            return await make()
+        except Exception:
+            if i == attempts - 1:
+                return None
+            await asyncio.sleep(0.4 * (i + 1))
+
+
 async def morning_box(city: str, lat: float, lon: float) -> dict:
     async with httpx.AsyncClient(timeout=10) as client:
-        results = await asyncio.gather(weather(client, lat, lon), air(client, lat, lon), rates(client),
-                                       return_exceptions=True)
-    w, a, r = (None if isinstance(x, Exception) else x for x in results)
+        w, a, r = await asyncio.gather(_retry(lambda: weather(client, lat, lon)), _retry(lambda: air(client, lat, lon)),
+                                       _retry(lambda: rates(client)))
     try:
         cricket = cricket_headline()
     except Exception:

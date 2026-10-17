@@ -54,7 +54,8 @@ All secrets are in Vercel env and the root `.env` (gitignored). Never commit or 
 | Background first paper, animated How it works, persistent reactions + saved, friends (invites, bell, Learn from friends) | ✅ live |
 | **D** Full flow test | ✅ live, E2E 31/31 with two accounts |
 | **E** Demo readers (2 read-only sample readers, guest cleanup) | ✅ live, E2E 23/23 |
-| F Compare · G Ask your paper · H Audio · I Email | ⬜ |
+| **G** Ask your paper + personal front page fix | ✅ live, E2E 13/13 |
+| F Compare · H Audio · I Email | ⬜ |
 | J Submission (README, diagram, Loom) | from 19:15 |
 
 ## Known issues and notes

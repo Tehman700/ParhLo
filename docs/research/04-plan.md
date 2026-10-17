@@ -89,7 +89,7 @@ Older signals decay over time.
 | LLM output errors | Structured JSON + validation + plain fallback layout |
 | Time | Core first; extras are cuttable |
 
-## Module status (updated 2026-10-17, ~18:30)
+## Module status (updated 2026-10-17, ~19:30)
 | Module | Status | Notes |
 |---|---|---|
 | Setup + auto-deploy | ✅ | Vercel services, Neon, AWS, GitHub → Vercel |
@@ -104,7 +104,7 @@ Older signals decay over time.
 | **D** Full flow test | ✅ | Two real accounts on production, 31/31 (sign-up → onboarding UI → background paper → reactions → saved → learn → tomorrow → PDF → invite → notifications → friend picks → drift → off) |
 | **E** Demo readers | ✅ | `persona` flag: only Ayesha (Lahore, AI/tech/startups) and Omar (Karachi, economy/business/cricket) on /demo; read-only (403 on edits, events ignored, no nightly learning), banner on their paper, locked dashboard; guests separate and editable, removed after 3 days; test leftovers deleted; better lead fallback + code-set why-lines. E2E 23/23 |
 | F Two-persona compare | ⬜ | `/compare` page |
-| G Ask your paper | ⬜ | Jev routes, LLM answers from today's stories with sources |
+| **G** Ask your paper | ✅ | Floating widget + per-story "Ask"; Jev routes the question (≈0.4 s), gpt-5-mini answers only from the edition with sources + follow-ups (≈3–6 s). Also fixed: front page always a personal story, same event across outlets deduped, yesterday's events not repeated, weather retry. E2E 13/13 |
 | H Audio edition | ⬜ | Script → Polly → S3 → player |
 | I Morning email | ⬜ | SES, top stories + PDF link |
 | J Submission | from 19:15 | README, architecture diagram (research session), Loom, form |
