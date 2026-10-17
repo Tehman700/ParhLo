@@ -48,6 +48,9 @@ def story_count(minutes: int) -> int:
     return STORIES_FOR_MINUTES[best]
 
 
+OFF_WEIGHT = 0.05  # a topic switched off on the dashboard
+
+
 def _words(title: str) -> set[str]:
     return {w for w in re.findall(r"[a-z]{4,}", title.lower())}
 
@@ -164,12 +167,13 @@ def select_stories(pool: list[dict], n: int, discovery_share: float = 0.15, n_co
     personal = mmr([p for p in pool if p["id"] not in taken and (p["topic_weight"] >= 0.3 or p["match_sim"] >= 0.35)],
                    n_personal, avoid=core)
     taken |= {p["id"] for p in personal}
-    outside = [p for p in pool if p["id"] not in taken and p["topic_weight"] < 0.3]
+    # "Something new" comes from outside the reader's interests, but never from topics they switched off (0.05).
+    outside = [p for p in pool if p["id"] not in taken and OFF_WEIGHT < p["topic_weight"] < 0.3]
     outside.sort(key=lambda p: -(core_score(p) + 0.5 * source_quality(p["source"])))
     discovery = [{**p, "discovery": True} for p in mmr(outside[:30], n_disc, avoid=core + personal)]
     taken |= {p["id"] for p in discovery}
     if len(personal) < n_personal:  # thin profile: top up from the general pool
-        personal += [p for p in pool if p["id"] not in taken][: n_personal - len(personal)]
+        personal += [p for p in pool if p["id"] not in taken and p["topic_weight"] > OFF_WEIGHT][: n_personal - len(personal)]
     return personal + core + discovery
 
 
