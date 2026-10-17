@@ -10,16 +10,17 @@ export function PaperMock() {
       <div className="grid grid-cols-[1.6fr_1fr] gap-5 px-6 py-5">
         <div>
           <p className="kicker">Technology</p>
-          <div className="mt-2 aspect-[16/8] rounded-[4px] bg-[#e8eef6]" />
-          <p className="headline mt-3 text-[22px]">Pakistan startups raise record funding in third quarter</p>
-          <p className="deck mt-2 text-[13px] leading-relaxed">Local technology companies raised more money between July and September than in any quarter on record, led by fintech and logistics.</p>
-          <p className="mt-2 text-[11px] font-semibold text-success">✓ Checked against source · Also in Dawn, Business Recorder</p>
+          <img src="/hero-story.webp" alt="" className="mt-2 aspect-[16/8] w-full rounded-[6px] object-cover" />
+          <p className="mt-1 text-[9px] text-ink-48">Photo: Dawn</p>
+          <p className="headline mt-3 text-[22px]">Pakistan showcases 20 tech firms at TechCrunch Disrupt</p>
+          <p className="deck mt-2 text-[13px] leading-relaxed">Twenty Pakistani startups presented their products in San Francisco this week, the country's largest group at the event so far.</p>
+          <p className="mt-2 text-[11px] font-semibold text-success">✓ Checked against source · Also in Business Recorder, TechCrunch</p>
         </div>
         <div className="space-y-4 border-l border-rule pl-5">
           <div className="rounded-[8px] bg-ink p-3.5 text-white">
             <p className="text-[11px] font-semibold text-sun">3 things to remember</p>
             <ol className="mt-2 list-decimal space-y-1.5 pl-4 text-[11.5px] leading-snug text-white/85">
-              <li>Startups raised a record amount this quarter.</li>
+              <li>20 Pakistani startups showcased at TechCrunch Disrupt.</li>
               <li>Smog levels in Lahore are unhealthy today.</li>
               <li>Pakistan won the second T20 by 6 wickets.</li>
             </ol>
