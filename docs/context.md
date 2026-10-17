@@ -49,8 +49,9 @@ All secrets are in Vercel env and the root `.env` (gitignored). Never commit or 
 | Apple-style redesign + GSAP | ✅ live |
 | **A** Live AI pipeline (ingest → rank → summarize → edit → paper → PDF) | ✅ live, 19–34 s per paper |
 | **B** Jev layer (topic, junk, importance, 2 Top-story slots, summary check with confidence, LLM fallback) | ✅ live, 42 tests pass |
-| **C** Onboarding upgrade | ⏳ next |
-| D Full flow test · E Demo readers · F Compare · G Ask your paper · H Audio · I Email | ⬜ |
+| **C** Onboarding upgrade (live preview, adaptive swipes, transparency, fading) | ✅ live, E2E 15/15 |
+| **D** Full flow test | ⏳ next |
+| E Demo readers · F Compare · G Ask your paper · H Audio · I Email | ⬜ |
 | J Submission (README, diagram, Loom) | from 19:15 |
 
 ## Known issues and notes

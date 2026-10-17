@@ -97,8 +97,8 @@ Older signals decay over time.
 | UI redesign | ✅ | Apple design system, GSAP, plain English |
 | **A** Live AI pipeline | ✅ | Ingest → rank → summarize → edit → paper → PDF on production (19–34 s) |
 | **B** Jev decision layer | ✅ | Topic/junk/importance at ingest, 2 Top-story slots, Jev summary check (434 ms vs 941 ms LLM, same accuracy) |
-| **C** Onboarding upgrade | ⏳ next | Live front-page preview, adaptive swipes, name prefill, transparency line, fading onboarding interests |
-| D Full flow test | ⬜ | Sign in → onboarding → paper → react → learn → tomorrow's paper → PDF |
+| **C** Onboarding upgrade | ✅ | Live front-page preview, adaptive swipes (topic dropped after 2 passes), name prefill, transparency note, onboarding interests fade (×0.988/night). E2E 15/15 on production |
+| **D** Full flow test | ⏳ next | Sign in → onboarding → paper → react → learn → tomorrow's paper → PDF |
 | E Demo readers | ⬜ | 2 personas, delete Fixture Reader |
 | F Two-persona compare | ⬜ | `/compare` page |
 | G Ask your paper | ⬜ | Jev routes, LLM answers from today's stories with sources |

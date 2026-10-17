@@ -50,6 +50,7 @@ Every night ParhLo **collects** ~900 articles from Pakistani and global outlets,
 2. **Interest anchors** — long-term semantic memory: embeddings of chosen topics, followed names, "about me" interests, liked/read (+) and disliked (−) stories (`interest_anchors`, max 80). An article's personal score is its best match.
 3. **Event log** — short-term: open, dwell (≥ 8 s visible), like, dislike, save, skip, quiz answers (`events`).
 Snapshots (`profile_snapshots`) power the **Interests** page ("what changed and why").
+**Onboarding signals fade:** onboarding/followed-name anchors decay ×0.988 per nightly learn (half-life ≈ 57 days, floor 0.3) so real reading takes over (Spotify-style). Swipe passes lower a topic's weight; two passes on a topic remove it from the swipe queue.
 
 ## 5. Auth (own implementation, no third-party auth provider)
 - **Email OTP:** 6-digit code, only an HMAC hash stored (`otp_codes`), 10-min expiry, 5 attempts, 5/hour per email; sent via **AWS SES** (sandbox → verified addresses only until production access).
@@ -62,7 +63,7 @@ Snapshots (`profile_snapshots`) power the **Interests** page ("what changed and 
 ## 7. API (FastAPI, all under `/api`)
 Auth: `POST /auth/otp/request`, `POST /auth/otp/verify`, `GET /auth/google/start`, `GET /auth/google/callback`, `GET /auth/me`, `POST /auth/logout`
 Reader: `GET /me`, `POST /onboarding`, `PATCH /me/topics`, `DELETE /me/anchors/{id}`, `POST /editions/generate`, `GET /editions`, `GET /editions/{date}`, `POST /events`, `POST /learn`, `GET /morning`
-Public/demo: `GET /health`, `GET /topics`, `GET /onboarding/headlines`, `GET /demo/personas`, `POST /demo/start`
+Public/demo: `GET /health`, `GET /topics`, `GET /onboarding/headlines?topics=` (chosen topics first, then 3 discovery), `GET /onboarding/preview?topics=&entities=` (live front page), `GET /demo/personas`, `POST /demo/start`
 Cron (Bearer `CRON_SECRET`): `GET /cron/ingest` (ingest + Jev backfill), `GET /cron/daily` (learn + print everyone's paper)
 Frontend route: `GET /pdf/{date}` (Next.js route handler → Chromium → A4 PDF)
 
@@ -75,6 +76,8 @@ Frontend route: `GET /pdf/{date}` (Next.js route handler → Chromium → A4 PDF
 | Paper generation (cold, 10 stories) | 19–34 s (was 117 s before reasoning-effort tuning) |
 | PDF | ~320 KB, 7 s cold / 2.6 s warm |
 | Sign-in | OTP email sent + verified end-to-end on production |
+| Onboarding E2E (production) | 15/15 checks; preview ~1.4 s warm; first paper 22.8 s after "Create my paper" |
+| Backend cold start | 12 s → **4.5 s** after moving starter-only deps (pandas, sklearn, pypdf, pillow) to an optional extra |
 
 ## 9. Repo map
 ```
