@@ -121,7 +121,7 @@ export function HowItWorksFlow() {
     // reset every loop
     tl.set(q(".src"), { x: -30, opacity: 0 })
       .set(q(".tag"), { scale: 0, opacity: 0 })
-      .set(q(".sort-row"), { opacity: 1, x: 0 })
+      .set(q(".sort-row"), { clearProps: "opacity,transform,height,paddingTop,paddingBottom,marginTop" })
       .set(q(".sort-text"), { textDecoration: "none" })
       .set(q(".match-bar"), { scaleX: 0, transformOrigin: "left" })
       .set(q(".check-line"), { scaleX: 0, transformOrigin: "left" })
@@ -134,7 +134,8 @@ export function HowItWorksFlow() {
     on(1, "+=0.9");
     tl.to(q(".tag"), { scale: 1, opacity: 1, stagger: 0.18, duration: 0.35, ease: "back.out(2)" }, "<0.2")
       .to(q(".junk .sort-text"), { textDecoration: "line-through", duration: 0.01 }, "+=0.2")
-      .to(q(".junk"), { x: 24, opacity: 0, duration: 0.5, ease: "power2.in" }, "+=0.35");
+      .to(q(".junk"), { x: 24, opacity: 0, duration: 0.5, ease: "power2.in" }, "+=0.35")
+      .to(q(".junk"), { height: 0, paddingTop: 0, paddingBottom: 0, marginTop: -8, duration: 0.35, ease: "power2.inOut" });
     on(2, "+=0.6");
     tl.to(q(".match-bar"), { scaleX: 1, stagger: 0.15, duration: 0.8 }, "<0.2");
     on(3, "+=0.8");

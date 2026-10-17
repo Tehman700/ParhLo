@@ -19,7 +19,7 @@ const STEPS = ["About you", "Topics", "Headlines", "Review"];
 export default function Onboarding() {
   const router = useRouter();
   const api = useApi();
-  const { ready, signedIn } = useSession();
+  const { ready, signedIn, refresh } = useSession();
   const root = useRef<HTMLDivElement>(null);
 
   const [step, setStep] = useState(0);
@@ -114,6 +114,7 @@ export default function Onboarding() {
         name: name.trim() || "Reader", city: otherCity.trim() || city, reading_minutes: minutes, region_mix: regionMix,
         topics: picked, entities, about: about.trim() || null, swipes: swipes.map(({ article_id, liked }) => ({ article_id, liked })),
       });
+      void refresh(); // the nav shows the new name
       router.push("/dashboard?welcome=1"); // the first paper is built in the background there
     } catch (e) {
       setError((e as Error).message);

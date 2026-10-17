@@ -89,7 +89,7 @@ Older signals decay over time.
 | LLM output errors | Structured JSON + validation + plain fallback layout |
 | Time | Core first; extras are cuttable |
 
-## Module status (updated 2026-10-17, ~16:30)
+## Module status (updated 2026-10-17, ~17:45)
 | Module | Status | Notes |
 |---|---|---|
 | Setup + auto-deploy | ✅ | Vercel services, Neon, AWS, GitHub → Vercel |
@@ -99,7 +99,9 @@ Older signals decay over time.
 | **B** Jev decision layer | ✅ | Topic/junk/importance at ingest, 2 Top-story slots, Jev summary check (434 ms vs 941 ms LLM, same accuracy) |
 | **C** Onboarding upgrade | ✅ | Live front-page preview, adaptive swipes (topic dropped after 2 passes), name prefill, transparency note, onboarding interests fade (×0.988/night). E2E 15/15 on production |
 | Account batch | ✅ | Real sign-in always beats a demo session; OTP to any email (Gmail SMTP, SES fallback, SES out of sandbox); `/dashboard` (profile, topic switches, following, about you, memory, account, delete); `/privacy`, `/terms`, `/about`, `/how-it-works`, site footer; no event branding. Production E2E 32/32 |
-| **D** Full flow test | ⏳ next | Sign in → onboarding → paper → react → learn → tomorrow's paper → PDF |
+| Background first paper + How it works animation | ✅ | Onboarding → dashboard in ~3 s; paper builds behind (≈18 s), one build per reader/date |
+| Reactions, saves, friends | ✅ | Persistent like/dislike/save with undo, saved list; invite links, bell notifications, Learn from friends (friend picks + gentle drift, no reset when off) |
+| **D** Full flow test | ✅ | Two real accounts on production, 31/31 (sign-up → onboarding UI → background paper → reactions → saved → learn → tomorrow → PDF → invite → notifications → friend picks → drift → off) |
 | E Demo readers | ⬜ | 2 personas, delete Fixture Reader |
 | F Two-persona compare | ⬜ | `/compare` page |
 | G Ask your paper | ⬜ | Jev routes, LLM answers from today's stories with sources |

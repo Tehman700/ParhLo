@@ -51,7 +51,8 @@ All secrets are in Vercel env and the root `.env` (gitignored). Never commit or 
 | **B** Jev layer (topic, junk, importance, 2 Top-story slots, summary check with confidence, LLM fallback) | ✅ live, 42 tests pass |
 | **C** Onboarding upgrade (live preview, adaptive swipes, transparency, fading) | ✅ live, E2E 15/15 |
 | Account batch: demo/login fix, OTP to any email, `/dashboard`, privacy/terms/about/how-it-works, footer | ✅ live, E2E 32/32 |
-| **D** Full flow test | ⏳ next |
+| Background first paper, animated How it works, persistent reactions + saved, friends (invites, bell, Learn from friends) | ✅ live |
+| **D** Full flow test | ✅ live, E2E 31/31 with two accounts |
 | E Demo readers · F Compare · G Ask your paper · H Audio · I Email | ⬜ |
 | J Submission (README, diagram, Loom) | from 19:15 |
 
@@ -60,6 +61,7 @@ All secrets are in Vercel env and the root `.env` (gitignored). Never commit or 
 - **Email:** Gmail stays primary even though SES is out of sandbox, because SES sending from a gmail.com address fails DMARC and lands in spam. Move to SES once we own a domain.
 - **Demo personas** are recognised only by `is_demo and name <> 'Guest'`. A guest who onboards with a name shows up as a persona, and demo readers can edit their shared profile. Add a `persona` flag in Module E. Demo readers can't delete themselves (400).
 - **Web app copy is a general consumer product:** no event or hackathon names anywhere in the UI.
+- **Full flow E2E:** `ui/full_flow.mjs` (two accounts, ~4 min, deletes both at the end).
 - **Production E2E scripts** live in the session scratchpad (`ui/batch_e2e.mjs`, `ui/mkotp.py` creates a sign-in code in the DB without sending email; `ui/cleanup.py` deletes `rivonna.ai+e2e*` test accounts).
 - **Test readers in the DB:**
   - Ayesha `e9079294-e5aa-4719-92bd-1da7db1b88fd` (Lahore, AI/tech)

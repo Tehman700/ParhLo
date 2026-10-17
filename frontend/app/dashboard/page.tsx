@@ -30,7 +30,7 @@ export default function DashboardPage() {
 function Dashboard() {
   const router = useRouter();
   const api = useApi();
-  const { ready, signedIn, isDemo, signOut } = useSession();
+  const { ready, signedIn, isDemo, signOut, refresh } = useSession();
   const [me, setMe] = useState<Me | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
@@ -98,7 +98,7 @@ function Dashboard() {
     e.preventDefault();
     const body: Record<string, unknown> = { city: form.city.trim(), reading_minutes: form.reading_minutes, region_mix: form.region_mix };
     if (form.name.trim()) body.name = form.name.trim();
-    void run("profile", () => api.patch<Me>("/api/me", body), "Profile saved");
+    void run("profile", () => api.patch<Me>("/api/me", body), "Profile saved").then(() => refresh());
   }
 
   async function toggleTopic(slug: string, on: boolean) {

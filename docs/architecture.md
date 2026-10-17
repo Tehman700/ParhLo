@@ -58,15 +58,19 @@ Snapshots (`profile_snapshots`) power the **Interests** page ("what changed and 
 - **Session:** HS256 JWT in an **httpOnly, Secure, SameSite=Lax** cookie (30 days). **Demo readers:** `X-Demo-User` header (no sign-up), used only when no valid session cookie/Bearer is present: a real account always wins. Sign-out is a full page reload to `/`.
 
 ## 6. Data model (Neon Postgres, `backend/app/core/schema.sql`)
-`users` (id, name, email, google_sub, city, lat/lon, reading_minutes, region_mix, onboarded, is_demo) · `profiles` (topics jsonb, entities, about, source_affinity) · `interest_anchors` (label, kind, weight, embedding vector(1536)) · `articles` (url, source, region, title, rss_summary, content, image, published_at, topics[], embedding vector(1536) HNSW, cluster_id, ai_summary, ai_points jsonb{points, grounded_in, check{by, confidence, ms}}, summary_verified, **importance, junk, topic_confidence, jev_checked_at**) · `editions` (user_id, edition_date, number, data jsonb, pdf_key, audio_key) · `events` · `profile_snapshots` · `otp_codes`.
+`users` (id, name, email, google_sub, city, lat/lon, reading_minutes, region_mix, onboarded, is_demo) · `profiles` (topics jsonb, entities, about, source_affinity) · `interest_anchors` (label, kind, weight, embedding vector(1536)) · `articles` (url, source, region, title, rss_summary, content, image, published_at, topics[], embedding vector(1536) HNSW, cluster_id, ai_summary, ai_points jsonb{points, grounded_in, check{by, confidence, ms}}, summary_verified, **importance, junk, topic_confidence, jev_checked_at**) · `editions` (user_id, edition_date, number, data jsonb, pdf_key, audio_key) · `events` · `profile_snapshots` · `otp_codes` · **`article_state`** (current like/dislike/saved per story) · **`friendships`** (both directions) · **`notifications`** · **`edition_jobs`** (one paper build per reader/date). `users` also has `invite_code`, `learn_from_friends`.
 
 ## 7. API (FastAPI, all under `/api`)
 Auth: `POST /auth/otp/request`, `POST /auth/otp/verify`, `GET /auth/google/start`, `GET /auth/google/callback`, `GET /auth/me`, `POST /auth/logout`
 Reader: `GET /me`, `POST /onboarding`, `PATCH /me` (name, city, reading time, mix, about → re-extracted into anchors), `PUT /me/topics/{slug}` {on}, `POST /me/following`, `DELETE /me/following?name=`, `DELETE /me` (account + all data; not for demo readers), `PATCH /me/topics`, `DELETE /me/anchors/{id}`, `POST /editions/generate`, `GET /editions`, `GET /editions/{date}`, `POST /events`, `POST /learn`, `GET /morning`
+Saved/friends: `GET /me/saved`, `GET /me/friends`, `DELETE /me/friends/{id}`, `GET /invites/{code}` (public), `POST /invites/{code}/accept`, `GET /notifications`, `POST /notifications/read`. `GET /editions/{date}` and `POST /editions/generate` include `state` (reactions + saved). Events also accept `unreact`, `unsave`.
 Public/demo: `GET /health`, `GET /topics`, `GET /onboarding/headlines?topics=` (chosen topics first, then 3 discovery), `GET /onboarding/preview?topics=&entities=` (live front page), `GET /demo/personas`, `POST /demo/start`
 Cron (Bearer `CRON_SECRET`): `GET /cron/ingest` (ingest + Jev backfill), `GET /cron/daily` (learn + print everyone's paper)
 Frontend pages: `/`, `/sign-in`, `/start`, `/onboarding`, `/paper`, `/paper/{date}`, `/archive`, `/dashboard` (`/profile` redirects), `/demo`, `/privacy`, `/terms`, `/about`, `/how-it-works`; site-wide footer.
 Frontend route: `GET /pdf/{date}` (Next.js route handler → Chromium → A4 PDF)
+
+## 7b. Friends ("Learn from friends", one switch, off by default)
+A friend's likes/saves reach your paper only if **both** of you have it on. Effects: up to 2 **friend picks** (stories they liked in the last 3 days that are in your ranked pool; they replace your weakest personal picks, never Top stories or discovery; labelled "Ali liked this") and a nightly **drift** of your topic weights toward friends' strong interests (≥ 0.5): 10% of the gap, max +0.03 per topic per night, never for topics you switched off. Turning it off stops both; nothing learned is reverted.
 
 ## 8. Measured numbers (production, 2026-10-17)
 | Metric | Value |
