@@ -143,7 +143,7 @@ export function AskPaper({ edition }: { edition: Edition }) {
   return (
     <>
       {!open && (
-        <button ref={fab} onClick={() => { if (storyRef.current !== null) setMsgs([]); storyRef.current = null; setStory(null); setOpen(true); }} aria-label="Ask your paper"
+        <button ref={fab} onClick={() => { if (storyRef.current !== null) setMsgs([]); storyRef.current = null; setStory(null); setOpen(true); }} aria-label="Ask your paper" data-tour="ask"
           className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-full bg-ink py-3 pl-4 pr-5 text-[15px] font-medium text-white shadow-[0_12px_32px_-8px_rgba(0,0,0,.45)] transition-transform hover:scale-[1.03] active:scale-95">
           <Sparkle /> Ask your paper
         </button>

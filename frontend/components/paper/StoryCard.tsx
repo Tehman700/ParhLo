@@ -4,18 +4,14 @@ import gsap from "gsap";
 import { useEffect, useRef, useState } from "react";
 import type { Story } from "@/lib/api";
 import { timeAgo, topicLabel } from "@/lib/topics";
+import { CheckedBadge } from "./CheckedBadge";
 import { askAbout } from "./AskPaper";
 
 type Mark = "open" | "like" | "dislike" | "unreact" | "save" | "unsave" | "skip";
 type Tracker = { track: (t: Mark, id: number) => void; observe: (el: HTMLElement | null, id: number) => (() => void) | void };
 
 export function VerifiedBadge({ story }: { story: Story }) {
-  if (story.verified === true) {
-    const c = story.check;
-    const pct = c?.confidence != null ? ` · ${Math.round(c.confidence * 100)}%` : "";
-    const how = c?.by === "jev" ? "Jev, a decision model," : "a second AI pass";
-    return <span className="t-caption font-semibold text-success" title={`Every point in this summary was checked against the original article by ${how}${c?.confidence != null ? ` (${Math.round(c.confidence * 100)}% confident)` : ""}.`}>✓ Checked against source{pct}</span>;
-  }
+  if (story.verified === true) return <CheckedBadge story={story} />;
   if (story.grounded_in && story.grounded_in !== "full article")
     return <span className="t-caption text-ink-48" title="The full article couldn't be loaded, so this summary uses the headline and excerpt.">Based on headline and excerpt</span>;
   return <span className="t-caption text-ink-48">AI summary</span>;
@@ -68,7 +64,7 @@ export function StoryCard({ story, variant = "normal", tracker, initial, section
   if (hidden) return null;
 
   return (
-    <article ref={ref} id={`story-${story.id}`} className={`story-card scroll-mt-20 overflow-hidden ${lead ? "" : "border-t border-hairline pt-5"}`}>
+    <article ref={ref} id={`story-${story.id}`} data-tour={lead ? "lead" : undefined} className={`story-card scroll-mt-20 overflow-hidden ${lead ? "" : "border-t border-hairline pt-5"}`}>
       <div className="flex flex-wrap items-center gap-2">
         <p className="kicker">
           {section && section !== topic ? <>{section}<span className="font-normal text-ink-48"> · {topic}</span></> : section ?? topic}
@@ -95,7 +91,7 @@ export function StoryCard({ story, variant = "normal", tracker, initial, section
         {story.also_reported_by.length > 0 && <span className="t-caption text-ink-48">Also in {story.also_reported_by.slice(0, 3).join(", ")}</span>}
       </div>
       <p className="mt-3 t-caption text-ink-48">{story.source} · {timeAgo(story.published_at)}</p>
-      <div className="mt-1 flex items-center gap-1">
+      <div data-tour="actions" className="mt-1 flex items-center gap-1">
         <span className="mr-auto">
           {!lead && story.points.length > 0 && <button className="whitespace-nowrap t-caption text-primary" onClick={() => setOpen(!open)}>{open ? "Hide points" : "Key points"}</button>}
         </span>

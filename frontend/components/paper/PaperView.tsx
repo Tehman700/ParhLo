@@ -77,7 +77,7 @@ export function PaperView({ edition, actions }: { edition: Edition; actions?: Re
         <div className="front grid gap-10 border-b border-hairline py-10 lg:grid-cols-[1.7fr_1fr]">
           {lead && <StoryCard story={lead} variant="lead" tracker={tracker} initial={initial(lead.id)} />}
           <aside className="space-y-8">
-            <div className="rounded-[18px] bg-tile p-6 text-white">
+            <div data-tour="three" className="rounded-[18px] bg-tile p-6 text-white">
               <p className="t-caption font-semibold text-primary-on-dark">3 things to remember</p>
               <ol className="mt-4 space-y-4">
                 {edition.three_things.map((t, i) => (

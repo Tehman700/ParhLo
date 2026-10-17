@@ -8,6 +8,7 @@ import { useApi, useSession } from "@/lib/auth";
 import { ErrorNote, TopBar } from "../ui";
 import { AskPaper } from "./AskPaper";
 import { PaperView } from "./PaperView";
+import { Tour } from "./Tour";
 import { PrintingPress } from "./PrintingPress";
 
 /** Loads (or prints) an edition and shows it. date = undefined → today's paper. */
@@ -40,7 +41,7 @@ export function EditionScreen({ date }: { date?: string }) {
 
   return (
     <>
-      <TopBar right={<Link href={`/paper/${edition.edition_date}/print`} className="btn btn-primary btn-sm !py-1 !text-[12px]">Download PDF</Link>} />
+      <TopBar right={<Link data-tour="pdf" href={`/paper/${edition.edition_date}/print`} className="btn btn-primary btn-sm !py-1 !text-[12px]">Download PDF</Link>} />
       {edition.read_only && (
         <div className="border-b border-[#d6e6f8] bg-[#e8f1fb]">
           <div className="mx-auto flex max-w-[1024px] flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5 t-caption">
@@ -57,6 +58,7 @@ export function EditionScreen({ date }: { date?: string }) {
         </>
       } />
       <AskPaper edition={edition} />
+      {!date && <Tour />}
     </>
   );
 }

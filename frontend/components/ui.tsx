@@ -41,7 +41,7 @@ export function TopBar({ right }: { right?: ReactNode }) {
           {user ? (
             <>
               <NotificationBell />
-              <Link href="/dashboard" className="flex items-center gap-2 text-ink/80 hover:text-ink" aria-label="Your dashboard">
+              <Link href="/dashboard" data-tour="dashboard" className="flex items-center gap-2 text-ink/80 hover:text-ink" aria-label="Your dashboard">
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-ink text-[11px] font-semibold text-white">{initial}</span>
                 <span className="hidden max-w-[120px] truncate sm:inline">{user.name !== "Reader" ? user.name : user.email}</span>
               </Link>
