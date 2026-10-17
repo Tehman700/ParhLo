@@ -3,8 +3,8 @@
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { FriendsPanel } from "@/components/dashboard/FriendsPanel";
 import { PaperStatus } from "@/components/dashboard/PaperStatus";
 import { SavedStories } from "@/components/dashboard/SavedStories";
@@ -23,7 +23,11 @@ const MINUTES = [5, 10, 15, 20];
 /** A topic counts as "on" while its weight is at least this. */
 const ON = 0.2;
 
-export default function Dashboard() {
+export default function DashboardPage() {
+  return <Suspense><Dashboard /></Suspense>;
+}
+
+function Dashboard() {
   const router = useRouter();
   const api = useApi();
   const { ready, signedIn, isDemo, signOut } = useSession();
@@ -37,7 +41,9 @@ export default function Dashboard() {
   const [pendingTopic, setPendingTopic] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   // Arriving straight from onboarding: the first paper is still being built (shown in PaperStatus).
-  const [welcome] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("welcome"));
+  // (read once: the param is removed from the URL after arrival)
+  const params = useSearchParams();
+  const [welcome] = useState(() => params.has("welcome"));
   const root = useRef<HTMLDivElement>(null);
 
   const apply = useCallback((m: Me) => {
