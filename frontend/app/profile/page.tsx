@@ -86,7 +86,7 @@ export default function Profile() {
                     <div key={slug} className="grid grid-cols-[130px_1fr_40px] items-center gap-3 text-[14px]">
                       <span className="truncate">{topicLabel(slug)}</span>
                       <div className="h-2.5 overflow-hidden rounded-full bg-parchment">
-                        <div className="bar-fill h-full rounded-full" style={{ width: `${Math.round(w * 100)}%`, background: w >= 0.5 ? "#1d1d1f" : w >= 0.25 ? "#c9861f" : "#d2d2d7" }} />
+                        <div className="bar-fill h-full rounded-full" style={{ width: `${Math.round(w * 100)}%`, background: w >= 0.5 ? "#2b241e" : w >= 0.25 ? "#c9861f" : "#d9cdb8" }} />
                       </div>
                       <span className="text-right tabular-nums text-ink-48">{Math.round(w * 100)}</span>
                     </div>

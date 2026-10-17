@@ -40,7 +40,7 @@ export function PrintingPress({ name }: { name?: string }) {
 
   return (
     <div ref={root} className="flex min-h-screen flex-col items-center justify-center bg-newsprint px-6 [perspective:1000px]">
-      <div className="press-sheet w-full max-w-[420px] rounded-[4px] bg-white p-6 shadow-[0_30px_70px_-25px_rgba(0,0,0,.4)]">
+      <div className="press-sheet w-full max-w-[420px] rounded-[4px] bg-canvas p-6 shadow-[0_30px_70px_-25px_rgba(0,0,0,.4)]">
         <div className="press-mast mx-auto h-5 w-2/3 origin-center rounded-sm bg-ink" />
         <div className="mx-auto mt-2 h-[3px] w-full border-t-[3px] border-double border-ink" />
         <div className="mt-4 grid grid-cols-3 gap-3">

@@ -10,7 +10,7 @@ export function TopBar({ right }: { right?: ReactNode }) {
   const { signedIn, signOut, demoUser } = useSession();
   const router = useRouter();
   return (
-    <header className="sticky top-0 z-40 border-b border-black/5 bg-[#f5f5f7]/80 backdrop-blur-xl backdrop-saturate-150">
+    <header className="sticky top-0 z-40 border-b border-hairline bg-parchment/80 backdrop-blur-xl backdrop-saturate-150">
       <div className="mx-auto flex h-14 max-w-[1200px] items-center gap-6 px-4 sm:px-6">
         <Link href={signedIn ? "/paper" : "/"} aria-label="ParhLo home"><Logo size={30} /></Link>
         {signedIn && (

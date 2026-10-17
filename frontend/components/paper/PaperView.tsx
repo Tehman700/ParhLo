@@ -109,7 +109,7 @@ export function PaperView({ edition, actions }: { edition: Edition; actions?: Re
         })}
 
         {/* The end */}
-        <div className="end-card mx-auto mt-16 max-w-[640px] rounded-[18px] border border-rule bg-white/60 p-8 text-center">
+        <div className="end-card mx-auto mt-16 max-w-[640px] rounded-[18px] border border-rule bg-canvas/70 p-8 text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-ink text-[26px] text-sun">✓</div>
           <h2 className="mt-4 font-masthead text-[32px] font-bold">You&apos;re done for today.</h2>
           <p className="mt-2 text-ink-60">That&apos;s everything that matters to you this morning. See you tomorrow.</p>
@@ -176,7 +176,7 @@ function RecallQuiz({ quiz, onAnswer }: { quiz: QuizQuestion[]; onAnswer: (corre
               return (
                 <button key={j} disabled={done}
                   onClick={() => { setAnswers((a) => ({ ...a, [i]: j })); onAnswer(correct, q.story_id); }}
-                  className={`rounded-[11px] border px-3 py-2 text-left text-[14px] transition-colors ${done && correct ? "border-success bg-[#e9f6ec]" : picked ? "border-danger bg-[#fff1f0]" : "border-rule bg-white hover:border-ink"}`}>
+                  className={`rounded-[11px] border px-3 py-2 text-left text-[14px] transition-colors ${done && correct ? "border-success bg-[#e9f6ec]" : picked ? "border-danger bg-[#fff1f0]" : "border-rule bg-canvas hover:border-ink"}`}>
                   {opt}
                 </button>
               );

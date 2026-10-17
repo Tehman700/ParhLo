@@ -133,7 +133,7 @@ export default function Onboarding() {
                 <label className="label" htmlFor="mix">News mix</label>
                 <div className="mt-3 flex items-center gap-4 text-[14px]">
                   <span>World</span>
-                  <input id="mix" type="range" min={0} max={1} step={0.1} value={regionMix} onChange={(e) => setRegionMix(Number(e.target.value))} className="flex-1 accent-[#1d1d1f]" />
+                  <input id="mix" type="range" min={0} max={1} step={0.1} value={regionMix} onChange={(e) => setRegionMix(Number(e.target.value))} className="flex-1 accent-[#2b241e]" />
                   <span>Pakistan</span>
                 </div>
               </div>
@@ -183,7 +183,7 @@ export default function Onboarding() {
             <div className="mt-8 flex flex-col items-center">
               {card ? (
                 <>
-                  <div className="swipe-card w-full max-w-[460px] overflow-hidden rounded-[18px] bg-white shadow-[0_20px_50px_-20px_rgba(0,0,0,.35)]">
+                  <div className="swipe-card w-full max-w-[460px] overflow-hidden rounded-[18px] bg-canvas shadow-[0_20px_50px_-20px_rgba(0,0,0,.35)]">
                     {card.image_url && <img src={card.image_url} alt="" className="h-52 w-full object-cover" />}
                     <div className="p-5">
                       <p className="kicker text-sun-deep">{card.source}</p>
@@ -212,7 +212,7 @@ export default function Onboarding() {
             <p className="mt-2 text-ink-60">Optional. One sentence about you — our editor turns it into things to follow.</p>
             <textarea className="input mt-6 min-h-[110px]" value={about} onChange={(e) => setAbout(e.target.value)}
               placeholder="e.g. CS student in Lahore, building a startup, never miss a Pakistan match or an F1 race." />
-            <div className="card mt-8 bg-white">
+            <div className="card mt-8">
               <p className="label">Your paper, so far</p>
               <p className="mt-2 font-masthead text-[22px] font-bold">{name || "Reader"}&apos;s ParhLo · {city}</p>
               <p className="mt-1 caption text-ink-60">{minutes}-minute read · {Math.round(regionMix * 100)}% Pakistan</p>

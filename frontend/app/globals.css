@@ -4,21 +4,21 @@
    App chrome: Apple-style (Design-Files/apple-DESIGN.md) — one blue action color, pill buttons, hairline cards.
    The paper itself: newspaper — newsprint, ink, serif masthead + headlines, column rules. Sunrise gold = brand only. */
 @theme {
-  --color-primary: #0066cc;
-  --color-primary-focus: #0071e3;
-  --color-primary-on-dark: #2997ff;
-  --color-ink: #1d1d1f;
-  --color-ink-80: #333333;
-  --color-ink-60: #5c5c5f;
-  --color-ink-48: #7a7a7a;
-  --color-hairline: #e0e0e0;
-  --color-divider: #f0f0f0;
-  --color-canvas: #ffffff;
-  --color-parchment: #f5f5f7;
-  --color-newsprint: #f7f4ec;
+  --color-primary: #7a4e1d;           /* warm brown — ParhLo's action color */
+  --color-primary-focus: #8f5c22;
+  --color-primary-on-dark: #f2a93b;
+  --color-ink: #2b241e;               /* warm brown-black */
+  --color-ink-80: #43392f;
+  --color-ink-60: #6a5d50;
+  --color-ink-48: #8a7d6f;
+  --color-hairline: #e5dbca;
+  --color-divider: #efe7d9;
+  --color-canvas: #fffdf9;
+  --color-parchment: #f3ece0;          /* app background: light brown */
+  --color-newsprint: #f8f3e9;
   --color-newsprint-dark: #ece6d8;
   --color-rule: #d8d1c0;
-  --color-tile: #1d1d1f;
+  --color-tile: #2b241e;
   --color-sun: #f2a93b;
   --color-sun-deep: #c9861f;
   --color-danger: #c4291c;
@@ -61,16 +61,16 @@ body {
   .btn-primary:hover:not(:disabled) { background: var(--color-primary-focus); }
   .btn-secondary { color: var(--color-primary); box-shadow: inset 0 0 0 1px var(--color-primary); background: transparent; }
   .btn-dark { background: var(--color-ink); color: #fff; }
-  .btn-light { background: #fff; color: var(--color-ink); box-shadow: inset 0 0 0 1px var(--color-hairline); }
+  .btn-light { background: var(--color-canvas); color: var(--color-ink); box-shadow: inset 0 0 0 1px var(--color-hairline); }
   .btn-ghost { color: var(--color-primary); padding: 8px 12px; }
   .input {
-    width: 100%; background: #fff; border: 1px solid rgba(0,0,0,.12); border-radius: 9999px;
+    width: 100%; background: var(--color-canvas); border: 1px solid var(--color-hairline); border-radius: 9999px;
     padding: 12px 20px; font-size: 16px; color: var(--color-ink);
   }
   textarea.input { border-radius: 18px; resize: vertical; }
   .chip {
     display: inline-flex; align-items: center; gap: 6px; border-radius: 9999px; padding: 9px 16px;
-    font-size: 15px; background: #fff; box-shadow: inset 0 0 0 1px var(--color-hairline);
+    font-size: 15px; background: var(--color-canvas); box-shadow: inset 0 0 0 1px var(--color-hairline);
     transition: background-color .15s, color .15s, box-shadow .15s; cursor: pointer;
   }
   .chip:active { transform: scale(0.95); }

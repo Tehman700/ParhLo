@@ -13,7 +13,7 @@ export function LogoMark({ size = 40, ...props }: { size?: number } & SVGProps<S
           <stop offset="1" stopColor="#F2A93B" />
         </linearGradient>
       </defs>
-      <rect width="64" height="64" rx="15" fill="#1d1d1f" />
+      <rect width="64" height="64" rx="15" fill="#2b241e" />
       <g className="logo-rays" stroke="#F2A93B" strokeWidth="2.6" strokeLinecap="round">
         <line x1="32" y1="9" x2="32" y2="13.5" />
         <line x1="17.5" y1="15" x2="20.6" y2="18.2" />
@@ -27,8 +27,8 @@ export function LogoMark({ size = 40, ...props }: { size?: number } & SVGProps<S
       <g className="logo-paper">
         <path d="M13 37.5h38v13.5a3 3 0 0 1-3 3H16a3 3 0 0 1-3-3z" fill="#F7F4EC" />
         <path d="M13 37.5h38l-4 3.2H17z" fill="#E4DFD2" />
-        <rect className="logo-line" x="18" y="43.5" width="28" height="2.2" rx="1.1" fill="#1d1d1f" />
-        <rect className="logo-line" x="18" y="47.7" width="20" height="2.2" rx="1.1" fill="#1d1d1f" opacity=".55" />
+        <rect className="logo-line" x="18" y="43.5" width="28" height="2.2" rx="1.1" fill="#2b241e" />
+        <rect className="logo-line" x="18" y="47.7" width="20" height="2.2" rx="1.1" fill="#2b241e" opacity=".55" />
       </g>
     </svg>
   );

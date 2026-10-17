@@ -158,7 +158,7 @@ export default function Landing() {
       </section>
 
       {/* How it works */}
-      <section className="bg-white px-4 py-20 sm:py-28">
+      <section className="bg-newsprint px-4 py-20 sm:py-28">
         <div className="steps mx-auto max-w-[900px]">
           <h2 className="display text-[34px] sm:text-[44px]">Sixty seconds to your first edition.</h2>
           {[
