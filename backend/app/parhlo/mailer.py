@@ -1,7 +1,15 @@
-"""Email via AWS SES (ap-south-1). Credentials: the app's own IAM user (PARHLO_AWS_*), else the default chain."""
+"""Email delivery: Gmail SMTP first, AWS SES (ap-south-1) as fallback. Both reach any address.
+
+Gmail stays primary because our sender is a gmail.com address: sending it through SES would fail
+Gmail's DMARC alignment and land in spam. SES has production access (50k/day) for when we own a domain.
+"""
 
 import asyncio
 import logging
+import smtplib
+import ssl
+from email.message import EmailMessage
+from email.utils import formataddr, make_msgid
 from functools import lru_cache
 
 import boto3
@@ -20,7 +28,22 @@ def _ses():
     return boto3.client("sesv2", region_name=s.parhlo_aws_region, **creds)
 
 
-def _send(to: str, subject: str, html: str, text: str) -> str:
+def _send_gmail(to: str, subject: str, html: str, text: str) -> str:
+    s = get_settings()
+    msg = EmailMessage()
+    msg["From"] = formataddr(("ParhLo", s.gmail_user))
+    msg["To"] = to
+    msg["Subject"] = subject
+    msg["Message-ID"] = make_msgid(domain="parhlo.app")
+    msg.set_content(text)
+    msg.add_alternative(html, subtype="html")
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ssl.create_default_context(), timeout=15) as smtp:
+        smtp.login(s.gmail_user, s.gmail_app_password.replace(" ", ""))
+        smtp.send_message(msg)
+    return msg["Message-ID"]
+
+
+def _send_ses(to: str, subject: str, html: str, text: str) -> str:
     s = get_settings()
     try:
         res = _ses().send_email(
@@ -33,10 +56,17 @@ def _send(to: str, subject: str, html: str, text: str) -> str:
         return res["MessageId"]
     except _ses().exceptions.MessageRejected as e:
         log.warning("SES rejected mail to %s: %s", to, e)
-        if "not verified" in str(e):
-            raise AppError("We can't email this address yet (our email service is in sandbox mode). "
-                           "Use Continue with Google or try a demo reader.", 400) from e
-        raise AppError("Couldn't send the email. Please try again.", 502) from e
+        raise AppError("We couldn't send an email to this address. Please check it, or continue with Google.", 400) from e
+
+
+def _send(to: str, subject: str, html: str, text: str) -> str:
+    s = get_settings()
+    if s.gmail_user and s.gmail_app_password:
+        try:
+            return _send_gmail(to, subject, html, text)
+        except (smtplib.SMTPException, OSError) as e:
+            log.warning("Gmail send failed (%s); falling back to SES", e)
+    return _send_ses(to, subject, html, text)
 
 
 async def send_email(to: str, subject: str, html: str, text: str) -> str:
@@ -45,12 +75,14 @@ async def send_email(to: str, subject: str, html: str, text: str) -> str:
 
 def otp_email(code: str) -> tuple[str, str, str]:
     subject = f"{code} is your ParhLo code"
-    text = f"Your ParhLo sign-in code is {code}. It expires in 10 minutes. If you didn't ask for it, ignore this email."
-    html = f"""<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;background:#f5f5f7;padding:32px">
+    text = f"Your ParhLo sign-in code is {code}. It expires in 10 minutes. If you didn't ask for it, you can ignore this email."
+    html = f"""<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif;background:#f5f5f7;padding:32px 16px">
   <div style="max-width:440px;margin:0 auto;background:#ffffff;border:1px solid #e0e0e0;border-radius:18px;padding:32px;color:#1d1d1f">
-    <div style="font-family:Georgia,serif;font-size:28px;font-weight:700">Parh<i style="color:#0066cc">Lo</i></div>
-    <p style="font-size:17px;line-height:1.47;margin:24px 0 8px">Your sign-in code:</p>
-    <div style="font-size:40px;font-weight:700;letter-spacing:10px;margin:8px 0 16px">{code}</div>
-    <p style="font-size:14px;color:#7a7a7a;line-height:1.43">It expires in 10 minutes. If you didn't ask for this code, you can ignore this email.</p>
-  </div></div>"""
+    <div style="font-size:22px;font-weight:600;letter-spacing:-0.3px">ParhLo</div>
+    <p style="font-size:17px;line-height:1.47;margin:24px 0 8px">Your sign-in code is:</p>
+    <div style="font-size:40px;font-weight:600;letter-spacing:10px;margin:8px 0 16px">{code}</div>
+    <p style="font-size:14px;color:#6e6e73;line-height:1.43;margin:0">It expires in 10 minutes. If you didn't ask for this code, you can ignore this email.</p>
+  </div>
+  <p style="max-width:440px;margin:16px auto 0;font-size:12px;color:#7a7a7a;text-align:center">ParhLo · Your news, in one paper.</p>
+</div>"""
     return subject, html, text

@@ -131,7 +131,8 @@ async def onboard(user: dict, data: OnboardingIn) -> dict:
 def get_profile(user_id) -> dict:
     with db() as conn:
         user = conn.execute(
-            "select id, name, email, city, reading_minutes, region_mix, onboarded, is_demo from users where id=%s",
+            "select id, name, email, city, reading_minutes, region_mix, onboarded, is_demo, created_at, "
+            "(google_sub is not null) as google from users where id=%s",
             (user_id,)).fetchone()
         prof = conn.execute("select topics, entities, about, source_affinity, updated_at from profiles "
                             "where user_id=%s", (user_id,)).fetchone()
@@ -245,3 +246,86 @@ def _json(v):
     from psycopg.types.json import Jsonb
 
     return Jsonb(v)
+
+
+# ---------- dashboard edits ----------
+
+class ProfileUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=60)
+    city: str | None = Field(default=None, min_length=2, max_length=60)
+    reading_minutes: int | None = Field(default=None, ge=3, le=30)
+    region_mix: float | None = Field(default=None, ge=0, le=1)
+    about: str | None = Field(default=None, max_length=500)
+
+
+async def update_profile(user: dict, data: ProfileUpdate) -> dict:
+    fields = data.model_dump(exclude_unset=True)
+    with db() as conn:
+        for col in ("name", "reading_minutes", "region_mix"):
+            if fields.get(col) is not None:
+                conn.execute(f"update users set {col} = %s where id = %s", (fields[col], user["id"]))
+        if fields.get("city"):
+            coords = await geocode(fields["city"])
+            conn.execute("update users set city = %s, lat = coalesce(%s, lat), lon = coalesce(%s, lon) where id = %s",
+                         (fields["city"], coords[0] if coords else None, coords[1] if coords else None, user["id"]))
+    if "about" in fields:  # re-read the "about you" text into interests and followed names
+        about = (fields["about"] or "").strip() or None
+        extraction = await extract_about(about) if about else AboutExtraction()
+        with db() as conn:
+            prof = conn.execute("select entities from profiles where user_id = %s", (user["id"],)).fetchone() or {}
+            entities = list(dict.fromkeys([*(prof.get("entities") or []), *extraction.entities]))[:20]
+            conn.execute("update profiles set about = %s, entities = %s, updated_at = now() where user_id = %s",
+                         (about, _json(entities), user["id"]))
+            texts = extraction.interests + [e for e in extraction.entities]
+            if texts:
+                vecs = await embed_texts(texts)
+                rows = [(t, "onboarding", 0.8, v, None) for t, v in zip(extraction.interests, vecs)]
+                rows += [(e, "entity", 0.9, v, None) for e, v in zip(extraction.entities, vecs[len(extraction.interests):])]
+                add_anchors(conn, user["id"], rows)
+    return get_profile(user["id"])
+
+
+async def set_topic(user: dict, slug: str, on: bool) -> dict:
+    if slug not in TOPICS:
+        raise ValueError(f"Unknown topic '{slug}'")
+    label = TOPICS[slug]["label"]
+    with db() as conn:
+        conn.execute("update profiles set topics = topics || %s, updated_at = now() where user_id = %s",
+                     (_json({slug: 0.8 if on else 0.05}), user["id"]))
+        if on:
+            vec = (await embed_texts([topic_text(slug)]))[0]
+            add_anchors(conn, user["id"], [(label, "onboarding", 1.0, vec, None)])
+        else:
+            conn.execute("delete from interest_anchors where user_id = %s and kind = 'onboarding' and label = %s",
+                         (user["id"], label))
+    return get_profile(user["id"])
+
+
+async def follow(user: dict, name: str) -> dict:
+    name = name.strip()[:60]
+    if not name:
+        raise ValueError("Enter a name to follow")
+    vec = (await embed_texts([name]))[0]
+    with db() as conn:
+        prof = conn.execute("select entities from profiles where user_id = %s", (user["id"],)).fetchone() or {}
+        entities = list(dict.fromkeys([*(prof.get("entities") or []), name]))[:20]
+        conn.execute("update profiles set entities = %s, updated_at = now() where user_id = %s", (_json(entities), user["id"]))
+        add_anchors(conn, user["id"], [(name, "entity", 0.9, vec, None)])
+    return get_profile(user["id"])
+
+
+def unfollow(user: dict, name: str) -> dict:
+    with db() as conn:
+        prof = conn.execute("select entities from profiles where user_id = %s", (user["id"],)).fetchone() or {}
+        entities = [e for e in (prof.get("entities") or []) if e.lower() != name.lower()]
+        conn.execute("update profiles set entities = %s, updated_at = now() where user_id = %s", (_json(entities), user["id"]))
+        conn.execute("delete from interest_anchors where user_id = %s and kind = 'entity' and lower(label) = lower(%s)",
+                     (user["id"], name))
+    return get_profile(user["id"])
+
+
+def delete_account(user: dict) -> None:
+    """Deletes the reader and everything linked to them (profile, memory, papers, reading activity)."""
+    with db() as conn:
+        conn.execute("delete from otp_codes where lower(email) = lower(%s)", (user.get("email") or "",))
+        conn.execute("delete from users where id = %s", (user["id"],))

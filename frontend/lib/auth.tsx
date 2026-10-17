@@ -11,6 +11,8 @@ export type SessionUser = { id: string; name: string; email: string | null; onbo
 type Session = {
   ready: boolean;
   signedIn: boolean;
+  /** A demo reader is active (no real account signed in). */
+  isDemo: boolean;
   user: SessionUser | null;
   demoUser: string | null;
   setDemoUser: (id: string | null) => void;
@@ -50,16 +52,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  useEffect(() => {
-    let cancelled = false;
-    fetchMe().then((u) => {
-      if (cancelled) return;
-      setUser(u);
-      setChecked(true);
-    });
-    return () => { cancelled = true; };
-  }, [fetchMe]);
-
   const setDemoUser = useCallback((id: string | null) => {
     try {
       if (id) localStorage.setItem(DEMO_KEY, id);
@@ -68,14 +60,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     listeners.forEach((l) => l());
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    fetchMe().then((u) => {
+      if (cancelled) return;
+      if (u) setDemoUser(null); // a real account always replaces an old demo session
+      setUser(u);
+      setChecked(true);
+    });
+    return () => { cancelled = true; };
+  }, [fetchMe, setDemoUser]);
+
   const value = useMemo<Session>(() => ({
     ready: hydrated && checked,
     signedIn: Boolean(user) || Boolean(demoUser),
+    isDemo: !user && Boolean(demoUser),
     user,
     demoUser,
     setDemoUser,
     refresh: async () => {
       const u = await fetchMe();
+      if (u) setDemoUser(null);
       setUser(u);
       return u;
     },
@@ -84,8 +89,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (user) await request("/api/auth/logout", { method: "POST" }).catch(() => {});
       setUser(null);
     },
-    // Real readers authenticate with the session cookie; demo readers with this header.
-    headers: async (): Promise<Headers> => (demoUser ? { "X-Demo-User": demoUser } : {}),
+    // Real readers authenticate with the session cookie; only demo readers send this header.
+    headers: async (): Promise<Headers> => (!user && demoUser ? { "X-Demo-User": demoUser } : {}),
   }), [hydrated, checked, user, demoUser, setDemoUser, fetchMe]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
@@ -104,6 +109,7 @@ export function useApi() {
     get: async <T,>(path: string) => request<T>(path, { headers: await headers() }),
     post: async <T,>(path: string, json?: unknown) => request<T>(path, { method: "POST", json: json ?? {}, headers: await headers() }),
     patch: async <T,>(path: string, json: unknown) => request<T>(path, { method: "PATCH", json, headers: await headers() }),
+    put: async <T,>(path: string, json: unknown) => request<T>(path, { method: "PUT", json, headers: await headers() }),
     del: async <T,>(path: string) => request<T>(path, { method: "DELETE", headers: await headers() }),
   }), [headers]);
 }

@@ -2,6 +2,7 @@
 
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ErrorNote, Spinner, TopBar } from "@/components/ui";
@@ -15,7 +16,7 @@ type Persona = { id: string; name: string; city: string; about: string | null; t
 
 export default function DemoPage() {
   const router = useRouter();
-  const { setDemoUser } = useSession();
+  const { setDemoUser, user } = useSession();
   const [personas, setPersonas] = useState<Persona[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -52,14 +53,21 @@ export default function DemoPage() {
         <div className="demo-head text-center">
           <h1 className="t-hero">Try ParhLo.</h1>
           <p className="t-lead mx-auto mt-4 max-w-xl text-ink-60">No account needed. Set up your own paper, or open one that&apos;s ready.</p>
-          <div className="mt-8">
-            <button className="btn btn-primary" onClick={fresh} disabled={busy}>
-              {busy ? <Spinner dark label="Setting up" /> : "Set up my own paper"}
-            </button>
-          </div>
+          {user ? (
+            <div className="mx-auto mt-8 max-w-xl rounded-[18px] bg-canvas p-6">
+              <p className="t-body">You&apos;re signed in as {user.email}, so you already have your own paper.</p>
+              <Link href="/paper" className="btn btn-primary mt-5">Open my paper</Link>
+            </div>
+          ) : (
+            <div className="mt-8">
+              <button className="btn btn-primary" onClick={fresh} disabled={busy}>
+                {busy ? <Spinner dark label="Setting up" /> : "Set up my own paper"}
+              </button>
+            </div>
+          )}
         </div>
 
-        <div className="mt-20">
+        {!user && <div className="mt-20">
           <h2 className="t-tagline text-center">Or open a ready paper</h2>
           <div className="mt-2 text-center"><ErrorNote error={error} /></div>
           {!personas && !error && <div className="mt-6 text-center"><Spinner label="Loading" /></div>}
@@ -80,7 +88,7 @@ export default function DemoPage() {
               </button>
             ))}
           </div>
-        </div>
+        </div>}
       </main>
     </div>
   );

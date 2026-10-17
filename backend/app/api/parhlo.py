@@ -2,14 +2,14 @@
 
 import datetime as dt
 
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends, Header, Response
 from pydantic import BaseModel
 
 from app.core.config import get_settings
 from app.core.database import db
 from app.core.errors import AppError, NotFoundError
 from app.parhlo import editions, learn, profile
-from app.parhlo.auth import AuthError, current_user
+from app.parhlo.auth import AuthError, clear_session, current_user
 from app.parhlo.ingest import ingest, jev_backfill
 from app.parhlo.morning import morning_box
 from app.parhlo.topics import TOPICS
@@ -69,6 +69,44 @@ def update_topics(body: TopicWeights, user=Depends(current_user)):
     return profile.get_profile(user["id"])
 
 
+@router.patch("/me")
+async def update_me(body: profile.ProfileUpdate, user=Depends(current_user)):
+    return await profile.update_profile(user, body)
+
+
+class TopicToggle(BaseModel):
+    on: bool
+
+
+@router.put("/me/topics/{slug}")
+async def toggle_topic(slug: str, body: TopicToggle, user=Depends(current_user)):
+    return await profile.set_topic(user, slug, body.on)
+
+
+class FollowIn(BaseModel):
+    name: str
+
+
+@router.post("/me/following")
+async def follow(body: FollowIn, user=Depends(current_user)):
+    return await profile.follow(user, body.name)
+
+
+@router.delete("/me/following")
+def unfollow(name: str, user=Depends(current_user)):
+    return profile.unfollow(user, name)
+
+
+@router.delete("/me")
+def delete_me(response: Response, user=Depends(current_user)):
+    """Delete the account and all its data, and sign out."""
+    if user.get("is_demo"):
+        raise AppError("Demo readers can't be deleted. Use Exit demo instead.", 400)
+    profile.delete_account(user)
+    clear_session(response)
+    return {"deleted": True}
+
+
 @router.delete("/me/anchors/{anchor_id}")
 def delete_anchor(anchor_id: int, user=Depends(current_user)):
     with db() as conn:
@@ -117,7 +155,7 @@ async def morning(user=Depends(current_user)):
 
 @router.get("/demo/personas")
 def personas():
-    """Seeded, onboarded demo readers (for the two-persona comparison and judges)."""
+    """Seeded, onboarded demo readers (for visitors trying ParhLo without an account)."""
     with db() as conn:
         return conn.execute(
             """select u.id, u.name, u.city, p.about,

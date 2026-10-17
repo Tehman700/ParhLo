@@ -58,6 +58,9 @@ class Settings(BaseSettings):
     # Vercel reserves AWS_* names, so the app's IAM user (parhlo-vercel) uses its own prefix.
     parhlo_aws_access_key_id: str = ""
     parhlo_aws_secret_access_key: str = ""
+    # Email: Gmail SMTP (any recipient) first, SES as fallback.
+    gmail_user: str = ""
+    gmail_app_password: str = ""
     s3_bucket: str = "parhlo-media-109257212304"
     email_from: str = "tehmanhassan@gmail.com"
 

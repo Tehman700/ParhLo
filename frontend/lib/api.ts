@@ -107,7 +107,7 @@ export type Snapshot = {
 };
 
 export type Me = {
-  user: { id: string; name: string; email: string | null; city: string; reading_minutes: number; region_mix: number; onboarded: boolean; is_demo: boolean };
+  user: { id: string; name: string; email: string | null; city: string; reading_minutes: number; region_mix: number; onboarded: boolean; is_demo: boolean; created_at: string; google: boolean };
   profile: { topics: Record<string, number>; entities: string[]; about: string | null; source_affinity: Record<string, number> } | null;
   anchors: { id: number; label: string; kind: string; weight: number; created_at: string }[];
   snapshots: Snapshot[];

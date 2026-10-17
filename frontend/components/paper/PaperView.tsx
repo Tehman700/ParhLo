@@ -106,7 +106,7 @@ export function PaperView({ edition, actions }: { edition: Edition; actions?: Re
           <p className="t-body mt-2 text-ink-60">Your next paper will be ready tomorrow morning.</p>
           {edition.recall_quiz.length > 0 && <RecallQuiz quiz={edition.recall_quiz} onAnswer={(ok, id) => tracker.track(ok ? "quiz_correct" : "quiz_wrong", id)} />}
           <div className="mt-8 flex flex-wrap justify-center gap-3">{actions}</div>
-          <Link href="/profile" className="link mt-5 inline-block t-body">See what changed in your interests ›</Link>
+          <Link href="/dashboard#memory" className="link mt-5 inline-block t-body">See what changed in your interests ›</Link>
         </div>
       </div>
     </div>

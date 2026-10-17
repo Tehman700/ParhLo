@@ -13,7 +13,7 @@ from app.core.db import init_db
 from app.tools import all_tools, load_tools
 
 
-def build_server(name: str = "nascon-tools") -> MCPServer:
+def build_server(name: str = "parhlo-tools") -> MCPServer:
     load_tools()
     init_db()
     server = MCPServer(name, log_level="WARNING")

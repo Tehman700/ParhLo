@@ -78,19 +78,23 @@ def current_user(
     authorization: str | None = Header(None),
     x_demo_user: str | None = Header(None),
 ) -> dict:
-    """FastAPI dependency → the users row."""
+    """FastAPI dependency → the users row. A signed-in account always wins over a demo header."""
+    token = request.cookies.get(SESSION_COOKIE)
+    if not token and authorization and authorization.lower().startswith("bearer "):
+        token = authorization.split(" ", 1)[1]
+    if token:
+        try:
+            return _user_from_token(token)
+        except AuthError:
+            if not x_demo_user:
+                raise
     if x_demo_user and get_settings().allow_demo_users:
         with db() as conn:
             row = conn.execute("select * from users where id::text = %s and is_demo", (x_demo_user,)).fetchone()
         if row:
             return row
         raise AuthError("Unknown demo reader")
-    token = request.cookies.get(SESSION_COOKIE)
-    if not token and authorization and authorization.lower().startswith("bearer "):
-        token = authorization.split(" ", 1)[1]
-    if not token:
-        raise AuthError("Sign in required")
-    return _user_from_token(token)
+    raise AuthError("Sign in required")
 
 
 def find_or_create_user(email: str, name: str | None = None, google_sub: str | None = None) -> dict:

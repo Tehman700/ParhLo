@@ -6,7 +6,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Link from "next/link";
 import { useRef } from "react";
 import { BrowserFrame, PaperMock } from "@/components/PaperMock";
-import { TopBar } from "@/components/ui";
+import { StartButtons, TopBar } from "@/components/ui";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -66,10 +66,7 @@ export default function Landing() {
         <p className="hero-sub t-lead mx-auto mt-4 max-w-2xl text-ink-60">
           ParhLo reads the news for you each night and puts what you care about into one short paper every morning.
         </p>
-        <div className="hero-cta mt-8 flex flex-wrap items-center justify-center gap-4">
-          <Link href="/sign-in" className="btn btn-primary">Get started</Link>
-          <Link href="/demo" className="btn btn-secondary">Try the demo</Link>
-        </div>
+        <div className="hero-cta mt-8"><StartButtons /></div>
         <div className="mx-auto mt-14 max-w-[880px]">
           <BrowserFrame className="hero-product rounded-b-none">
             <PaperMock />
@@ -83,7 +80,7 @@ export default function Landing() {
           <div>
             <h2 className="reveal t-display">It learns what you like.</h2>
             <p className="reveal t-lead mt-4 text-muted-on-dark">Read, skip or like a story. Tomorrow&apos;s paper changes to match, and you can see why.</p>
-            <Link href="/demo" className="reveal link-on-dark mt-6 inline-block t-body">See how it works ›</Link>
+            <Link href="/how-it-works" className="reveal link-on-dark mt-6 inline-block t-body">See how it works ›</Link>
           </div>
           <div className="reveal interest-bars rounded-[18px] bg-tile-2 p-7">
             <p className="t-caption text-muted-on-dark">Your interests</p>
@@ -191,18 +188,9 @@ export default function Landing() {
       <section className="tile bg-parchment px-4 py-24 text-center sm:py-28">
         <h2 className="reveal t-display">Start your first paper.</h2>
         <p className="reveal t-lead mx-auto mt-3 max-w-xl text-ink-60">It takes about a minute.</p>
-        <div className="reveal mt-8 flex flex-wrap justify-center gap-4">
-          <Link href="/sign-in" className="btn btn-primary">Get started</Link>
-          <Link href="/demo" className="btn btn-secondary">Try the demo</Link>
-        </div>
+        <div className="reveal mt-8"><StartButtons /></div>
       </section>
 
-      <footer className="border-t border-hairline bg-parchment px-4 py-8">
-        <div className="mx-auto max-w-[980px] t-fine text-ink-48">
-          Summaries are written by AI from the linked sources and checked against them. Every story links to the original article.
-          <div className="mt-2">ParhLo · NaSCon&apos;26</div>
-        </div>
-      </footer>
     </div>
   );
 }
