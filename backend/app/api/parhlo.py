@@ -416,3 +416,11 @@ async def cron_sws():
     """Every ~15 minutes (GitHub Actions): SWS — new worldwide stories from GDELT and Google News, gated."""
     from app.parhlo.sws.run import run_once
     return await run_once()
+
+
+@router.get("/admin/sws", dependencies=[Depends(_cron_auth)])
+def admin_sws():
+    """SWS at a glance: is the 15-minute schedule running, what came in (by origin, country, language,
+    outlet), the planner's busiest searches, and Tavily credits used this month. Same secret as the crons."""
+    from app.parhlo.sws.stats import overview
+    return overview()

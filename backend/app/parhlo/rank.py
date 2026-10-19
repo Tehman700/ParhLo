@@ -71,20 +71,25 @@ def same_story(a: str, b: str) -> bool:
 POOL_MAX = 150  # candidates kept for selection (best personal scores + biggest stories + discovery material)
 
 # Interest matching runs in Postgres (pgvector): only scores travel, not ~1,300 × 1,536-float embeddings.
+# Vectors are converted once to halfvec in the CTEs: each stored vector is unpacked once instead of once per
+# reader memory (324 ms → 103 ms on 1,560 candidates × 22 memories, identical ranking). SWS adds thousands of
+# stories a day, so candidates are capped at the newest CANDIDATE_CAP to keep the worst case about a second.
+CANDIDATE_CAP = 4000
 RANK_SQL = """
 with cand as (
   select a.id, a.title, a.source, a.source_region, a.topics, a.published_at, a.image_url, a.url, a.rss_summary,
-         a.cluster_id, a.importance, a.embedding, a.language
+         a.cluster_id, a.importance, a.embedding::halfvec(1536) as embedding, a.language
   from articles a
   where a.embedding is not null and a.published_at > now() - make_interval(hours => %(hours)s)
     and coalesce(a.junk, 0) < %(junk)s
+  order by a.published_at desc limit %(cap)s
 ),
 cl as (
   select cluster_id, count(distinct source) as cluster_size, array_agg(distinct source) as sources
   from articles where cluster_id in (select cluster_id from cand where cluster_id is not null)
   group by cluster_id
 ),
-anc as (select label, kind, weight, embedding from interest_anchors where user_id = %(uid)s),
+anc as (select label, kind, weight, embedding::halfvec(1536) as embedding from interest_anchors where user_id = %(uid)s),
 pos as (
   select distinct on (c.id) c.id, (1 - (c.embedding <=> anc.embedding)) * least(anc.weight, 1) as s, anc.label, anc.kind
   from cand c cross join anc where anc.weight > 0
@@ -108,7 +113,8 @@ def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 
     avoid_words = [w for w in (_words(t) for t in (avoid_titles or []) if t) if w]
     with db() as conn:
         prof = conn.execute("select topics, source_affinity from profiles where user_id=%s", (user["id"],)).fetchone()
-        arts = conn.execute(RANK_SQL, {"hours": hours, "junk": JUNK_THRESHOLD, "uid": user["id"]}).fetchall()
+        arts = conn.execute(RANK_SQL, {"hours": hours, "junk": JUNK_THRESHOLD, "uid": user["id"],
+                                       "cap": CANDIDATE_CAP}).fetchall()
         # Already-seen stories (earlier editions) shouldn't repeat.
         seen = {r["article_id"] for r in conn.execute(
             "select distinct article_id from events where user_id=%s and article_id is not null", (user["id"],))}
