@@ -128,6 +128,14 @@ async def follow_fetch(body: FollowIn, user=Depends(writable_user)):
     return await fetch_for(user, body.name)
 
 
+@router.post("/me/interests/fetch")
+async def interests_fetch(user=Depends(writable_user)):
+    """SWS: news for everything the reader follows or described in "About you", right away (after onboarding
+    or saving "About you"), then a reprint."""
+    from app.parhlo.sws.instant import fetch_interests
+    return await fetch_interests(user)
+
+
 @router.delete("/me/following")
 async def unfollow(name: str, user=Depends(writable_user)):
     out = profile.unfollow(user, name)
@@ -431,6 +439,14 @@ async def cron_email():
 @router.get("/cron/sws", dependencies=[Depends(_cron_auth)])
 async def cron_sws():
     """Every ~15 minutes (GitHub Actions): SWS — new worldwide stories from GDELT and Google News, gated."""
+    from app.parhlo.sws.run import run_once
+    return await run_once()
+
+
+@router.get("/cron/sws/{hour}", dependencies=[Depends(_cron_auth)])
+async def cron_sws_hourly(hour: str):
+    """The same SWS run from Vercel Cron: 24 daily jobs (one per hour; Hobby allows daily jobs only), the
+    dependable trigger when GitHub's scheduler skips runs. The run lock stops two runs overlapping."""
     from app.parhlo.sws.run import run_once
     return await run_once()
 

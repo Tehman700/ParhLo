@@ -42,6 +42,34 @@ def check(user: dict) -> bool:
     return use_tavily
 
 
+async def fetch_interests(user: dict, limit: int = 5) -> dict:
+    """News for what the reader follows and wrote in "About you", searched in parallel, stored once, one reprint.
+    Each term counts toward the daily limit; terms over the limit wait for the regular runs."""
+    import asyncio
+
+    from app.parhlo.sws.planner import interest_phrases
+
+    with db() as conn:
+        prof = conn.execute("select entities from profiles where user_id = %s", (user["id"],)).fetchone() or {}
+        phrases = list(interest_phrases(conn, user["id"]))
+        today = conn.execute("select count(*) as n from sws_instant where user_id = %s "
+                             "and created_at > now() - interval '1 day'", (user["id"],)).fetchone()["n"]
+    terms = list(dict.fromkeys(t.strip() for t in [*(prof.get("entities") or []), *phrases] if t and t.strip()))
+    terms = terms[:max(0, min(limit, INSTANT_PER_DAY - today))]
+    if not terms:
+        return {"terms": [], "found": 0, "added": 0}
+    _, use_tavily = quota(user)
+    feeds, _ = await fetch_all([gnews.search_feed(t) for t in terms])
+    webs = await asyncio.gather(*(tavily.search(t) for t in terms)) if use_tavily else []
+    found = [{**i, "requested": True} for i in feeds + [w for ws in webs for w in ws]]
+    stats = await store_items(found, gate=make_gate(max_keep=INSTANT_KEEP * 2))
+    stats.get("gate", {}).pop("_rejected", None)
+    for t in terms:
+        record(user, "follow", t, use_tavily, len(found), stats["kept"])
+    await refresh.interests_changed(user, "news for " + ", ".join(terms))
+    return {"terms": terms, "found": len(found), "added": stats["kept"], "web_search": use_tavily}
+
+
 async def fetch_for(user: dict, name: str) -> dict:
     """News about `name` now: Google News search + Tavily, stored (gated as 'requested'), then a reprint."""
     name = " ".join(name.split())[:80]

@@ -5,6 +5,7 @@ Every search is a row in sws_queries with its own schedule:
   native    top stories of a native-language edition ("FR", in French)      every 1 – 6 h
   country   English news about a country without an edition ("Bangladesh")  every 2 – 12 h
   follow    a name readers follow ("Babar Azam"), more readers = higher priority   every 15 min – 4 h
+  interest  a phrase from a reader's "About you" ("car accident news")          every 30 min – 6 h
   breaking  a story that just reached 3+ outlets: search for more coverage      every 30 min, for 6 h
 Each run takes the due searches, highest priority first, up to a budget. After the run, a search that found
 3+ new stories runs twice as often; one that found nothing waits twice as long (within its kind's bounds).
@@ -15,17 +16,30 @@ import re
 
 from app.core.database import db
 from app.parhlo.sws import gnews
+from app.parhlo.topics import TOPICS
 
 QUERIES_PER_RUN = 20
 COUNTRY_SLOTS = 4      # of each run's budget, kept for countries without an English edition
 # kind → (start interval, shortest, longest) in minutes, and base priority
-SCHEDULE = {"follow": (30, 15, 240), "edition": (60, 30, 240), "native": (120, 60, 360), "country": (240, 120, 720),
-            "breaking": (30, 30, 60)}
-PRIORITY = {"breaking": 2.0, "follow": 1.0, "edition": 1.0, "native": 0.8, "country": 0.5}
+SCHEDULE = {"follow": (30, 15, 240), "interest": (60, 30, 360), "edition": (60, 30, 240), "native": (120, 60, 360),
+            "country": (240, 120, 720), "breaking": (30, 30, 60)}
+PRIORITY = {"breaking": 2.0, "follow": 1.0, "interest": 0.9, "edition": 1.0, "native": 0.8, "country": 0.5}
 BREAKING_MIN_OUTLETS = 3
 BREAKING_HOURS = 6
 STOP = {"with", "from", "that", "this", "after", "over", "into", "amid", "says", "will", "have", "been", "their",
         "about", "what", "when", "where", "which", "while", "more", "than", "they", "were", "could", "would"}
+
+
+def interest_phrases(conn, user_id=None) -> dict[str, int]:
+    """Phrases readers wrote in "About you" (stored as onboarding memories that aren't one of our 17 topics),
+    with how many readers have each. user_id: just that reader's."""
+    topic_labels = [t["label"].lower() for t in TOPICS.values()]
+    rows = conn.execute(
+        """select lower(label) as q, count(distinct user_id) as n from interest_anchors
+           where kind = 'onboarding' and weight > 0 and not (lower(label) = any(%s))
+             and (%s::uuid is null or user_id = %s::uuid)
+           group by 1""", (topic_labels, user_id, user_id)).fetchall()
+    return {r["q"]: r["n"] for r in rows if len(r["q"]) >= 3}
 
 
 def adapt(kind: str, interval: int, new: int) -> int:
@@ -62,6 +76,8 @@ def sync() -> None:
         follows = conn.execute("select e as name, count(*) as n from profiles, jsonb_array_elements_text(entities) e "
                                "group by e").fetchall()
         rows += [("follow", r["name"], PRIORITY["follow"] + 0.5 * math.log1p(r["n"]), start["follow"]) for r in follows]
+        phrases = interest_phrases(conn)
+        rows += [("interest", q, PRIORITY["interest"] + 0.5 * math.log1p(n), start["interest"]) for q, n in phrases.items()]
         breaking = conn.execute(
             """select (array_agg(title order by coalesce(importance, 0) desc))[1] as title
                from articles where fetched_at > now() - interval '3 hours' and cluster_id is not null
@@ -76,6 +92,7 @@ def sync() -> None:
                    on conflict (kind, query) do update set priority = excluded.priority""", rows)
         followed = [r["name"] for r in follows]
         conn.execute("delete from sws_queries where kind = 'follow' and not (query = any(%s))", (followed,))
+        conn.execute("delete from sws_queries where kind = 'interest' and not (query = any(%s))", (list(phrases),))
         conn.execute("delete from sws_queries where kind = 'breaking' "
                      "and created_at < now() - make_interval(hours => %s)", (BREAKING_HOURS,))
 

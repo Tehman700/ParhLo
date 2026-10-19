@@ -35,3 +35,9 @@ def test_items_remember_which_search_found_them():
     <link>https://news.google.com/x</link><source url="https://reuters.com">Reuters</source></item></channel></rss>"""
     [item] = parse_feed(feed, rss)
     assert item["query_id"] == 7 and item["source"] == "Reuters"
+
+
+def test_about_you_phrases_are_searched_on_their_own_schedule():
+    feed = planner.feed_for({"id": 11, "kind": "interest", "query": "car accident news"})
+    assert "car%20accident%20news" in feed["url"] and feed["query_id"] == 11
+    assert planner.adapt("interest", 60, new=0) == 120 and planner.adapt("interest", 360, new=0) == 360

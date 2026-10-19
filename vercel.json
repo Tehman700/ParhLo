@@ -37,6 +37,102 @@
     {
       "path": "/api/cron/email",
       "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/sws/00",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/sws/01",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/sws/02",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/sws/03",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/sws/04",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/sws/05",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/sws/06",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/sws/07",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/sws/08",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/sws/09",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/sws/10",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/sws/11",
+      "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/cron/sws/12",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/sws/13",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/sws/14",
+      "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/sws/15",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/sws/16",
+      "schedule": "0 16 * * *"
+    },
+    {
+      "path": "/api/cron/sws/17",
+      "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/cron/sws/18",
+      "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/cron/sws/19",
+      "schedule": "0 19 * * *"
+    },
+    {
+      "path": "/api/cron/sws/20",
+      "schedule": "0 20 * * *"
+    },
+    {
+      "path": "/api/cron/sws/21",
+      "schedule": "0 21 * * *"
+    },
+    {
+      "path": "/api/cron/sws/22",
+      "schedule": "0 22 * * *"
+    },
+    {
+      "path": "/api/cron/sws/23",
+      "schedule": "0 23 * * *"
     }
   ]
 }

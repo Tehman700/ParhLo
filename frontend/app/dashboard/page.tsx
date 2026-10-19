@@ -66,7 +66,10 @@ function Dashboard() {
   // Arriving from onboarding (?welcome=1) or a notification link (#friends): set up once the page has data.
   useEffect(() => {
     if (!me) return;
-    if (welcome) window.history.replaceState(null, "", "/dashboard");
+    if (welcome) {
+      window.history.replaceState(null, "", "/dashboard");
+      void findInterestNews();   // SWS: search the web for what they just told us about, right away
+    }
     if (window.location.hash) document.querySelector(window.location.hash)?.scrollIntoView({ behavior: "smooth" });
   }, [Boolean(me)]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -133,6 +136,21 @@ function Dashboard() {
       setNewFollow("");
       void findNews(name);
     });
+  }
+
+  /** SWS: news for everything they follow and wrote in "About you", right away (after onboarding / saving it). */
+  async function findInterestNews() {
+    setNewsNote("Finding news about your interests…");
+    try {
+      const r = await api.post<{ terms: string[]; added: number }>("/api/me/interests/fetch");
+      if (!r.terms.length) return setNewsNote(null);
+      setNewsNote(r.added > 0
+        ? `Found ${r.added} new ${r.added === 1 ? "story" : "stories"} about ${r.terms.join(", ")}. Your paper is updating.`
+        : `Your paper already has the latest on ${r.terms.join(", ")}. ParhLo keeps checking every hour.`);
+      if (r.added > 0) interestsChanged();
+    } catch (e) {
+      setNewsNote((e as Error).message);
+    }
   }
 
   /** SWS: search for news about a just-followed name right away, then reprint (instead of waiting 15 minutes). */
@@ -327,7 +345,7 @@ function Dashboard() {
               <div className="mt-3 flex items-center justify-between">
                 <span className="t-fine text-ink-48">{about.length}/500</span>
                 <button className="btn btn-primary" disabled={about === (me.profile?.about ?? "") || busy === "about"}
-                  onClick={() => run("about", () => api.patch<Me>("/api/me", { about }), "Saved. Your interests were updated.")}>
+                  onClick={() => run("about", () => api.patch<Me>("/api/me", { about }), "Saved. Your interests were updated.").then((ok) => { if (ok) void findInterestNews(); })}>
                   {busy === "about" ? <Spinner dark label="Reading it" /> : "Save"}
                 </button>
               </div>
