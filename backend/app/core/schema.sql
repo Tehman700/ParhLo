@@ -131,6 +131,23 @@ create table if not exists sws_instant (
     created_at  timestamptz not null default now()
 );
 create index if not exists sws_instant_user on sws_instant (user_id, created_at desc);
+-- SWS query planner: every search SWS runs, each on its own schedule. Searches that keep finding new stories
+-- run more often (down to 15 min); quiet ones back off (up to hours). See app/parhlo/sws/planner.py.
+create table if not exists sws_queries (
+    id            bigserial primary key,
+    kind          text not null,                    -- edition | country | follow | breaking
+    query         text not null,                    -- edition code (UG), country name, followed name, keywords
+    priority      real not null default 1,
+    interval_min  int not null default 60,
+    next_run_at   timestamptz not null default now(),
+    last_run_at   timestamptz,
+    last_new      int not null default 0,           -- new stories found on the last run
+    hits          int not null default 0,           -- runs that found something new
+    misses        int not null default 0,
+    created_at    timestamptz not null default now(),
+    unique (kind, query)
+);
+create index if not exists sws_queries_due on sws_queries (next_run_at);
 
 -- A frozen daily paper: web view and PDF render from the same JSON.
 create table if not exists editions (

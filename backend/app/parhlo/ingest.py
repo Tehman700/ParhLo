@@ -128,6 +128,7 @@ def parse_feed(feed: dict, body: bytes) -> list[dict]:
             "image": _image(e), "published": published, "hints": feed["topics"],
             # SWS: where the story came from, and the country edition / language it was found in (if known).
             "origin": feed.get("origin", "rss"), "country": feed.get("country"), "language": feed.get("language", "en"),
+            "query_id": feed.get("query_id"),   # SWS planner: which search found it (for its schedule)
         })
     return items
 

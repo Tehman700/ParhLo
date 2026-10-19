@@ -367,10 +367,12 @@ def _cron_auth(authorization: str | None = Header(None)):
 async def cron_ingest():
     # Collect the names readers follow (e.g. "Babar Azam", "Nvidia") so niche interests get news too:
     # each one becomes an extra Google News search feed (see sources.google_news_feed, STEP 2).
+    # With SWS on, every followed name is searched on its own schedule all day (sws/planner.py), so the nightly
+    # run reads only the curated feeds. Without SWS: up to 12 followed names, once a night.
     with db() as conn:
         rows = conn.execute("select entities from profiles").fetchall()
     # dict.fromkeys = de-duplicate while keeping order; cap at 12 searches to keep the run fast and cheap.
-    queries = list(dict.fromkeys(e for r in rows for e in (r["entities"] or [])))[:12]
+    queries = [] if get_settings().sws_enabled else list(dict.fromkeys(e for r in rows for e in (r["entities"] or [])))[:12]
     # STEPS 3–10: fetch → clean → skip known → embed → Jev → store → cluster (ingest.py: ingest()).
     stats = await ingest(extra_queries=queries)
     from app.parhlo.summarize import prewarm
