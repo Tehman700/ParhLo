@@ -12,7 +12,11 @@ export function askAbout(storyId?: number) {
 }
 
 type Source = { id: number; headline: string; source: string; url: string };
-type Answer = { answer: string; in_paper: boolean; sources: Source[]; follow_ups: string[]; route: { by: string; ms: number; focus: number[] } };
+type Answer = {
+  answer: string; in_paper: boolean; sources: Source[]; follow_ups: string[]; route?: { by: string; ms: number; focus: number[] };
+  question?: string;   // what was asked (lets a "not in your paper" answer offer a web search)
+  from_web?: boolean;  // SWS: answered from a fresh news search, not from the paper
+};
 type Msg = { role: "user"; text: string } | { role: "assistant"; data: Answer; reveal: boolean } | { role: "error"; text: string };
 
 const quote = (s: string) => (s.length > 60 ? `${s.slice(0, 57).trimEnd()}…` : s);
@@ -79,6 +83,7 @@ export function AskPaper({ edition }: { edition: Edition }) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [busyText, setBusyText] = useState("Reading your paper…");
   const panel = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLTextAreaElement>(null);
@@ -133,11 +138,29 @@ export function AskPaper({ edition }: { edition: Edition }) {
     scrollDown();
     try {
       const data = await api.post<Answer>("/api/ask", { question: q, date: edition.edition_date, story_id: story?.id ?? null, history });
-      setMsgs((m) => [...m, { role: "assistant", data, reveal: true }]);
+      setMsgs((m) => [...m, { role: "assistant", data: { ...data, question: q }, reveal: true }]);
     } catch (e) {
       setMsgs((m) => [...m, { role: "error", text: (e as Error).message }]);
     } finally {
       setBusy(false);
+      scrollDown();
+    }
+  }
+
+  /** SWS: the paper doesn't cover it, so answer from a fresh news search (clearly labelled as the web). */
+  async function searchWeb(q: string) {
+    if (busy) return;
+    setBusy(true);
+    setBusyText("Searching the web…");
+    scrollDown();
+    try {
+      const data = await api.post<Answer>("/api/ask/web", { question: q, date: edition.edition_date, story_id: null, history: [] });
+      setMsgs((m) => [...m, { role: "assistant", data: { ...data, question: q }, reveal: true }]);
+    } catch (e) {
+      setMsgs((m) => [...m, { role: "error", text: (e as Error).message }]);
+    } finally {
+      setBusy(false);
+      setBusyText("Reading your paper…");
       scrollDown();
     }
   }
@@ -207,17 +230,27 @@ export function AskPaper({ edition }: { edition: Edition }) {
                   <>
                     {m.data.sources.length > 0 && (
                       <div className="mt-2.5">
-                        <p className="t-fine text-ink-48">{m.data.in_paper ? "From your paper" : "Closest stories in your paper"}</p>
+                        <p className="t-fine text-ink-48">{m.data.from_web ? "From the web, not your paper" : m.data.in_paper ? "From your paper" : "Closest stories in your paper"}</p>
                         <div className="mt-1.5 flex flex-col gap-1.5">
                           {m.data.sources.map((s, k) => (
                             <div key={s.id} className="flex items-center gap-2 rounded-[12px] border border-hairline px-3 py-2">
                               <span className="flex h-5 w-5 flex-none items-center justify-center rounded-full bg-[#e8f1fb] text-[11px] font-semibold text-primary">{k + 1}</span>
-                              <button className="flex-1 truncate text-left t-caption hover:text-primary" title="Show in the paper" onClick={() => { scrollToStory(s.id); if (window.innerWidth < 640) setOpen(false); }}>{s.headline}</button>
+                              {m.data.from_web ? (
+                                <a href={s.url} target="_blank" rel="noopener noreferrer" className="flex-1 truncate text-left t-caption hover:text-primary">{s.headline}</a>
+                              ) : (
+                                <button className="flex-1 truncate text-left t-caption hover:text-primary" title="Show in the paper" onClick={() => { scrollToStory(s.id); if (window.innerWidth < 640) setOpen(false); }}>{s.headline}</button>
+                              )}
                               <a href={s.url} target="_blank" rel="noopener noreferrer" className="flex-none t-fine text-ink-48 hover:text-primary" aria-label={`Read the original on ${s.source}`}>{s.source} ↗</a>
                             </div>
                           ))}
                         </div>
                       </div>
+                    )}
+                    {i === msgs.length - 1 && !m.data.in_paper && !m.data.from_web && m.data.question && (
+                      <button onClick={() => searchWeb(m.data.question!)} disabled={busy}
+                        className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-primary px-3.5 py-1.5 t-fine font-semibold text-primary hover:bg-[#e8f1fb] disabled:opacity-40">
+                        <Globe /> Search the web for this
+                      </button>
                     )}
                     {i === msgs.length - 1 && m.data.follow_ups.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-1.5">
@@ -236,7 +269,7 @@ export function AskPaper({ edition }: { edition: Edition }) {
                 <span className="flex gap-1">
                   <span className="dot h-1.5 w-1.5 rounded-full bg-primary" /><span className="dot h-1.5 w-1.5 rounded-full bg-primary" /><span className="dot h-1.5 w-1.5 rounded-full bg-primary" />
                 </span>
-                Reading your paper…
+                {busyText}
               </div>
             )}
           </div>
@@ -258,6 +291,14 @@ export function AskPaper({ edition }: { edition: Edition }) {
         </div>
       )}
     </>
+  );
+}
+
+function Globe() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+      <circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3Z" />
+    </svg>
   );
 }
 

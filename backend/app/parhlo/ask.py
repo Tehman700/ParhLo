@@ -160,3 +160,48 @@ async def ask_paper(user: dict, body: AskIn) -> dict:
         "route": {**route_info, "focus": focus, "answer_ms": round((time.perf_counter() - t0) * 1000)},
     }
 
+
+
+# ---------- "Search the web" (SWS): when the paper doesn't cover the question ----------
+
+class WebAnswerOut(BaseModel):
+    answer: str = Field(description="Plain-English answer using only the numbered web results. Short paragraphs, or "
+                                    "'- ' bullets on their own lines; **bold** allowed. Max ~150 words.")
+    result_ids: list[int] = Field(description="numbers of the results the answer actually uses")
+    found: bool = Field(description="false when the results don't answer the question")
+
+
+async def ask_web(user: dict, body: AskIn) -> dict:
+    """Answer from a fresh news search (Tavily; Google News when Tavily is off or over budget), labelled as web."""
+    from app.parhlo.ingest import fetch_all
+    from app.parhlo.sws import gnews, instant, tavily
+
+    use_tavily = instant.check(user)
+    results = await tavily.search(body.question, max_results=6, days=7) if use_tavily else []
+    via = "web search"
+    if not results:
+        items, _ = await fetch_all([gnews.search_feed(body.question)])
+        results, via = items[:6], "Google News"
+    instant.record(user, "ask", body.question[:200], use_tavily, len(results), 0)
+    if not results:
+        return {"answer": "I couldn't find recent news about this on the web.", "in_paper": False, "found": False,
+                "sources": [], "follow_ups": [], "from_web": True, "via": via}
+    context = "\n\n".join(
+        f"[{n}] {r['title']} ({r['source']}"
+        f"{', ' + r['published'].strftime('%d %b %Y') if r.get('published') else ''})\n{r.get('summary') or ''}"
+        for n, r in enumerate(results, 1))
+    system = (
+        "You answer a reader's news question using ONLY the numbered web search results below. Never invent facts, "
+        "numbers, names or quotes, and never expand an abbreviation the results don't spell out. Plain, simple "
+        "English. If the results don't answer the question, say so in one sentence and set found=false. Never end "
+        "with an offer or a question.\n\nRESULTS:\n\n" + context)
+    out: WebAnswerOut = await get_llm().json(
+        [{"role": "system", "content": system}, {"role": "user", "content": body.question}],
+        schema=WebAnswerOut, reasoning_effort="minimal")
+    used = [n for n in dict.fromkeys(out.result_ids) if 1 <= n <= len(results)][:4]
+    return {
+        "answer": out.answer.strip(), "in_paper": False, "found": out.found, "from_web": True, "via": via,
+        "sources": [{"id": n, "headline": results[n - 1]["title"], "source": results[n - 1]["source"],
+                     "url": results[n - 1]["url"]} for n in used],
+        "follow_ups": [],
+    }

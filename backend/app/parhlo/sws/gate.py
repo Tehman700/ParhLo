@@ -4,7 +4,7 @@ Embedding a headline costs almost nothing; Jev and AI summaries cost real money.
 every 15 minutes, most of them small-town or lifestyle pieces no reader would get, plus press releases and
 auto-generated stock pages. The gate keeps an item when:
 
-  web        it came from an on-demand web search (a reader asked for it)                     → always kept
+  requested  a reader asked for it: on-demand web search, or news fetched for a name just followed → kept
   followed   it's about a country (or name) a reader follows, e.g. GDELT country "Uganda"   → kept
   trusted    it's from an outlet we trust (rank.CURATED / KNOWN_GOOD, incl. world outlets) → kept
   relevant   its headline matches at least one reader's memory (cosine ≥ the source's bar) → kept
@@ -52,8 +52,9 @@ def decide(items: list[dict], vectors: np.ndarray, anchors: np.ndarray, followed
         if blocked(item["source"], item["url"], item["title"]) or SPAM.search(item["title"]):
             reasons["blocked"] += 1
             rejected.append(item["url"])
-        elif origin in ("web", "rss"):
-            scored.append((3.0, k, origin))           # asked for (web) or curated (rss): never gated away
+        elif origin in ("web", "rss") or item.get("requested"):
+            reason = "requested" if item.get("requested") else origin
+            scored.append((3.0, k, reason))           # asked for, or curated (rss): never gated away
         elif (item.get("country") or "").lower() in followed:
             scored.append((2.0 + sim, k, "followed"))
         elif item["source"] in CURATED or item["source"] in KNOWN_GOOD:

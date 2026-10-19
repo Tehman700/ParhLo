@@ -5,7 +5,7 @@ needs news that isn't in today's paper. Returns items in the parse_feed() shape 
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 
 import httpx
@@ -37,9 +37,9 @@ def _published(value: str | None) -> datetime | None:
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
-def to_items(data: dict) -> list[dict]:
-    """Tavily's JSON → items. News older than 48 hours is dropped (same rule as RSS)."""
-    cutoff = datetime.now(timezone.utc) - MAX_AGE
+def to_items(data: dict, max_age: timedelta = MAX_AGE) -> list[dict]:
+    """Tavily's JSON → items. News older than max_age is dropped (48 hours by default, same rule as RSS)."""
+    cutoff = datetime.now(timezone.utc) - max_age
     items = []
     for r in data.get("results") or []:
         url, title = r.get("url") or "", clean_text(r.get("title"), 300)
@@ -70,7 +70,7 @@ async def search(query: str, max_results: int = 8, days: int = 2, client: httpx.
         if r.status_code != 200:
             log.warning("tavily HTTP %s: %s", r.status_code, r.text[:200])
             return []
-        return to_items(r.json())
+        return to_items(r.json(), max(MAX_AGE, timedelta(days=days)))
     except httpx.HTTPError as e:
         log.warning("tavily unreachable: %s", e)
         return []

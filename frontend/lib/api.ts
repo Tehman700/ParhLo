@@ -135,4 +135,14 @@ export type Me = {
   snapshots: Snapshot[];
 };
 
+/** SWS: news fetched right away for a name the reader just followed (POST /api/me/following/fetch). */
+export type FollowFetch = { query: string; found: number; added: number; already_had: number; web_search: boolean };
+
+/** After following a name: fetch news about it now, and say what happened in one line. */
+export function followFetchNote(r: FollowFetch): string {
+  if (r.added > 0) return `Found ${r.added} new ${r.added === 1 ? "story" : "stories"} about ${r.query}. Your paper is updating.`;
+  if (r.already_had > 0) return `Your paper already has the latest on ${r.query}.`;
+  return `No recent news about ${r.query} yet. ParhLo checks again every 15 minutes.`;
+}
+
 export type EventType = "open" | "dwell" | "like" | "dislike" | "unreact" | "skip" | "save" | "unsave" | "quiz_correct" | "quiz_wrong" | "pdf" | "listen" | "ask";

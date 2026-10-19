@@ -118,6 +118,19 @@ create table if not exists sws_rejected (
     url          text primary key,
     rejected_at  timestamptz not null default now()
 );
+-- SWS on-demand searches (a reader follows something new, or asks Ask to search the web): daily limit per
+-- reader and the Tavily monthly budget are counted from here.
+create table if not exists sws_instant (
+    id          bigserial primary key,
+    user_id     uuid references users(id) on delete cascade,
+    kind        text not null,                     -- follow | ask
+    query       text not null,
+    tavily      boolean not null default false,    -- used a Tavily credit
+    found       int not null default 0,
+    added       int not null default 0,
+    created_at  timestamptz not null default now()
+);
+create index if not exists sws_instant_user on sws_instant (user_id, created_at desc);
 
 -- A frozen daily paper: web view and PDF render from the same JSON.
 create table if not exists editions (

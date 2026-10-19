@@ -11,7 +11,7 @@ import { PaperStatus } from "@/components/dashboard/PaperStatus";
 import { SavedStories } from "@/components/dashboard/SavedStories";
 import { Row, Section } from "@/components/dashboard/Section";
 import { ErrorNote, Spinner, TopBar } from "@/components/ui";
-import type { Edition, Me } from "@/lib/api";
+import { followFetchNote, type Edition, type FollowFetch, type Me } from "@/lib/api";
 import { useApi, useSession } from "@/lib/auth";
 import { interestsChanged } from "@/lib/freshness";
 import { TOPIC_LABELS, topicLabel } from "@/lib/topics";
@@ -40,6 +40,7 @@ function Dashboard() {
   const [form, setForm] = useState({ name: "", city: "", reading_minutes: 10, region_mix: 0.5 });
   const [about, setAbout] = useState("");
   const [newFollow, setNewFollow] = useState("");
+  const [newsNote, setNewsNote] = useState<string | null>(null);
   const [pendingTopic, setPendingTopic] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   // Arriving straight from onboarding: the first paper is still being built (shown in PaperStatus).
@@ -82,15 +83,17 @@ function Dashboard() {
     setTimeout(() => setSaved((s) => (s === msg ? null : s)), 2500);
   }
 
-  async function run(label: string, fn: () => Promise<Me>, done?: string) {
+  async function run(label: string, fn: () => Promise<Me>, done?: string): Promise<boolean> {
     setBusy(label);
     setError(null);
     try {
       apply(await fn());
       if (["profile", "follow", "unfollow", "about"].includes(label)) interestsChanged();
       if (done) flash(done);
+      return true;
     } catch (e) {
       setError((e as Error).message);
+      return false;
     } finally {
       setBusy(null);
     }
@@ -125,7 +128,23 @@ function Dashboard() {
     e.preventDefault();
     const name = newFollow.trim();
     if (!name) return;
-    void run("follow", () => api.post<Me>("/api/me/following", { name }), `Following ${name}`).then(() => setNewFollow(""));
+    void run("follow", () => api.post<Me>("/api/me/following", { name }), `Following ${name}`).then((ok) => {
+      if (!ok) return;
+      setNewFollow("");
+      void findNews(name);
+    });
+  }
+
+  /** SWS: search for news about a just-followed name right away, then reprint (instead of waiting 15 minutes). */
+  async function findNews(name: string) {
+    setNewsNote(`Finding news about ${name}…`);
+    try {
+      const r = await api.post<FollowFetch>("/api/me/following/fetch", { name });
+      setNewsNote(followFetchNote(r));
+      if (r.added > 0) interestsChanged();
+    } catch (e) {
+      setNewsNote((e as Error).message);
+    }
   }
 
   async function removeAnchor(id: number) {
@@ -298,6 +317,7 @@ function Dashboard() {
                   {busy === "follow" ? <Spinner dark /> : "Follow"}
                 </button>
               </form>
+              {newsNote && <p className="mt-3 t-caption text-ink-60" role="status">{newsNote}</p>}
             </Section>
 
             <Section title="About you" note="Describe your interests in your own words. ParhLo reads this to find what you follow.">

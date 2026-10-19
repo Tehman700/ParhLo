@@ -4,7 +4,7 @@ import gsap from "gsap";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
-import type { Me } from "@/lib/api";
+import { followFetchNote, type FollowFetch, type Me } from "@/lib/api";
 import { useApi } from "@/lib/auth";
 import { interestsChanged } from "@/lib/freshness";
 import { timeAgo } from "@/lib/topics";
@@ -109,11 +109,17 @@ export function SearchBox() {
     if (!name) return;
     try {
       await api.post("/api/me/following", { name });
-      setFollowNote(`Following “${name}”. Your paper is updating.`);
+      setFollowNote(`Following “${name}”. Finding the latest news about it…`);
       setFollowing((f) => [...f, name]);
       setRes((r) => (r ? { ...r, can_follow: false } : r));
       saveRecent(name);
       interestsChanged();
+      // SWS: fetch news about it now (Google News + web search), then the paper reprints with it.
+      const r = await api.post<FollowFetch>("/api/me/following/fetch", { name }).catch(() => null);
+      if (r) {
+        setFollowNote(followFetchNote(r));
+        if (r.added > 0) interestsChanged();
+      }
     } catch (e) {
       setFollowNote((e as Error).message);
     }

@@ -119,6 +119,13 @@ async def follow(body: FollowIn, user=Depends(writable_user)):
     return out
 
 
+@router.post("/me/following/fetch")
+async def follow_fetch(body: FollowIn, user=Depends(writable_user)):
+    """SWS: fetch news about a name the reader just followed, right away, then reprint their paper."""
+    from app.parhlo.sws.instant import fetch_for
+    return await fetch_for(user, body.name)
+
+
 @router.delete("/me/following")
 async def unfollow(name: str, user=Depends(writable_user)):
     out = profile.unfollow(user, name)
@@ -220,6 +227,12 @@ def events(body: list[learn.EventIn], user=Depends(current_user)):
 async def ask_paper(body: ask.AskIn, user=Depends(current_user)):
     """Ask your paper: answered only from the reader's edition, with sources."""
     return await ask.ask_paper(user, body)
+
+
+@router.post("/ask/web")
+async def ask_web(body: ask.AskIn, user=Depends(current_user)):
+    """SWS: when the paper doesn't cover a question, answer from a fresh news search (labelled as web)."""
+    return await ask.ask_web(user, body)
 
 
 # ---------- morning email ----------
