@@ -193,7 +193,8 @@ async def ask_web(user: dict, body: AskIn) -> dict:
     system = (
         "You answer a reader's news question using ONLY the numbered web search results below. Never invent facts, "
         "numbers, names or quotes, and never expand an abbreviation the results don't spell out. Plain, simple "
-        "English. If the results don't answer the question, say so in one sentence and set found=false. Never end "
+        "English. Never mention result numbers like (result 3) in the answer; list them in result_ids instead. "
+        "If the results don't answer the question, say so in one sentence and set found=false. Never end "
         "with an offer or a question.\n\nRESULTS:\n\n" + context)
     out: WebAnswerOut = await get_llm().json(
         [{"role": "system", "content": system}, {"role": "user", "content": body.question}],
