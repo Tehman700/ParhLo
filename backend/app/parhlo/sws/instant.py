@@ -17,6 +17,7 @@ from app.core.database import db
 from app.core.errors import AppError
 from app.parhlo import refresh
 from app.parhlo.ingest import fetch_all, store_items
+from app.parhlo.sws import enrich as enrich_mod
 from app.parhlo.sws import gnews, tavily
 from app.parhlo.sws.enrich import enrich
 from app.parhlo.sws.gate import make_gate
@@ -26,6 +27,7 @@ INSTANT_PER_DAY = 30     # searches per reader per day (the monthly Tavily credi
 TAVILY_PER_MONTH = 900   # credits; leave headroom under the 1,000 free
 INSTANT_KEEP = 30        # stories stored per term at most
 GNEWS_PER_TERM = 5       # newest Google News results per term (Tavily gives up to 8 more)
+EXTRACT_MAX = 15         # pages still missing an image/text → Tavily Extract (1 credit per 5)
 _OLD = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
@@ -74,6 +76,17 @@ async def gather_news(terms: list[str], use_tavily: bool) -> tuple[list[dict], i
                 i["content"] = i.get("content") or g.get("content")
                 i["image"] = i.get("image") or g.get("image")
     filled = await enrich(g_items + [i for i in web if not i.get("image") or not i.get("content")])
+    # Pages that refuse our servers (many publishers block cloud IPs): Tavily Extract reads them instead.
+    still = [i for i in g_items + web if (i.get("link") or not enrich_mod.gn_id(i["url"]))
+             and (not i.get("image") or not i.get("content"))][:EXTRACT_MAX]
+    if use_tavily and still:
+        got, c = await tavily.extract([i.get("link") or i["url"] for i in still])
+        credits += c
+        for i in still:
+            g = got.get(i.get("link") or i["url"]) or {}
+            i["content"] = i.get("content") or g.get("content")
+            i["image"] = i.get("image") or g.get("image")
+        filled["extract"] = sum(1 for i in still if i.get("content") or i.get("image"))
     items = [{**i, "requested": True} for i in g_items + web]
     written = await write_rich(items)
     return items, credits, {"web_results": len(web), "google_news": len(g_items), "enrich": filled,
@@ -83,12 +96,29 @@ async def gather_news(terms: list[str], use_tavily: bool) -> tuple[list[dict], i
 async def _search(user: dict, terms: list[str], use_tavily: bool) -> dict:
     items, credits, report = await gather_news(terms, use_tavily)
     stats = await store_items(items, gate=make_gate(max_keep=INSTANT_KEEP * len(terms)), use_jev=False)
+    _fill_known(items)
     stats.get("gate", {}).pop("_rejected", None)
     for n, t in enumerate(terms):
         record(user, "follow", t, credits if n == 0 else 0, len(items), stats["kept"])
     await refresh.interests_changed(user, "news for " + ", ".join(terms))
     return {"found": len(items), "added": stats["kept"], "already_had": len(items) - stats["new"],
             "web_search": use_tavily and report["web_results"] > 0, **report}
+
+
+def _fill_known(items: list[dict]) -> None:
+    """Stories we already had: keep what this search just found for them (publisher link, image, text, summary)."""
+    from psycopg.types.json import Jsonb
+    with db() as conn:
+        for i in items:
+            if i.get("image") or i.get("link") or i.get("ai_summary"):
+                conn.execute(
+                    """update articles set link = coalesce(link, %s), image_url = coalesce(image_url, %s),
+                           content = coalesce(content, %s), ai_summary = coalesce(ai_summary, %s),
+                           ai_points = case when ai_summary is null then coalesce(%s, ai_points) else ai_points end,
+                           enriched_at = coalesce(enriched_at, now())
+                       where url = %s""",
+                    (i.get("link"), i.get("image"), i.get("content"), i.get("ai_summary"),
+                     Jsonb(i["ai_points"]) if i.get("ai_points") else None, i["url"]))
 
 
 async def fetch_interests(user: dict, limit: int = 5) -> dict:

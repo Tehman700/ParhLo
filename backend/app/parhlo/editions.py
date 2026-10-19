@@ -171,6 +171,8 @@ def _apply_why(layout: dict, stories: list[dict]) -> None:
             why["why"] = "One of today's biggest stories"
         elif s.get("discovery"):
             why["why"] = f"Something new for you: {TOPICS[s['topics'][0]]['label'] if s.get('topics') and s['topics'][0] in TOPICS else 'outside your usual topics'}"
+        elif s.get("match"):   # ranking knows the exact interest: state it (the editor's why-line only guesses)
+            why["why"] = f"Because you follow {s['match']}"
         elif not why.get("why"):
             topic = TOPICS.get((s.get("topics") or [""])[0], {}).get("label")
             why["why"] = (f"Because you follow {s['match']}" if s.get("match")
