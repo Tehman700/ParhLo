@@ -7,12 +7,12 @@ needs news that isn't in today's paper. Returns items in the parse_feed() shape 
 import logging
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
-from urllib.parse import urlparse
 
 import httpx
 
 from app.core.config import get_settings
 from app.parhlo.ingest import MAX_AGE, clean_text
+from app.parhlo.sws.outlets import outlet_name
 
 log = logging.getLogger("parhlo.sws.tavily")
 
@@ -48,9 +48,8 @@ def to_items(data: dict) -> list[dict]:
         published = _published(r.get("published_date"))
         if published and published < cutoff:
             continue
-        host = urlparse(url).netloc.removeprefix("www.")
         items.append({
-            "url": url, "title": title, "source": host, "region": "global",
+            "url": url, "title": title, "source": outlet_name(url), "region": "global",
             "summary": clean_text(r.get("content")), "image": None, "published": published,
             "hints": [], "origin": "web", "country": None, "language": "en",
         })

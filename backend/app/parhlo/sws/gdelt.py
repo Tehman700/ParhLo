@@ -16,6 +16,8 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 
+from app.parhlo.sws.outlets import outlet_name
+
 log = logging.getLogger("parhlo.sws.gdelt")
 
 BASE = "https://data.gdeltproject.org/gdeltv2/"
@@ -63,7 +65,7 @@ def parse_gkg(text: str, language: str = "en") -> list[dict]:
         seen.add(url)
         country = main_country(r[LOCATIONS])
         items.append({
-            "url": url, "title": title, "source": r[SOURCE] or url.split("/")[2],
+            "url": url, "title": title, "source": outlet_name(r[SOURCE] or url),   # "reuters.com" → "Reuters"
             "region": "pakistan" if country == "Pakistan" else "global",
             "summary": "", "image": r[IMAGE] or None,
             "published": slot_time(r[DATE]) if re.fullmatch(r"\d{14}", r[DATE]) else None,

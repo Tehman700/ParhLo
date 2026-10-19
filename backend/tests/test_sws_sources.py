@@ -23,7 +23,7 @@ def test_gkg_parses_title_country_image_and_time():
     [item] = gdelt.parse_gkg(gkg_line())
     assert item["title"] == "Museveni names new cabinet after election"
     assert item["country"] == "Uganda"                     # Uganda is mentioned twice, Kenya once
-    assert item["source"] == "monitor.co.ug" and item["image"] == "https://img.example/ug.jpg"
+    assert item["source"] == "Daily Monitor" and item["image"] == "https://img.example/ug.jpg"
     assert item["origin"] == "gdelt" and item["language"] == "en" and item["region"] == "global"
     assert item["published"] == datetime(2026, 10, 19, 7, 45, tzinfo=timezone.utc)
     assert item["summary"] == "" and item["hints"] == []
@@ -97,7 +97,7 @@ def test_tavily_results_to_items():
         {"url": "", "title": "no url"},
     ]}
     items = tavily.to_items(data)
-    assert [i["source"] for i in items] == ["monitor.co.ug", "nodate.example"]   # 5-day-old one dropped
+    assert [i["source"] for i in items] == ["Daily Monitor", "nodate.example"]   # 5-day-old one dropped
     assert items[0]["origin"] == "web" and items[0]["summary"].startswith("Uganda's finance ministry")
     assert items[1]["published"] is None
 

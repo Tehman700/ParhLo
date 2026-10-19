@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 import numpy as np
 
 from app.core.database import db
+from app.parhlo.sws.outlets import WORLD_GOOD
 
 CURATED = {"Dawn", "Express Tribune", "Business Recorder", "Geo News", "The News", "BBC News", "The Guardian",
            "The New York Times", "TechCrunch", "The Verge", "Ars Technica", "Hacker News", "ESPNcricinfo",
@@ -22,6 +23,7 @@ KNOWN_GOOD = {"Reuters", "Associated Press", "AP News", "Al Jazeera", "CNN", "CN
               "The Economist", "Formula 1", "Motorsport.com", "The Race", "Sky Sports", "Wired", "MIT Technology Review",
               "The Times of India", "Hindustan Times", "Nature", "Science", "NPR", "The Washington Post",
               "Forbes", "Fortune", "Axios", "Politico", "Pakistan Today", "ARY News", "Samaa TV", "Arab News"}
+KNOWN_GOOD |= WORLD_GOOD  # established outlets worldwide (SWS brings their stories in)
 BLOCKED_HINTS = ("kucoin", "bitget", "binance", "mexc", "coin", "crypto.news", "biggo", "prnewswire", "globenewswire")
 STORIES_FOR_MINUTES = {5: 6, 10: 10, 15: 13, 20: 16}
 JUNK_THRESHOLD = 0.78       # Jev: probability an item is not real news
