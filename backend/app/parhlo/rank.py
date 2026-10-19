@@ -121,15 +121,22 @@ def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 
         follows = followed_terms(conn, user["id"])
         found_for = {}
         if follows:
-            # Search results aren't all on topic ("Uganda" also returned a Man United story): keep the link only
-            # when the term's words are in the headline/summary or the story is close in meaning to that term.
+            # Links: stories found by searching for a followed term, and stories whose country is a followed name.
+            # Neither is always on topic ("Uganda" search returned a Man United story; Google News' Uganda edition
+            # carries world news too), so a link counts only when the term is named in the headline/summary or the
+            # story is close in meaning to that term's memory.
+            ids = [a["id"] for a in arts]
             for r in conn.execute(
-                    """select t.article_id, t.term, max(1 - (a.embedding <=> ia.embedding)) as sim,
+                    """with links as (
+                         select article_id, term from article_terms where term = any(%(terms)s) and article_id = any(%(ids)s)
+                         union
+                         select id, lower(country) from articles where id = any(%(ids)s) and lower(country) = any(%(terms)s))
+                       select l.article_id, l.term, max(1 - (a.embedding <=> ia.embedding)) as sim,
                               max(a.title || ' ' || coalesce(a.rss_summary, '')) as text
-                       from article_terms t join articles a on a.id = t.article_id
-                       left join interest_anchors ia on ia.user_id = %s and lower(ia.label) = t.term
-                       where t.term = any(%s) and t.article_id = any(%s) group by 1, 2""",
-                    (user["id"], list(follows), [a["id"] for a in arts])).fetchall():
+                       from links l join articles a on a.id = l.article_id
+                       left join interest_anchors ia on ia.user_id = %(uid)s and lower(ia.label) = l.term
+                       group by 1, 2""",
+                    {"terms": list(follows), "ids": ids, "uid": user["id"]}).fetchall():
                 if plausible(r["term"], r["text"], r["sim"]):
                     found_for.setdefault(r["article_id"], follows[r["term"]])
     arts = [a for a in arts if a["id"] not in exclude_ids and a["id"] not in seen and not SPAM.search(a["title"])
@@ -151,7 +158,7 @@ def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 
         pos_s, neg_s = float(a["pos_s"]), float(a["neg_s"])
         # Found by searching for something the reader follows (or about a country they follow): a certain match,
         # even when the topic is broad/off or the headline is far from the phrase in embedding space.
-        followed = found_for.get(a["id"]) or follows.get((a.get("country") or "").lower())
+        followed = found_for.get(a["id"])
         if followed:
             pos_s, topic_w = max(pos_s, FOLLOWED_MATCH), max(topic_w, 0.8)
         score = (0.40 * pos_s + 0.17 * topic_w + 0.11 * math.exp(-age_h / 24) + 0.08 * importance
