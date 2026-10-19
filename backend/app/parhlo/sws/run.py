@@ -71,15 +71,17 @@ def _remember_rejected(urls: list[str]) -> None:
         conn.execute("delete from sws_rejected where rejected_at < now() - interval '3 days'")
 
 
-async def enrich_backlog(limit: int = 40) -> dict:
-    """Recent stories stored without an image (mostly Google News links): look them up once each."""
+async def enrich_backlog(limit: int = 60) -> dict:
+    """Recent stories stored without an image (mostly Google News links): look them up once each — stories that
+    match someone's followed interest first, then the most important."""
     from app.parhlo.sws.enrich import enrich
     with db() as conn:
         rows = conn.execute(
             """select id, url, link, image_url, content from articles
                where enriched_at is null and image_url is null and fetched_at > now() - interval '36 hours'
                  and coalesce(junk, 0) < 0.78
-               order by importance desc nulls last, fetched_at desc limit %s""", (limit,)).fetchall()
+               order by exists (select 1 from article_terms t where t.article_id = articles.id) desc,
+                        importance desc nulls last, fetched_at desc limit %s""", (limit,)).fetchall()
     items = [{"id": r["id"], "url": r["url"], "link": r["link"], "image": None, "content": r["content"]} for r in rows]
     stats = await enrich(items)
     with db() as conn:

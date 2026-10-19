@@ -58,6 +58,8 @@ BLOCKED_DOMAINS = (
     "wkrb13.com", "thelincolnianonline.com", "dailypolitical.com", "etfdailynews.com", "zolmax.com",
     "modernreaders.com", "americanbankingnews.com", "transcriptdaily.com", "thecerbatgem.com",
     "theenterpriseleader.com", "sportsperspectives.com", "boredpanda.com",
+    # social media posts aren't news reports (and their pages can't be read)
+    "facebook.com", "instagram.com", "x.com", "twitter.com", "tiktok.com", "threads.net", "pinterest.com",
 )
 PROMO_TITLE = re.compile(
     r"company announcement|^form 8\.3|holding\(s\) in company|shares (sold|bought|acquired) by|"

@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 import numpy as np
 
 from app.core.database import db
-from app.parhlo.sws.outlets import WORLD_GOOD
+from app.parhlo.sws.outlets import WORLD_GOOD, blocked
 
 CURATED = {"Dawn", "Express Tribune", "Business Recorder", "Geo News", "The News", "BBC News", "The Guardian",
            "The New York Times", "TechCrunch", "The Verge", "Ars Technica", "Hacker News", "ESPNcricinfo",
@@ -140,7 +140,8 @@ def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 
                 if plausible(r["term"], r["text"], r["sim"]):
                     found_for.setdefault(r["article_id"], follows[r["term"]])
     arts = [a for a in arts if a["id"] not in exclude_ids and a["id"] not in seen and not SPAM.search(a["title"])
-            and source_quality(a["source"]) > 0 and len(re.findall(r"[A-Za-z]{3,}", a["title"])) >= 4]
+            and source_quality(a["source"]) > 0 and len(re.findall(r"[A-Za-z]{3,}", a["title"])) >= 4
+            and not blocked(a["source"], a.get("link") or a["url"], a["title"])]   # press wires, social posts
     if not arts:
         return []
 
