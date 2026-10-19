@@ -78,7 +78,7 @@ CANDIDATE_CAP = 4000
 RANK_SQL = """
 with cand as (
   select a.id, a.title, a.source, a.source_region, a.topics, a.published_at, a.image_url, a.url, a.rss_summary,
-         a.cluster_id, a.importance, a.embedding::halfvec(1536) as embedding, a.language
+         a.cluster_id, a.importance, a.embedding::halfvec(1536) as embedding, a.language, a.country
   from articles a
   where a.embedding is not null and a.published_at > now() - make_interval(hours => %(hours)s)
     and coalesce(a.junk, 0) < %(junk)s
@@ -100,7 +100,7 @@ neg as (
   from cand c cross join anc where anc.weight < 0 group by c.id
 )
 select c.id, c.title, c.source, c.source_region, c.topics, c.published_at, c.image_url, c.url, c.rss_summary,
-       c.cluster_id, c.importance, c.language, coalesce(cl.cluster_size, 0) as cluster_size, cl.sources,
+       c.cluster_id, c.importance, c.language, c.country, coalesce(cl.cluster_size, 0) as cluster_size, cl.sources,
        coalesce(pos.s, 0) as pos_s, pos.label as pos_label, pos.kind as pos_kind, coalesce(neg.s, 0) as neg_s
 from cand c left join cl on cl.cluster_id = c.cluster_id left join pos on pos.id = c.id left join neg on neg.id = c.id
 """
@@ -118,6 +118,12 @@ def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 
         # Already-seen stories (earlier editions) shouldn't repeat.
         seen = {r["article_id"] for r in conn.execute(
             "select distinct article_id from events where user_id=%s and article_id is not null", (user["id"],))}
+        follows = followed_terms(conn, user["id"])
+        found_for = {}
+        if follows:
+            for r in conn.execute("select article_id, term from article_terms where term = any(%s) "
+                                  "and article_id = any(%s)", (list(follows), [a["id"] for a in arts])).fetchall():
+                found_for.setdefault(r["article_id"], follows[r["term"]])
     arts = [a for a in arts if a["id"] not in exclude_ids and a["id"] not in seen and not SPAM.search(a["title"])
             and source_quality(a["source"]) > 0 and len(re.findall(r"[A-Za-z]{3,}", a["title"])) >= 4]
     if not arts:
@@ -135,13 +141,18 @@ def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 
         region_fit = region_mix if a["source_region"] == "pakistan" else 1 - region_mix
         importance = a["importance"] if a["importance"] is not None else 0.4  # neutral until Jev has scored it
         pos_s, neg_s = float(a["pos_s"]), float(a["neg_s"])
+        # Found by searching for something the reader follows (or about a country they follow): a certain match,
+        # even when the topic is broad/off or the headline is far from the phrase in embedding space.
+        followed = found_for.get(a["id"]) or follows.get((a.get("country") or "").lower())
+        if followed:
+            pos_s, topic_w = max(pos_s, FOLLOWED_MATCH), max(topic_w, 0.8)
         score = (0.40 * pos_s + 0.17 * topic_w + 0.11 * math.exp(-age_h / 24) + 0.08 * importance
                  + 0.05 * coverage(a["cluster_size"])
                  + 0.08 * source_quality(a["source"]) + 0.07 * region_fit
                  + 0.05 * float(affinity.get(a["source"], 0)) - 0.55 * neg_s
                  - (0.04 if "news.google.com" in a["url"] else 0.0))  # prefer links we can read in full
         also = [x for x in (a["sources"] or []) if x != a["source"]]
-        match = a["pos_label"] if a["pos_kind"] in ("onboarding", "entity") else None
+        match = followed or (a["pos_label"] if a["pos_kind"] in ("onboarding", "entity") else None)
         scored.append({**a, "also_sources": also, "score": float(score), "match": match, "match_sim": pos_s,
                        "topic_weight": topic_w, "importance": importance})
 
@@ -178,6 +189,19 @@ def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 
     for p in pool:
         p["embedding"] = emb[p["id"]]
     return pool
+
+
+FOLLOWED_MATCH = 0.6   # interest-match score for a story found by searching for a followed term
+
+
+def followed_terms(conn, user_id) -> dict[str, str]:
+    """What the reader follows (names) and wrote in "About you" (phrases): lower-case → as they wrote it."""
+    from app.parhlo.sws.planner import interest_phrases
+    prof = conn.execute("select entities from profiles where user_id=%s", (user_id,)).fetchone() or {}
+    terms = {e.strip().lower(): e.strip() for e in (prof.get("entities") or []) if e and e.strip()}
+    for phrase in interest_phrases(conn, user_id):
+        terms.setdefault(phrase, phrase)
+    return terms
 
 
 def coverage(cluster_size: int | None) -> float:

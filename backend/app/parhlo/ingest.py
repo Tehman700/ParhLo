@@ -129,6 +129,7 @@ def parse_feed(feed: dict, body: bytes) -> list[dict]:
             # SWS: where the story came from, and the country edition / language it was found in (if known).
             "origin": feed.get("origin", "rss"), "country": feed.get("country"), "language": feed.get("language", "en"),
             "query_id": feed.get("query_id"),   # SWS planner: which search found it (for its schedule)
+            "term": feed.get("term"),           # SWS: the followed name / "About you" phrase it was searched for
         })
     return items
 
@@ -214,6 +215,7 @@ async def store_items(items: list[dict], gate: Gate | None = None) -> dict:
         new.append(i)
     stats: dict = {"new": len(new), "kept": 0, "joined_existing_story": 0, "jev_classified": 0, "jev_junk": 0}
     if not new:
+        link_terms(items)   # stories we already had can still be found for a newly followed term
         return stats
 
     # ── INGEST STEP 6 ── Embed each NEW article ONCE (OpenAI text-embedding-3-small, 1536 numbers per article).
@@ -288,4 +290,19 @@ async def store_items(items: list[dict], gate: Gate | None = None) -> dict:
             cluster = near["cid"] if near and near["sim"] >= CLUSTER_SIM else row["id"]
             stats["joined_existing_story"] += cluster != row["id"]
             conn.execute("update articles set cluster_id = %s where id = %s", (cluster, row["id"]))
+    link_terms(items)
     return stats
+
+
+def link_terms(items: list[dict]) -> None:
+    """Remember which followed term each searched-for story was found by (new and already-stored stories)."""
+    by_term: dict[str, list[str]] = {}
+    for i in items:
+        if i.get("term"):
+            by_term.setdefault(i["term"].strip().lower(), []).append(i["url"])
+    if not by_term:
+        return
+    with db() as conn:
+        for term, urls in by_term.items():
+            conn.execute("insert into article_terms (article_id, term) select id, %s from articles where url = any(%s) "
+                         "on conflict do nothing", (term, urls))

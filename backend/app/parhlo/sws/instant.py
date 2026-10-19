@@ -59,9 +59,10 @@ async def fetch_interests(user: dict, limit: int = 5) -> dict:
     if not terms:
         return {"terms": [], "found": 0, "added": 0}
     _, use_tavily = quota(user)
-    feeds, _ = await fetch_all([gnews.search_feed(t) for t in terms])
+    feeds, _ = await fetch_all([{**gnews.search_feed(t), "term": t} for t in terms])
     webs = await asyncio.gather(*(tavily.search(t) for t in terms)) if use_tavily else []
-    found = [{**i, "requested": True} for i in feeds + [w for ws in webs for w in ws]]
+    web_items = [{**w, "term": t} for t, ws in zip(terms, webs) for w in ws]
+    found = [{**i, "requested": True} for i in feeds + web_items]
     stats = await store_items(found, gate=make_gate(max_keep=INSTANT_KEEP * 2))
     stats.get("gate", {}).pop("_rejected", None)
     for t in terms:
@@ -76,9 +77,9 @@ async def fetch_for(user: dict, name: str) -> dict:
     if not name:
         raise ValueError("Enter a name to search for")
     use_tavily = check(user)
-    items, _ = await fetch_all([gnews.search_feed(name)])
+    items, _ = await fetch_all([{**gnews.search_feed(name), "term": name}])
     web = await tavily.search(name) if use_tavily else []
-    found = [{**i, "requested": True} for i in items + web]
+    found = [{**i, "requested": True, "term": name} for i in items + web]
     stats = await store_items(found, gate=make_gate(max_keep=INSTANT_KEEP))
     stats.get("gate", {}).pop("_rejected", None)
     record(user, "follow", name, use_tavily, len(found), stats["kept"])

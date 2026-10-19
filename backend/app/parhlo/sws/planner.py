@@ -63,7 +63,8 @@ def feed_for(row: dict) -> dict:
     kind, q = row["kind"], row["query"]
     feed = (gnews.edition_feed(q) if kind == "edition" else gnews.native_edition_feed(q) if kind == "native"
             else gnews.country_search_feed(q) if kind == "country" else gnews.search_feed(q))
-    return {**feed, "query_id": row["id"]}
+    term = q if kind in ("follow", "interest") else None   # stories found for a followed term rank as certain matches
+    return {**feed, "query_id": row["id"], "term": term}
 
 
 def sync() -> None:

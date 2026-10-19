@@ -219,8 +219,11 @@ async def polish_edition(user: dict, edition_date: date) -> dict | None:
         top_topics = [TOPICS[t]["label"] for t, _ in sorted(topics.items(), key=lambda kv: -kv[1])[:5] if t in TOPICS]
         layout = await edit_paper(user, stories, top_topics, data["morning"])
         _apply_why(layout, stories)
-        for s in stories:  # keep the personal reason from the fast print if the editor gave none
-            if not layout["edits"][s["id"]].get("why"):
+        for s in stories:  # keep the personal reason from the fast print if the editor gave none — and always when
+            # ranking knew the exact interest ("Because you follow Cat News"): that's a fact, the editor only guesses
+            known = (s["why_before"] or "").startswith("Because you follow ") and not (
+                s.get("core") or s.get("discovery") or s.get("friend"))
+            if known or not layout["edits"][s["id"]].get("why"):
                 layout["edits"][s["id"]]["why"] = s["why_before"]
         data.update({
             "editor_note": layout["editor_note"], "sections": layout["sections"], "three_things": layout["three_things"],

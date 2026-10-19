@@ -148,6 +148,15 @@ create table if not exists sws_queries (
     unique (kind, query)
 );
 create index if not exists sws_queries_due on sws_queries (next_run_at);
+-- Which followed name / "About you" phrase a story was found by searching for (lower-case). Ranking treats
+-- these as certain matches for readers who follow that term — a phrase and a headline are often far apart
+-- in embedding space ("car accident news" vs "1 killed in crash on Hwy 210": cosine 0.31).
+create table if not exists article_terms (
+    article_id  bigint not null references articles(id) on delete cascade,
+    term        text not null,
+    primary key (article_id, term)
+);
+create index if not exists article_terms_term on article_terms (term);
 
 -- A frozen daily paper: web view and PDF render from the same JSON.
 create table if not exists editions (
