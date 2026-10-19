@@ -61,6 +61,8 @@ export type Story = {
   check?: { by: "jev" | "llm"; supported: boolean; confidence: number | null; ms?: number } | null;
   also_reported_by: string[];
   region: "pakistan" | "global";
+  /** ISO 639-1 of the source ("en" unless SWS found it in another language; then the card says so). */
+  language?: string;
 };
 
 export type QuizQuestion = { question: string; options: string[]; answer: number; story_id: number };

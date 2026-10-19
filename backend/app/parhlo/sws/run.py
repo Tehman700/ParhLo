@@ -1,7 +1,8 @@
 """One SWS run (every ~15 minutes, triggered by GitHub Actions → GET /api/cron/sws).
 
   1. claim the run (one at a time: a unique 'running' row in sws_runs)
-  2. read sources: new GDELT 15-minute windows (at most 2) + the Google News searches that are due
+  2. read sources: new GDELT 15-minute windows (English: at most 2, translated: 1) + the Google News searches
+     that are due
      (planner.py: editions, other countries, followed names, breaking stories — each on its own schedule)
   3. store_items(…, gate): skip known → embed → gate (keep what readers could get) → Jev → store → cluster
   4. tell the planner how many new stories each search found (busy searches run more often, quiet ones less)
@@ -24,20 +25,24 @@ from app.parhlo.sws.gate import make_gate
 log = logging.getLogger("parhlo.sws")
 
 GDELT_SLOTS_PER_RUN = 2
+GDELT_TRANSLATED_PER_RUN = 1   # ~2,800 articles from 65 languages per window; one per run keeps up (4 a run-hour)
 STALE_MIN = 10            # a 'running' run older than this is assumed dead
 
 
-def _claim() -> tuple[int | None, int, str | None]:
-    """Start a run unless one is already running. Returns (run id or None, run number, last GDELT window)."""
+def _claim() -> tuple[int | None, int, str | None, str | None]:
+    """Start a run unless one is already running.
+    Returns (run id or None, run number, last English GDELT window, last translated window ('t'-prefixed))."""
     with db() as conn:
         conn.execute("update sws_runs set status = 'failed', error = 'timed out', finished_at = now() "
                      "where status = 'running' and started_at < now() - make_interval(mins => %s)", (STALE_MIN,))
         row = conn.execute("insert into sws_runs default values on conflict do nothing returning id").fetchone()
         if not row:
-            return None, 0, None
+            return None, 0, None, None
         n = conn.execute("select count(*) as n from sws_runs where status = 'done'").fetchone()["n"]
-        last = conn.execute("select max(s) as s from sws_runs, unnest(gdelt_slots) s where status = 'done'").fetchone()
-    return row["id"], n, last["s"]
+        last = conn.execute("select max(s) filter (where s not like 't%%') as en, "
+                            "max(substr(s, 2)) filter (where s like 't%%') as tr "
+                            "from sws_runs, unnest(gdelt_slots) s where status = 'done'").fetchone()
+    return row["id"], n, last["en"], last["tr"]
 
 
 def _finish(run_id: int, status: str, slots: list[str], feeds: int, report: dict, error: str | None = None) -> None:
@@ -78,7 +83,7 @@ def _new_counts(items: list[dict]) -> dict[int, int]:
 async def run_once() -> dict:
     if not get_settings().sws_enabled:
         return {"status": "disabled"}
-    run_id, run_no, last_slot = _claim()
+    run_id, run_no, last_slot, last_translated = _claim()
     if run_id is None:
         return {"status": "skipped", "reason": "another SWS run is in progress"}
     t0 = time.perf_counter()
@@ -88,6 +93,9 @@ async def run_once() -> dict:
     try:
         async with httpx.AsyncClient(timeout=60, follow_redirects=True, headers={"User-Agent": UA}) as client:
             g_items, slots = await gdelt.fetch_new(last_slot, GDELT_SLOTS_PER_RUN, client)
+            t_items, t_slots = await gdelt.fetch_new(last_translated, GDELT_TRANSLATED_PER_RUN, client, translated=True)
+        slots += ["t" + s for s in t_slots]   # translated windows are stored 't'-prefixed in sws_runs
+        g_items += t_items
         planner.sync()
         searches = planner.due()
         feeds = [planner.feed_for(r) for r in searches]
@@ -96,7 +104,8 @@ async def run_once() -> dict:
         fetched = g_items + n_items
         items = _drop_recently_rejected(fetched)
         report["skipped_rejected"] = len(fetched) - len(items)
-        report.update({"gdelt_items": len(g_items), "gnews_items": len(n_items), "feed_errors": len(errors),
+        report.update({"gdelt_items": len(g_items), "gdelt_translated": len(t_items), "gnews_items": len(n_items),
+                       "feed_errors": len(errors),
                        "searches": dict(Counter(r["kind"] for r in searches)),
                        "countries": sorted({f["country"] for f in feeds if f.get("country")})})
         stored = await store_items(items, gate=make_gate())

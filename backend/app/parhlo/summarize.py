@@ -60,7 +60,8 @@ async def summarize_one(client: httpx.AsyncClient, art: dict, sem: asyncio.Semap
                      "Do not repeat the headline word for word, never write 'the article discusses', "
                      "and return at most 1 key point.")
             s: Summary = await llm.json([{"role": "user", "content": (
-                "Summarize this news article for a busy reader in plain English. Use ONLY facts stated in the source. "
+                "Summarize this news article for a busy reader in plain English (write in English even if the source "
+                "is in another language). Use ONLY facts stated in the source. "
                 f"No speculation, no outside knowledge, no opinions. {style}\n\n"
                 f"TITLE: {art['title']}\nSOURCE TEXT:\n{source_text}")}], schema=Summary, model=fast, reasoning_effort="minimal")
             points = s.points if content else s.points[:1]  # excerpt-only: don't pad with near-duplicate points

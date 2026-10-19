@@ -15,6 +15,23 @@ EDITIONS: dict[str, str] = {
     "ET": "Ethiopia", "SG": "Singapore", "MY": "Malaysia", "PH": "Philippines", "IL": "Israel", "ID": "Indonesia",
 }
 
+# Native-language editions (country code → hl, ceid, language, country). Verified live on 2026-10-19 (26–38
+# top stories each; ur-PK and fa-IR don't exist). Their headlines are translated to English when kept.
+NATIVE_EDITIONS: dict[str, tuple[str, str, str, str]] = {
+    "FR": ("fr", "FR:fr", "fr", "France"), "DE": ("de", "DE:de", "de", "Germany"), "ES": ("es", "ES:es", "es", "Spain"),
+    "IT": ("it", "IT:it", "it", "Italy"), "BR": ("pt-BR", "BR:pt-419", "pt", "Brazil"),
+    "JP": ("ja", "JP:ja", "ja", "Japan"), "KR": ("ko", "KR:ko", "ko", "South Korea"),
+    "CN": ("zh-CN", "CN:zh-Hans", "zh", "China"), "TW": ("zh-TW", "TW:zh-Hant", "zh", "Taiwan"),
+    "RU": ("ru", "RU:ru", "ru", "Russia"), "TR": ("tr", "TR:tr", "tr", "Turkey"),
+    "SA": ("ar", "SA:ar", "ar", "Saudi Arabia"), "EG": ("ar", "EG:ar", "ar", "Egypt"),
+    "AE": ("ar", "AE:ar", "ar", "United Arab Emirates"), "MX": ("es-419", "MX:es-419", "es", "Mexico"),
+    "AR": ("es-419", "AR:es-419", "es", "Argentina"), "ID": ("id", "ID:id", "id", "Indonesia"),
+    "TH": ("th", "TH:th", "th", "Thailand"), "VN": ("vi", "VN:vi", "vi", "Vietnam"),
+    "NL": ("nl", "NL:nl", "nl", "Netherlands"), "PL": ("pl", "PL:pl", "pl", "Poland"),
+    "UA": ("uk", "UA:uk", "uk", "Ukraine"), "IL": ("he", "IL:he", "he", "Israel"),
+    "BD": ("bn", "BD:bn", "bn", "Bangladesh"), "IN": ("hi", "IN:hi", "hi", "India"),
+}
+
 # Countries without an English edition: covered by an English Google News search for the country's name.
 COUNTRIES: list[str] = [
     # Asia
@@ -56,6 +73,13 @@ def edition_feed(cc: str) -> dict:
     country = EDITIONS[cc]
     return {"name": "Google News", "url": f"https://news.google.com/rss?hl=en-{cc}&gl={cc}&ceid={cc}:en",
             "region": _region(country), "topics": [], "origin": "gnews", "country": country, "language": "en"}
+
+
+def native_edition_feed(cc: str) -> dict:
+    """Top stories of a native-language edition, e.g. native_edition_feed("FR") → France's top stories (French)."""
+    hl, ceid, lang, country = NATIVE_EDITIONS[cc]
+    return {"name": "Google News", "url": f"https://news.google.com/rss?hl={hl}&gl={cc}&ceid={ceid}",
+            "region": _region(country), "topics": [], "origin": "gnews", "country": country, "language": lang}
 
 
 def country_search_feed(country: str) -> dict:

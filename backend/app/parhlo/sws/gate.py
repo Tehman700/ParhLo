@@ -76,8 +76,15 @@ def decide(items: list[dict], vectors: np.ndarray, anchors: np.ndarray, followed
 
 
 def make_gate(max_keep: int = MAX_KEEP):
-    """A gate for ingest.store_items(): loads readers' interests once, then decides."""
+    """A gate for ingest.store_items(): loads readers' interests once, decides, then gives kept non-English
+    stories English headlines (only kept ones, so nothing is spent on stories we drop)."""
+    from app.parhlo.sws.translate import english_titles
+
     async def gate(items: list[dict], vectors) -> tuple[list[bool], dict]:
         anchors, followed = load_interests()
-        return decide(items, vectors, anchors, followed, max_keep)
+        keep, report = decide(items, vectors, anchors, followed, max_keep)
+        translated = await english_titles([i for i, k in zip(items, keep) if k])
+        if translated:
+            report["translated"] = translated
+        return keep, report
     return gate

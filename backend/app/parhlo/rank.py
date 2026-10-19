@@ -74,7 +74,7 @@ POOL_MAX = 150  # candidates kept for selection (best personal scores + biggest 
 RANK_SQL = """
 with cand as (
   select a.id, a.title, a.source, a.source_region, a.topics, a.published_at, a.image_url, a.url, a.rss_summary,
-         a.cluster_id, a.importance, a.embedding
+         a.cluster_id, a.importance, a.embedding, a.language
   from articles a
   where a.embedding is not null and a.published_at > now() - make_interval(hours => %(hours)s)
     and coalesce(a.junk, 0) < %(junk)s
@@ -95,7 +95,7 @@ neg as (
   from cand c cross join anc where anc.weight < 0 group by c.id
 )
 select c.id, c.title, c.source, c.source_region, c.topics, c.published_at, c.image_url, c.url, c.rss_summary,
-       c.cluster_id, c.importance, coalesce(cl.cluster_size, 0) as cluster_size, cl.sources,
+       c.cluster_id, c.importance, c.language, coalesce(cl.cluster_size, 0) as cluster_size, cl.sources,
        coalesce(pos.s, 0) as pos_s, pos.label as pos_label, pos.kind as pos_kind, coalesce(neg.s, 0) as neg_s
 from cand c left join cl on cl.cluster_id = c.cluster_id left join pos on pos.id = c.id left join neg on neg.id = c.id
 """

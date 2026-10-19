@@ -8,6 +8,16 @@ import { timeAgo, topicLabel } from "@/lib/topics";
 import { CheckedBadge } from "./CheckedBadge";
 import { askAbout } from "./AskPaper";
 
+/** SWS: stories found in other languages say so (" · Translated from Russian"). Uses the browser's language names. */
+function translatedFrom(language?: string): string {
+  if (!language || language === "en") return "";
+  try {
+    return ` · Translated from ${new Intl.DisplayNames(["en"], { type: "language" }).of(language) ?? language}`;
+  } catch {
+    return " · Translated";
+  }
+}
+
 type Mark = "open" | "like" | "dislike" | "unreact" | "save" | "unsave" | "skip";
 type Tracker = { track: (t: Mark, id: number) => void; observe: (el: HTMLElement | null, id: number) => (() => void) | void };
 
@@ -92,7 +102,7 @@ export function StoryCard({ story, variant = "normal", tracker, initial, section
         <VerifiedBadge story={story} />
         {story.also_reported_by.length > 0 && <span className="t-caption text-ink-48">Also in {story.also_reported_by.slice(0, 3).join(", ")}</span>}
       </div>
-      <p className="mt-3 t-caption text-ink-48">{story.source} · {timeAgo(story.published_at)}</p>
+      <p className="mt-3 t-caption text-ink-48">{story.source} · {timeAgo(story.published_at)}{translatedFrom(story.language)}</p>
       <div data-tour="actions" className="mt-1 flex items-center gap-1">
         <span className="mr-auto">
           {!lead && story.points.length > 0 && <button className="whitespace-nowrap t-caption text-primary" onClick={() => setOpen(!open)}>{open ? "Hide points" : "Key points"}</button>}

@@ -2,6 +2,7 @@
 
 Every search is a row in sws_queries with its own schedule:
   edition   top stories of an English Google News edition ("UG")           every 30 min – 4 h
+  native    top stories of a native-language edition ("FR", in French)      every 1 – 6 h
   country   English news about a country without an edition ("Bangladesh")  every 2 – 12 h
   follow    a name readers follow ("Babar Azam"), more readers = higher priority   every 15 min – 4 h
   breaking  a story that just reached 3+ outlets: search for more coverage      every 30 min, for 6 h
@@ -18,8 +19,9 @@ from app.parhlo.sws import gnews
 QUERIES_PER_RUN = 20
 COUNTRY_SLOTS = 4      # of each run's budget, kept for countries without an English edition
 # kind → (start interval, shortest, longest) in minutes, and base priority
-SCHEDULE = {"follow": (30, 15, 240), "edition": (60, 30, 240), "country": (240, 120, 720), "breaking": (30, 30, 60)}
-PRIORITY = {"breaking": 2.0, "follow": 1.0, "edition": 1.0, "country": 0.5}
+SCHEDULE = {"follow": (30, 15, 240), "edition": (60, 30, 240), "native": (120, 60, 360), "country": (240, 120, 720),
+            "breaking": (30, 30, 60)}
+PRIORITY = {"breaking": 2.0, "follow": 1.0, "edition": 1.0, "native": 0.8, "country": 0.5}
 BREAKING_MIN_OUTLETS = 3
 BREAKING_HOURS = 6
 STOP = {"with", "from", "that", "this", "after", "over", "into", "amid", "says", "will", "have", "been", "their",
@@ -45,8 +47,8 @@ def keywords(title: str, n: int = 6) -> str:
 def feed_for(row: dict) -> dict:
     """A sws_queries row → the Google News feed it reads (tagged with the query id for the hit count)."""
     kind, q = row["kind"], row["query"]
-    feed = (gnews.edition_feed(q) if kind == "edition" else gnews.country_search_feed(q) if kind == "country"
-            else gnews.search_feed(q))
+    feed = (gnews.edition_feed(q) if kind == "edition" else gnews.native_edition_feed(q) if kind == "native"
+            else gnews.country_search_feed(q) if kind == "country" else gnews.search_feed(q))
     return {**feed, "query_id": row["id"]}
 
 
@@ -55,6 +57,7 @@ def sync() -> None:
     start = {k: v[0] for k, v in SCHEDULE.items()}
     with db() as conn:
         rows = [("edition", cc, PRIORITY["edition"], start["edition"]) for cc in gnews.EDITIONS]
+        rows += [("native", cc, PRIORITY["native"], start["native"]) for cc in gnews.NATIVE_EDITIONS]
         rows += [("country", c, PRIORITY["country"], start["country"]) for c in gnews.COUNTRIES]
         follows = conn.execute("select e as name, count(*) as n from profiles, jsonb_array_elements_text(entities) e "
                                "group by e").fetchall()

@@ -203,7 +203,8 @@ async def polish_edition(user: dict, edition_date: date) -> dict | None:
         summaries = await ensure_summaries(ids)
         with db() as conn:
             arts = {a["id"]: a for a in conn.execute(
-                "select id, title, source, source_region, topics, published_at, image_url, url, rss_summary, importance "
+                "select id, title, source, source_region, topics, published_at, image_url, url, rss_summary, importance, "
+                "language "
                 "from articles where id = any(%s)", (ids,)).fetchall()}
             prof = conn.execute("select topics from profiles where user_id=%s", (user["id"],)).fetchone()
         stories = []
@@ -252,6 +253,7 @@ def _story_out(s: dict, edit: dict) -> dict:
         "importance": s.get("importance"), "check": s.get("check"),
         "also_reported_by": [x for x in (s.get("also_sources") or []) if x][:5],
         "region": s["source_region"],
+        "language": s.get("language") or "en",   # SWS: non-English sources show "Translated from …"
     }
 
 
