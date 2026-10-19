@@ -2,7 +2,15 @@
 
 from urllib.parse import quote
 
-# name, url, region, topic hints
+# ── INGEST STEP 2 ── The sources: 28 curated RSS feeds (Pakistani + global outlets).
+# Each feed is a dict with:
+#   name     → outlet name shown on the story ("Dawn", "BBC News"…)
+#   url      → the RSS feed address
+#   region   → "pakistan" or "global"; used later by ranking for the reader's Pakistan/world mix
+#   topics   → topic HINTS for everything in this feed (e.g. a cricket feed → "cricket"); merged with Jev's decision
+#   fallback → (domain, section) for outlets that block cloud servers (Dawn blocks Vercel's IPs):
+#              if the direct feed fails, we fetch the same outlet's stories through Google News (google_news_site)
+# Why RSS: free, legal, structured (title, link, summary, date, image), and every major outlet publishes it.
 FEEDS: list[dict] = [
     # Pakistan
     {"name": "Dawn", "url": "https://www.dawn.com/feeds/home", "region": "pakistan", "topics": [], "fallback": ("dawn.com", "")},
@@ -39,12 +47,16 @@ FEEDS: list[dict] = [
 
 def google_news_site(domain: str, name: str, region: str, topics: list[str], extra: str = "") -> dict:
     """Fallback for outlets that block cloud IPs: the outlet's latest stories via Google News search."""
+    # e.g. "site:dawn.com pakistan" → Google News returns Dawn's own latest Pakistan stories.
     feed = google_news_feed(f"site:{domain} {extra}".strip())
+    # "outlet" tells parse_feed to show the real outlet name (Dawn), not "Google News".
     return {**feed, "name": name, "region": region, "topics": topics, "outlet": name}
 
 
 def google_news_feed(query: str) -> dict:
     """Google News search RSS (Pakistan edition, last day) — covers any niche interest."""
+    # Used for every name readers follow (STEP 1 passes them in). "when:1d" = only the last 24 hours;
+    # hl/gl/ceid = English, Pakistan edition, so results suit a Pakistani reader.
     q = quote(f"{query} when:1d")
     return {
         "name": "Google News",

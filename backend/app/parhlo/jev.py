@@ -90,8 +90,16 @@ def _article_state(title: str, excerpt: str | None, source: str) -> dict:
     return {"source": source, "headline": title, "excerpt": (excerpt or "")[:600]}
 
 
+# ── INGEST STEP 7 (detail) ── Ask Jev three typed questions about ONE article in a SINGLE API call.
+# Jev (TypeSafe "System One") is a fast decision model: instead of free text it returns structured answers with
+# probabilities and confidence. Each question has a type:
+#   "choice" → pick one option from a list   (topic: which of our 17 topics, described in topics.py)
+#   "noul"   → a yes/no probability 0..1     (junk: is this NOT real news?)
+#   "score"  → a level on a scale            (importance: one of the 5 IMPORTANCE_LEVELS above)
+# Returns an ArticleDecision, or None if Jev failed (the caller then keeps the embedding-based fallback tags).
 async def classify_article(title: str, excerpt: str | None, source: str,
                            client: httpx.AsyncClient | None = None) -> ArticleDecision | None:
+    # The "state" Jev reads: outlet, headline, and the first 600 characters of the excerpt.
     answers = await ask(_article_state(title, excerpt, source), {
         "topic": {"type": "choice", "instructions": "Which topic best fits this news story?",
                   "criteria": {slug: t["desc"] for slug, t in TOPICS.items()}},
@@ -103,8 +111,12 @@ async def classify_article(title: str, excerpt: str | None, source: str,
         return None
     try:
         topic = answers["topic"]
+        # Jev returns a probability for EVERY topic. Sort them; keep the runner-up as a second topic only if it is
+        # strong (≥ 0.25), e.g. a story that is both "economy" and "business".
         probs = sorted(topic["probabilities"].items(), key=lambda kv: -kv[1])
         second = probs[1][0] if len(probs) > 1 and probs[1][1] >= 0.25 else None
+        # Package the answers. importance is scaled to 0..1 (level 0–4 ÷ 4), so ranking can use it directly;
+        # junk ≥ 0.78 means the story is hidden from every paper (JUNK_THRESHOLD in ingest.py / rank.py).
         return ArticleDecision(
             topic=topic["choice"], topic_confidence=float(topic["confidence"]), second_topic=second,
             junk=float(answers["junk"]["noul"]),
@@ -115,15 +127,19 @@ async def classify_article(title: str, excerpt: str | None, source: str,
         return None
 
 
+# ── INGEST STEP 7 (parallel) ── Classify MANY articles at once, but at most 12 at the same time.
+# A semaphore is like 12 tickets: each request takes one and gives it back when done, so we stay fast
+# (~0.4 s per call, 12 in flight) without flooding Jev's API with hundreds of simultaneous requests.
 async def classify_many(items: list[dict], concurrency: int = 12) -> list[ArticleDecision | None]:
     """items: [{title, excerpt, source}] → decisions in the same order (None where Jev failed)."""
     if not enabled() or not items:
-        return [None] * len(items)
+        return [None] * len(items)    # Jev off or nothing to do → every article uses the fallback tags
     sem = asyncio.Semaphore(concurrency)
     start = time.perf_counter()
+    # One shared HTTP client for all calls (reuses connections).
     async with httpx.AsyncClient(timeout=TIMEOUT) as client:
         async def one(it):
-            async with sem:
+            async with sem:           # wait for one of the 12 "tickets"
                 return await classify_article(it["title"], it.get("excerpt"), it["source"], client)
         out = await asyncio.gather(*(one(i) for i in items))
     log.info("jev classified %d/%d articles in %.1fs", sum(o is not None for o in out), len(items), time.perf_counter() - start)

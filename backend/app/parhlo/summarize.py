@@ -102,6 +102,8 @@ def _summary_out(r: dict) -> dict:
             "verified": r["summary_verified"], "check": meta.get("check")}
 
 
+# ── INGEST STEP 12 (detail) ── Summarize only the articles that don't have a summary yet (8 at a time),
+# save the results ON THE ARTICLE so every reader reuses them, then return all summaries by id.
 async def ensure_summaries(article_ids: list[int]) -> dict[int, dict]:
     """Summarize any of these articles that don't have a summary yet; return all summaries by id."""
     with db() as conn:
@@ -127,14 +129,23 @@ async def ensure_summaries(article_ids: list[int]) -> dict[int, dict]:
     return {r["id"]: _summary_out(r) for r in rows if r["ai_summary"]}
 
 
+# ── INGEST STEP 12 ── The "story bank": write AI summaries for the day's ~120 most important stories AHEAD of time.
+# Summaries are the slow, costly part of a paper (fetch the full article + AI + Jev check ≈ several seconds each).
+# Doing them once at night, saved on the article, means:
+#   • every reader shares them (one summary per article, not one per reader → much cheaper), and
+#   • a reader's paper — and an instant reprint when they change interests — rarely waits for a summary.
 async def prewarm(limit: int = 120, hours: int = 30) -> dict:
     """Story bank: summarize the day's most important unsummarized stories ahead of time (shared by every reader),
     so reprints and first papers rarely wait for a summary."""
     with db() as conn:
+        # Pick: not yet summarized, has a vector, not junk, from the last 30 hours —
+        # most important first (Jev importance from STEP 7), newest first among equals.
         ids = [r["id"] for r in conn.execute(
             """select id from articles where ai_summary is null and embedding is not null and coalesce(junk, 0) < 0.78
                  and published_at > now() - make_interval(hours => %s)
                order by coalesce(importance, 0.4) desc, published_at desc limit %s""", (hours, limit)).fetchall()]
     if ids:
+        # For each: fetch the full article → gpt-5-nano summary from that text only → Jev checks it → save on the
+        # article (ai_summary, ai_points, content). See ensure_summaries() / summarize_one() / verify() above.
         await ensure_summaries(ids)
     return {"prewarmed": len(ids)}

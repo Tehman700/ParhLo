@@ -346,13 +346,24 @@ def _cron_auth(authorization: str | None = Header(None)):
         raise AuthError("Bad cron secret")
 
 
+# ── INGEST STEP 1 ── The trigger: Vercel Cron calls this every night at 00:00 UTC (05:00 Pakistan time).
+# This is the FIRST job of the ingest phase. Everything it produces (articles, vectors, Jev decisions,
+# clusters, summaries) is stored ONCE in Postgres and shared by every reader — no per-reader news work.
+# Protected: `_cron_auth` above only accepts Vercel Cron's secret header, so nobody else can trigger it.
 @router.get("/cron/ingest", dependencies=[Depends(_cron_auth)])
 async def cron_ingest():
+    # Collect the names readers follow (e.g. "Babar Azam", "Nvidia") so niche interests get news too:
+    # each one becomes an extra Google News search feed (see sources.google_news_feed, STEP 2).
     with db() as conn:
         rows = conn.execute("select entities from profiles").fetchall()
+    # dict.fromkeys = de-duplicate while keeping order; cap at 12 searches to keep the run fast and cheap.
     queries = list(dict.fromkeys(e for r in rows for e in (r["entities"] or [])))[:12]
+    # STEPS 3–10: fetch → clean → skip known → embed → Jev → store → cluster (ingest.py: ingest()).
     stats = await ingest(extra_queries=queries)
     from app.parhlo.summarize import prewarm
+    # STEP 11: jev_backfill() classifies any recent article Jev missed (e.g. it was briefly down).
+    # STEP 12: prewarm() is the "story bank": pre-writes AI summaries for the ~120 most important stories.
+    # The merged dict is returned as JSON so each nightly run reports what it did (counts, timings, errors).
     return {**stats, **(await jev_backfill()), **(await prewarm())}
 
 
