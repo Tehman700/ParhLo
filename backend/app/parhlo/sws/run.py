@@ -84,9 +84,14 @@ async def enrich_backlog(limit: int = 40) -> dict:
     stats = await enrich(items)
     with db() as conn:
         for i in items:
+            # new full text → drop a summary that was written from the headline only, so the next print
+            # summarizes the whole article (2-3 sentences + the ✓ check) instead of a one-liner
             conn.execute("update articles set link = coalesce(link, %s), image_url = coalesce(image_url, %s), "
-                         "content = coalesce(content, %s), enriched_at = now() where id = %s",
-                         (i.get("link"), i.get("image"), i.get("content"), i["id"]))
+                         "content = coalesce(content, %s), enriched_at = now(), "
+                         "ai_summary = case when %s::text is not null and content is null "
+                         "  and coalesce(ai_points->>'grounded_in', '') <> 'full article' then null else ai_summary end "
+                         "where id = %s",
+                         (i.get("link"), i.get("image"), i.get("content"), i.get("content"), i["id"]))
     return stats
 
 
