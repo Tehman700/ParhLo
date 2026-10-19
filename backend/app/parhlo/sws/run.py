@@ -58,9 +58,12 @@ def _finish(run_id: int, status: str, slots: list[str], feeds: int, report: dict
 
 
 def _drop_recently_rejected(items: list[dict]) -> list[dict]:
+    """Skip stories the gate rejected in the last 3 days — unless a reader has changed interests since then
+    (follows "Uganda" → yesterday's rejected Uganda stories get a fresh look)."""
     with db() as conn:
         gone = {r["url"] for r in conn.execute(
-            "select url from sws_rejected where url = any(%s) and rejected_at > now() - interval '3 days'",
+            """select url from sws_rejected where url = any(%s) and rejected_at > now() - interval '3 days'
+                 and rejected_at > coalesce((select max(interests_changed_at) from users), '-infinity')""",
             ([i["url"] for i in items],))}
     return [i for i in items if i["url"] not in gone]
 
