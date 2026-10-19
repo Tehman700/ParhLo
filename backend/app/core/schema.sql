@@ -93,6 +93,10 @@ alter table articles add column if not exists topic_confidence real;  -- Jev Cho
 alter table articles add column if not exists jev_checked_at timestamptz;
 create index if not exists articles_cluster on articles(cluster_id);
 create index if not exists articles_embedding on articles using hnsw (embedding vector_cosine_ops);
+-- SWS (Smart Web Search): where we found the article, and which country and language it belongs to.
+alter table articles add column if not exists origin text not null default 'rss';  -- rss | gnews | gdelt | web
+alter table articles add column if not exists country text;                        -- e.g. "Uganda" (null = unknown)
+alter table articles add column if not exists language text;                       -- ISO 639-1 of the page, e.g. "en"
 
 -- A frozen daily paper: web view and PDF render from the same JSON.
 create table if not exists editions (

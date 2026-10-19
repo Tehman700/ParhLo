@@ -10,6 +10,7 @@ import html
 import logging
 import re
 import time
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta, timezone
 
 import feedparser
@@ -124,6 +125,8 @@ def parse_feed(feed: dict, body: bytes) -> list[dict]:
             "url": url, "title": title, "source": source, "region": feed["region"],
             "summary": clean_text(e.get("summary") or e.get("description")),
             "image": _image(e), "published": published, "hints": feed["topics"],
+            # SWS: where the story came from, and the country edition / language it was found in (if known).
+            "origin": feed.get("origin", "rss"), "country": feed.get("country"), "language": feed.get("language", "en"),
         })
     return items
 
@@ -176,11 +179,28 @@ async def ingest(extra_queries: list[str] | None = None) -> dict:
     feeds = FEEDS + [google_news_feed(q) for q in (extra_queries or [])]
     # STEP 3: download everything in parallel.
     items, errors = await fetch_all(feeds)
+    # STEPS 4–10: skip known → embed → Jev → topics → store → cluster (shared with SWS, see store_items).
+    stats = await store_items(items)
+    stats = {"fetched": len(items), **stats, "feeds": len(feeds), "errors": errors,
+             "seconds": round(time.perf_counter() - start, 1)}
+    log.info("ingest %s", stats)
+    return stats
+
+
+# A gate decides, after embedding and BEFORE the paid steps (Jev, summaries), which new items are worth keeping.
+# It returns one bool per item, plus a report of why items were dropped. SWS uses it; the nightly RSS run doesn't.
+Gate = Callable[[list[dict], list], Awaitable[tuple[list[bool], dict]]]
+
+
+# STEPS 4–10 for any list of items in the parse_feed() shape: RSS, Google News, GDELT or web search (SWS).
+# Returns counts: new, kept (after the gate), joined_existing_story, jev_classified, jev_junk (+ the gate's report).
+async def store_items(items: list[dict], gate: Gate | None = None) -> dict:
+    # ── INGEST STEPS 4–5 ── Skip what we already have: the same URL, or the same headline from the same outlet
+    # in the last 3 days (the same story can arrive twice from one outlet: direct feed + Google News fallback).
     with db() as conn:
         known = {r["url"] for r in conn.execute(
             "select url from articles where url = any(%s)", ([i["url"] for i in items],)
         )}
-        # The same story can arrive twice from one outlet (direct feed + Google News fallback).
         seen_titles = {(r["source"], norm_title(r["title"])) for r in conn.execute(
             "select source, title from articles where fetched_at > now() - interval '3 days'")}
     new, batch_titles = [], set()
@@ -190,15 +210,27 @@ async def ingest(extra_queries: list[str] | None = None) -> dict:
             continue
         batch_titles.add(key)
         new.append(i)
+    stats: dict = {"new": len(new), "kept": 0, "joined_existing_story": 0, "jev_classified": 0, "jev_junk": 0}
     if not new:
-        return {"fetched": len(items), "new": 0, "feeds": len(feeds), "errors": errors,
-                "seconds": round(time.perf_counter() - start, 1)}
+        return stats
 
     # ── INGEST STEP 6 ── Embed each NEW article ONCE (OpenAI text-embedding-3-small, 1536 numbers per article).
     # We embed "title. summary" — enough meaning to match readers' interests. The vector is stored on the article
     # (STEP 9) and SHARED by every reader: ranking, search, "more like this" and clustering all reuse it.
     # Only `new` articles are embedded (already-stored ones were skipped above), so we never pay twice.
-    vectors = await embed_texts([f"{i['title']}. {i['summary']}" for i in new])
+    # (GDELT items have no summary, so they're embedded by their headline alone.)
+    vectors = await embed_texts([f"{i['title']}. {i['summary']}" if i.get("summary") else i["title"] for i in new])
+
+    # SWS gate (optional): drop items no reader would get BEFORE the paid steps below (Jev, and later summaries).
+    if gate:
+        keep, report = await gate(new, vectors)
+        stats["gate"] = report
+        new = [i for i, k in zip(new, keep) if k]
+        vectors = vectors[[n for n, k in enumerate(keep) if k]]
+        if not new:
+            return stats
+    stats["kept"] = len(new)
+
     # Fallback topic tags from vectors alone (closest topic descriptions) — used only if Jev fails (see embed.py).
     topics = await tag_topics(vectors, [i["hints"] for i in new])  # fallback tags (embedding similarity)
 
@@ -210,7 +242,6 @@ async def ingest(extra_queries: list[str] | None = None) -> dict:
     decisions = await jev.classify_many(
         [{"title": i["title"], "excerpt": i["summary"], "source": i["source"]} for i in new])
 
-    clustered = jev_done = junk = 0
     with db() as conn:
         # Walk the four parallel lists together: the article, its vector, its fallback tags, Jev's decision.
         for item, vec, tags, d in zip(new, vectors, topics, decisions):
@@ -218,21 +249,23 @@ async def ingest(extra_queries: list[str] | None = None) -> dict:
             # (merge_topics at the top of this file also removes "motorsport" from horse-racing stories).
             if d:  # Jev decided: its topic first, then a strong runner-up, then the feed's own hints
                 tags = merge_topics(d, item["hints"], item["title"])
-                jev_done += 1
-                junk += d.junk >= JUNK_THRESHOLD   # counted for the report; junk stories are stored but never shown
+                stats["jev_classified"] += 1
+                stats["jev_junk"] += d.junk >= JUNK_THRESHOLD   # counted for the report; junk is stored but never shown
             # ── INGEST STEP 9 ── Store the article in Postgres, WITH its vector and Jev's decisions.
             # This row is the shared "cache": every reader's paper, search and Ask read from it — nothing is
             # recomputed per reader. `on conflict (url) do nothing` makes it safe if two runs overlap.
             # `jev_checked_at` is set only when Jev answered, so STEP 11 can find the ones it missed.
+            # origin / country / language say where SWS found it (curated RSS: "rss", country unknown, "en").
             row = conn.execute(
                 """insert into articles (url, source, source_region, title, rss_summary, image_url,
                                          published_at, topics, embedding, importance, junk, topic_confidence,
-                                         jev_checked_at)
-                   values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, case when %s then now() end)
+                                         jev_checked_at, origin, country, language, content)
+                   values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, case when %s then now() end, %s,%s,%s,%s)
                    on conflict (url) do nothing returning id""",
                 (item["url"], item["source"], item["region"], item["title"], item["summary"],
                  item["image"], item["published"] or datetime.now(timezone.utc), tags, vec,
-                 d.importance if d else None, d.junk if d else None, d.topic_confidence if d else None, d is not None),
+                 d.importance if d else None, d.junk if d else None, d.topic_confidence if d else None, d is not None,
+                 item.get("origin", "rss"), item.get("country"), item.get("language"), item.get("content")),
             ).fetchone()
             if not row:
                 continue   # already existed (another run inserted it first) → nothing more to do
@@ -240,7 +273,6 @@ async def ingest(extra_queries: list[str] | None = None) -> dict:
             # pgvector query: find the single closest article (by meaning) from a DIFFERENT outlet in the last
             # 3 days. `<=>` is cosine distance, so `1 - distance` = similarity (1.0 = identical meaning).
             # The HNSW index on articles.embedding makes this nearest-neighbour search fast.
-            # Same story from another outlet in the last 3 days? Join its cluster.
             near = conn.execute(
                 """select coalesce(cluster_id, id) as cid, 1 - (embedding <=> %s) as sim from articles
                    where id <> %s and source <> %s and embedding is not null
@@ -252,12 +284,6 @@ async def ingest(extra_queries: list[str] | None = None) -> dict:
             # Later, ranking keeps only the best article per cluster, so a reader sees each event ONCE, and
             # cluster size (how many outlets ran it) feeds the "Top story" importance.
             cluster = near["cid"] if near and near["sim"] >= CLUSTER_SIM else row["id"]
-            clustered += cluster != row["id"]
+            stats["joined_existing_story"] += cluster != row["id"]
             conn.execute("update articles set cluster_id = %s where id = %s", (cluster, row["id"]))
-
-    # The run's report (returned to the cron and logged): how many fetched, new, clustered, classified, junk, errors.
-    stats = {"fetched": len(items), "new": len(new), "joined_existing_story": clustered,
-             "jev_classified": jev_done, "jev_junk": junk,
-             "feeds": len(feeds), "errors": errors, "seconds": round(time.perf_counter() - start, 1)}
-    log.info("ingest %s", stats)
     return stats

@@ -50,18 +50,20 @@ def google_news_site(domain: str, name: str, region: str, topics: list[str], ext
     # e.g. "site:dawn.com pakistan" → Google News returns Dawn's own latest Pakistan stories.
     feed = google_news_feed(f"site:{domain} {extra}".strip())
     # "outlet" tells parse_feed to show the real outlet name (Dawn), not "Google News".
-    return {**feed, "name": name, "region": region, "topics": topics, "outlet": name}
+    # origin stays "rss": it's still one of our curated outlets, just fetched through Google News.
+    return {**feed, "name": name, "region": region, "topics": topics, "outlet": name, "origin": "rss"}
 
 
-def google_news_feed(query: str) -> dict:
-    """Google News search RSS (Pakistan edition, last day) — covers any niche interest."""
+def google_news_feed(query: str, edition: str = "PK") -> dict:
+    """Google News search RSS (English, one country edition, last day) — covers any niche interest."""
     # Used for every name readers follow (STEP 1 passes them in). "when:1d" = only the last 24 hours;
-    # hl/gl/ceid = English, Pakistan edition, so results suit a Pakistani reader.
+    # hl/gl/ceid = English, the chosen country edition (Pakistan by default, so results suit a Pakistani reader).
     q = quote(f"{query} when:1d")
     return {
         "name": "Google News",
-        "url": f"https://news.google.com/rss/search?q={q}&hl=en-PK&gl=PK&ceid=PK:en",
+        "url": f"https://news.google.com/rss/search?q={q}&hl=en-{edition}&gl={edition}&ceid={edition}:en",
         "region": "global",
         "topics": [],
         "query": query,
+        "origin": "gnews",
     }

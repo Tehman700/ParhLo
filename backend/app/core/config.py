@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     jev_model: str = "jev-latest"
     jev_enabled: bool = True
 
+    # --- SWS (Smart Web Search): worldwide news every 15 minutes (GDELT, Google News editions) + Tavily ---
+    sws_enabled: bool = True
+    tavily_api_key: str = ""  # instant web search (1,000 free credits a month)
+
     # --- Database (Neon Postgres + pgvector) ---
     database_url: str = ""
 
