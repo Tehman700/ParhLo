@@ -182,7 +182,7 @@ async def ask_web(user: dict, body: AskIn) -> dict:
     if not results:
         items, _ = await fetch_all([gnews.search_feed(body.question, days=7)])
         results, via = items[:6], "Google News"
-    instant.record(user, "ask", body.question[:200], use_tavily, len(results), 0)
+    instant.record(user, "ask", body.question[:200], 1 if use_tavily else 0, len(results), 0)
     if not results:
         return {"answer": "I couldn't find recent news about this on the web.", "in_paper": False, "found": False,
                 "sources": [], "follow_ups": [], "from_web": True, "via": via}

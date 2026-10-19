@@ -97,6 +97,8 @@ create index if not exists articles_embedding on articles using hnsw (embedding 
 alter table articles add column if not exists origin text not null default 'rss';  -- rss | gnews | gdelt | web
 alter table articles add column if not exists country text;                        -- e.g. "Uganda" (null = unknown)
 alter table articles add column if not exists language text;                       -- ISO 639-1 of the page, e.g. "en"
+alter table articles add column if not exists link text;          -- the publisher's own URL (decoded Google News links)
+alter table articles add column if not exists enriched_at timestamptz;   -- image/text lookup done (sws/enrich.py)
 
 -- SWS runs (every ~15 minutes): one row per run, with what it read and kept. Also the run lock:
 -- only one 'running' row can exist; a run stuck for 10+ minutes is marked failed by the next one.
@@ -125,12 +127,13 @@ create table if not exists sws_instant (
     user_id     uuid references users(id) on delete cascade,
     kind        text not null,                     -- follow | ask
     query       text not null,
-    tavily      boolean not null default false,    -- used a Tavily credit
+    tavily      boolean not null default false,    -- used Tavily
     found       int not null default 0,
     added       int not null default 0,
     created_at  timestamptz not null default now()
 );
 create index if not exists sws_instant_user on sws_instant (user_id, created_at desc);
+alter table sws_instant add column if not exists credits int not null default 0;   -- Tavily credits (advanced = 2)
 -- SWS query planner: every search SWS runs, each on its own schedule. Searches that keep finding new stories
 -- run more often (down to 15 min); quiet ones back off (up to hours). See app/parhlo/sws/planner.py.
 create table if not exists sws_queries (

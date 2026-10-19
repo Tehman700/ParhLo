@@ -78,7 +78,7 @@ CANDIDATE_CAP = 4000
 RANK_SQL = """
 with cand as (
   select a.id, a.title, a.source, a.source_region, a.topics, a.published_at, a.image_url, a.url, a.rss_summary,
-         a.cluster_id, a.importance, a.embedding::halfvec(1536) as embedding, a.language, a.country
+         a.cluster_id, a.importance, a.embedding::halfvec(1536) as embedding, a.language, a.country, a.link
   from articles a
   where a.embedding is not null and a.published_at > now() - make_interval(hours => %(hours)s)
     and coalesce(a.junk, 0) < %(junk)s
@@ -100,7 +100,7 @@ neg as (
   from cand c cross join anc where anc.weight < 0 group by c.id
 )
 select c.id, c.title, c.source, c.source_region, c.topics, c.published_at, c.image_url, c.url, c.rss_summary,
-       c.cluster_id, c.importance, c.language, c.country, coalesce(cl.cluster_size, 0) as cluster_size, cl.sources,
+       c.cluster_id, c.importance, c.language, c.country, c.link, coalesce(cl.cluster_size, 0) as cluster_size, cl.sources,
        coalesce(pos.s, 0) as pos_s, pos.label as pos_label, pos.kind as pos_kind, coalesce(neg.s, 0) as neg_s
 from cand c left join cl on cl.cluster_id = c.cluster_id left join pos on pos.id = c.id left join neg on neg.id = c.id
 """
@@ -273,7 +273,7 @@ def select_stories(pool: list[dict], n: int, discovery_share: float = 0.15, n_co
     n_personal = n - len(core) - n_disc
     personal = mmr([p for p in pool if p["id"] not in taken and p["topic_weight"] > OFF_WEIGHT
                     and (p["topic_weight"] >= 0.3 or p["match_sim"] >= 0.35)],
-                   n_personal, avoid=core)
+                   n_personal, avoid=core, cap=PER_INTEREST)
     taken |= {p["id"] for p in personal}
     if on_topics:
         personal = cover_topics(personal, pool, taken, on_topics)
@@ -287,16 +287,29 @@ def select_stories(pool: list[dict], n: int, discovery_share: float = 0.15, n_co
     return personal + core + discovery
 
 
-def mmr(items: list[dict], k: int, lam: float = 0.72, avoid: list[dict] | None = None) -> list[dict]:
-    return mmr_by(items, k, lambda c: c["score"], lam, avoid)
+PER_INTEREST = 3   # at most this many personal picks for one interest ("Cat News"), so one can't flood the paper
 
 
-def mmr_by(items: list[dict], k: int, relevance, lam: float = 0.72, avoid: list[dict] | None = None) -> list[dict]:
-    """Maximal marginal relevance: relevant, but not near-duplicates of what's already chosen (or `avoid`)."""
+def mmr(items: list[dict], k: int, lam: float = 0.72, avoid: list[dict] | None = None,
+        cap: int | None = None) -> list[dict]:
+    return mmr_by(items, k, lambda c: c["score"], lam, avoid, cap)
+
+
+def mmr_by(items: list[dict], k: int, relevance, lam: float = 0.72, avoid: list[dict] | None = None,
+           cap: int | None = None) -> list[dict]:
+    """Maximal marginal relevance: relevant, but not near-duplicates of what's already chosen (or `avoid`).
+    cap: at most this many picks share one matched interest (the story's `match`)."""
     chosen: list[dict] = []
     fixed = list(avoid or [])
     candidates = items[:120]
     while candidates and len(chosen) < k:
+        if cap:
+            used: dict = {}
+            for c in chosen:
+                used[c.get("match")] = used.get(c.get("match"), 0) + 1
+            candidates = [c for c in candidates if not c.get("match") or used.get(c["match"], 0) < cap]
+            if not candidates:
+                break
         def value(c):
             redundancy = max((float(c["embedding"] @ s["embedding"]) for s in chosen + fixed), default=0.0)
             return lam * relevance(c) - (1 - lam) * redundancy

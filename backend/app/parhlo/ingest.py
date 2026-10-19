@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 
 import feedparser
 import httpx
+from psycopg.types.json import Jsonb
 
 from app.core.database import db
 from app.parhlo import jev
@@ -197,7 +198,9 @@ Gate = Callable[[list[dict], list], Awaitable[tuple[list[bool], dict]]]
 
 # STEPS 4–10 for any list of items in the parse_feed() shape: RSS, Google News, GDELT or web search (SWS).
 # Returns counts: new, kept (after the gate), joined_existing_story, jev_classified, jev_junk (+ the gate's report).
-async def store_items(items: list[dict], gate: Gate | None = None) -> dict:
+async def store_items(items: list[dict], gate: Gate | None = None, use_jev: bool = True, enrich: bool = False) -> dict:
+    """use_jev=False: no Jev classification (topics come from embeddings) — the interest-change web search flow.
+    enrich=True: kept stories without an image/text get the publisher link, share image and full text."""
     # ── INGEST STEPS 4–5 ── Skip what we already have: the same URL, or the same headline from the same outlet
     # in the last 3 days (the same story can arrive twice from one outlet: direct feed + Google News fallback).
     with db() as conn:
@@ -234,6 +237,9 @@ async def store_items(items: list[dict], gate: Gate | None = None) -> dict:
         if not new:
             return stats
     stats["kept"] = len(new)
+    if enrich:
+        from app.parhlo.sws.enrich import enrich as fill_in
+        stats["enrich"] = await fill_in(new)
 
     # Fallback topic tags from vectors alone (closest topic descriptions) — used only if Jev fails (see embed.py).
     topics = await tag_topics(vectors, [i["hints"] for i in new])  # fallback tags (embedding similarity)
@@ -244,7 +250,7 @@ async def store_items(items: list[dict], gate: Gate | None = None) -> dict:
     #   importance (Score:  trivial → major, for a general reader in Pakistan today)
     # Returns one decision per article in the same order, or None where Jev failed (then the fallback tags are kept).
     decisions = await jev.classify_many(
-        [{"title": i["title"], "excerpt": i["summary"], "source": i["source"]} for i in new])
+        [{"title": i["title"], "excerpt": i["summary"], "source": i["source"]} for i in new]) if use_jev else [None] * len(new)
 
     with db() as conn:
         # Walk the four parallel lists together: the article, its vector, its fallback tags, Jev's decision.
@@ -263,13 +269,19 @@ async def store_items(items: list[dict], gate: Gate | None = None) -> dict:
             row = conn.execute(
                 """insert into articles (url, source, source_region, title, rss_summary, image_url,
                                          published_at, topics, embedding, importance, junk, topic_confidence,
-                                         jev_checked_at, origin, country, language, content)
-                   values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, case when %s then now() end, %s,%s,%s,%s)
+                                         jev_checked_at, origin, country, language, content, link,
+                                         ai_summary, ai_points, summarized_at, enriched_at)
+                   values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, case when %s then now() end, %s,%s,%s,%s,%s,
+                           %s,%s, case when %s then now() end, case when %s then now() end)
                    on conflict (url) do nothing returning id""",
                 (item["url"], item["source"], item["region"], item["title"], item["summary"],
                  item["image"], item["published"] or datetime.now(timezone.utc), tags, vec,
-                 d.importance if d else None, d.junk if d else None, d.topic_confidence if d else None, d is not None,
-                 item.get("origin", "rss"), item.get("country"), item.get("language"), item.get("content")),
+                 d.importance if d else None, d.junk if d else None, d.topic_confidence if d else None,
+                 d is not None or not use_jev,   # no-Jev stories are marked checked so the backfill leaves them be
+                 item.get("origin", "rss"), item.get("country"), item.get("language"), item.get("content"),
+                 item.get("link"), item.get("ai_summary"),
+                 Jsonb(item["ai_points"]) if item.get("ai_points") else None, bool(item.get("ai_summary")),
+                 enrich or bool(item.get("link"))),
             ).fetchone()
             if not row:
                 continue   # already existed (another run inserted it first) → nothing more to do

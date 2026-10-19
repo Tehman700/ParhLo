@@ -50,7 +50,7 @@ async def fetch_fulltext(client: httpx.AsyncClient, url: str) -> str | None:
 
 async def summarize_one(client: httpx.AsyncClient, art: dict, sem: asyncio.Semaphore) -> dict:
     async with sem:
-        content = art.get("content") or await fetch_fulltext(client, art["url"])
+        content = art.get("content") or await fetch_fulltext(client, art.get("link") or art["url"])
         source_text = (content or f"{art['title']}. {art.get('rss_summary') or ''}")[:9000]
         grounded_in = "full article" if content else "headline and excerpt"
         llm, fast = get_llm(), get_settings().llm_fast_model
@@ -109,7 +109,7 @@ async def ensure_summaries(article_ids: list[int]) -> dict[int, dict]:
     """Summarize any of these articles that don't have a summary yet; return all summaries by id."""
     with db() as conn:
         rows = conn.execute(
-            "select id, url, title, rss_summary, content, ai_summary, ai_points, summary_verified "
+            "select id, url, link, title, rss_summary, content, ai_summary, ai_points, summary_verified "
             "from articles where id = any(%s)", (article_ids,)).fetchall()
     todo = [r for r in rows if not r["ai_summary"]]
     if todo:

@@ -50,7 +50,7 @@ async def test_ask_web_answers_from_numbered_results(monkeypatch):
     assert [s["url"] for s in out["sources"]] == ["https://m/1"]          # duplicates and unknown numbers dropped
     system = llm.calls[0][0]["content"]
     assert "[1] Uganda seeks new IMF programme (Daily Monitor, 18 Oct 2026)" in system and "ONLY" in system
-    assert recorded and recorded[0][1] == "ask" and recorded[0][3] is True  # a Tavily credit was counted
+    assert recorded and recorded[0][1] == "ask" and recorded[0][3] == 1     # one Tavily credit counted
 
 
 async def test_ask_web_with_nothing_found(monkeypatch):

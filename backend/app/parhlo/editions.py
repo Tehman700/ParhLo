@@ -204,7 +204,7 @@ async def polish_edition(user: dict, edition_date: date) -> dict | None:
         with db() as conn:
             arts = {a["id"]: a for a in conn.execute(
                 "select id, title, source, source_region, topics, published_at, image_url, url, rss_summary, importance, "
-                "language "
+                "language, link "
                 "from articles where id = any(%s)", (ids,)).fetchall()}
             prof = conn.execute("select topics from profiles where user_id=%s", (user["id"],)).fetchone()
         stories = []
@@ -248,7 +248,7 @@ async def polish_edition(user: dict, edition_date: date) -> dict | None:
 def _story_out(s: dict, edit: dict) -> dict:
     return {
         "id": s["id"], "headline": edit.get("headline") or s["title"], "title": s["title"],
-        "source": s["source"], "url": s["url"], "image": s["image_url"],
+        "source": s["source"], "url": s.get("link") or s["url"], "image": s["image_url"],
         "published_at": s["published_at"].isoformat() if s.get("published_at") else None,
         "topics": s["topics"], "summary": s["summary"], "points": s.get("points") or [],
         "verified": s.get("verified"), "grounded_in": s.get("grounded_in"),

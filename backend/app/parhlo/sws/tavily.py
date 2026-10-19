@@ -77,3 +77,70 @@ async def search(query: str, max_results: int = 8, days: int = 2, client: httpx.
     finally:
         if own:
             await client.aclose()
+
+
+# ---------- interest-change web search (advanced: full text + images in one call) ----------
+
+EXTRACT_URL = "https://api.tavily.com/extract"
+NEWS_QUERY = "I want news related to {term}"   # the reader's own words become the query
+ADVANCED_CREDITS = 2
+MIN_RAW = 400
+
+
+def news_items(data: dict, term: str) -> list[dict]:
+    """Advanced search JSON → items with the full text (raw_content) and the result's own image."""
+    items = []
+    by_url = {r.get("url"): r for r in data.get("results") or []}
+    for item in to_items({"results": data.get("results") or []}, timedelta(days=7)):
+        r = by_url.get(item["url"], {})
+        raw = (r.get("raw_content") or "").strip()
+        images = [i if isinstance(i, str) else (i or {}).get("url") for i in (r.get("images") or [])]
+        items.append({**item, "term": term, "link": item["url"],
+                      "content": raw[:20000] if len(raw) >= MIN_RAW else None,
+                      "image": next((i for i in images if i and i.startswith("http")), None)})
+    return items
+
+
+async def search_news(term: str, max_results: int = 8, client: httpx.AsyncClient | None = None
+                      ) -> tuple[list[dict], int]:
+    """News about `term` from the last week, with full text and images. Returns (items, credits used)."""
+    if not enabled():
+        return [], 0
+    body = {"query": NEWS_QUERY.format(term=term), "topic": "news", "search_depth": "advanced",
+            "time_range": "week", "max_results": max_results, "include_raw_content": "text",
+            "include_images": True, "include_published_date": True}
+    data = await _post(URL, body, client)
+    return (news_items(data, term), ADVANCED_CREDITS) if data is not None else ([], ADVANCED_CREDITS)
+
+
+async def extract(urls: list[str], client: httpx.AsyncClient | None = None) -> tuple[dict[str, dict], int]:
+    """Full text + images for known article URLs (fallback when a search result came without text).
+    Returns ({url: {"content", "image"}}, credits used: 1 per 5 URLs)."""
+    urls = urls[:20]
+    if not enabled() or not urls:
+        return {}, 0
+    data = await _post(EXTRACT_URL, {"urls": urls, "include_images": True, "extract_depth": "basic",
+                                     "format": "text"}, client)
+    out = {}
+    for r in (data or {}).get("results") or []:
+        raw = (r.get("raw_content") or "").strip()
+        imgs = [i for i in (r.get("images") or []) if isinstance(i, str) and i.startswith("http")]
+        out[r.get("url")] = {"content": raw[:20000] if len(raw) >= MIN_RAW else None, "image": imgs[0] if imgs else None}
+    return out, -(-len(urls) // 5)
+
+
+async def _post(url: str, body: dict, client: httpx.AsyncClient | None) -> dict | None:
+    own = client is None
+    client = client or httpx.AsyncClient(timeout=40)
+    try:
+        r = await client.post(url, json=body, headers={"Authorization": f"Bearer {get_settings().tavily_api_key}"})
+        if r.status_code != 200:
+            log.warning("tavily %s HTTP %s: %s", url.rsplit("/", 1)[1], r.status_code, r.text[:200])
+            return None
+        return r.json()
+    except httpx.HTTPError as e:
+        log.warning("tavily unreachable: %s", e)
+        return None
+    finally:
+        if own:
+            await client.aclose()

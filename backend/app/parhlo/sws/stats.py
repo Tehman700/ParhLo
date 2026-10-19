@@ -26,10 +26,10 @@ def overview() -> dict:
         busiest = conn.execute("select kind, query, hits, interval_min from sws_queries "
                                "order by hits desc, interval_min limit 8").fetchall()
         instant = conn.execute("""select count(*) filter (where created_at > now() - interval '24 hours') as today,
-                                         count(*) filter (where tavily and created_at > date_trunc('month', now())) as tavily_month
+                                         coalesce(sum(credits) filter (where created_at > date_trunc('month', now())), 0) as tavily_month
                                   from sws_instant""").fetchone()
     return {
-        "healthy": last_done is not None and last_done < 35,
+        "healthy": last_done is not None and last_done < 75,   # hourly Vercel cron (+ GitHub when it fires)
         "minutes_since_last_run": round(last_done, 1) if last_done is not None else None,
         "last_24h": {"by_origin": {r["origin"]: r["n"] for r in by_origin},
                      "countries": {r["country"]: r["n"] for r in countries},

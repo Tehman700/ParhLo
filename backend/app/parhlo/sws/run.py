@@ -71,6 +71,25 @@ def _remember_rejected(urls: list[str]) -> None:
         conn.execute("delete from sws_rejected where rejected_at < now() - interval '3 days'")
 
 
+async def enrich_backlog(limit: int = 40) -> dict:
+    """Recent stories stored without an image (mostly Google News links): look them up once each."""
+    from app.parhlo.sws.enrich import enrich
+    with db() as conn:
+        rows = conn.execute(
+            """select id, url, link, image_url, content from articles
+               where enriched_at is null and image_url is null and fetched_at > now() - interval '36 hours'
+                 and coalesce(junk, 0) < 0.78
+               order by importance desc nulls last, fetched_at desc limit %s""", (limit,)).fetchall()
+    items = [{"id": r["id"], "url": r["url"], "link": r["link"], "image": None, "content": r["content"]} for r in rows]
+    stats = await enrich(items)
+    with db() as conn:
+        for i in items:
+            conn.execute("update articles set link = coalesce(link, %s), image_url = coalesce(image_url, %s), "
+                         "content = coalesce(content, %s), enriched_at = now() where id = %s",
+                         (i.get("link"), i.get("image"), i.get("content"), i["id"]))
+    return stats
+
+
 def _new_counts(items: list[dict]) -> dict[int, int]:
     """Per planner search: how many of its items we had never seen (not stored, not rejected)."""
     with db() as conn:
@@ -108,11 +127,12 @@ async def run_once() -> dict:
                        "feed_errors": len(errors),
                        "searches": dict(Counter(r["kind"] for r in searches)),
                        "countries": sorted({f["country"] for f in feeds if f.get("country")})})
-        stored = await store_items(items, gate=make_gate())
+        stored = await store_items(items, gate=make_gate(), enrich=True)
         _remember_rejected(stored.get("gate", {}).pop("_rejected", []))
         report.update(stored)
         planner.record(searches, new_by_query)
         report["searches_with_new"] = sum(1 for n in new_by_query.values() if n)
+        report["image_catch_up"] = await enrich_backlog()
         report.update(await jev_backfill(hours=6, limit=100))
         report["seconds"] = round(time.perf_counter() - t0, 1)
         _finish(run_id, "done", slots, len(feeds), report)
