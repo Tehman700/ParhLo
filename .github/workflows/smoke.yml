@@ -40,6 +40,7 @@ jobs:
           check "2 sample readers on /demo" '[ "$(curl -fsS "$SITE/api/demo/personas" | jq length)" = "2" ]'
           check "signed-out /api/me is 401" '[ "$(curl -s -o /dev/null -w "%{http_code}" "$SITE/api/me")" = "401" ]'
           check "unknown invite is 404" '[ "$(curl -s -o /dev/null -w "%{http_code}" "$SITE/api/invites/not-a-code")" = "404" ]'
+          check "SWS run needs the cron secret" '[ "$(curl -s -o /dev/null -w "%{http_code}" "$SITE/api/cron/sws")" = "401" ]'
           check "onboarding headlines served" '[ "$(curl -fsS "$SITE/api/onboarding/headlines?topics=ai,cricket" | jq length)" -ge 4 ]'
           exit $fail
 

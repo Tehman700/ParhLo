@@ -98,6 +98,27 @@ alter table articles add column if not exists origin text not null default 'rss'
 alter table articles add column if not exists country text;                        -- e.g. "Uganda" (null = unknown)
 alter table articles add column if not exists language text;                       -- ISO 639-1 of the page, e.g. "en"
 
+-- SWS runs (every ~15 minutes): one row per run, with what it read and kept. Also the run lock:
+-- only one 'running' row can exist; a run stuck for 10+ minutes is marked failed by the next one.
+create table if not exists sws_runs (
+    id           bigserial primary key,
+    started_at   timestamptz not null default now(),
+    finished_at  timestamptz,
+    status       text not null default 'running',            -- running | done | failed
+    gdelt_slots  text[] not null default '{}',               -- GDELT 15-minute windows read, e.g. 20261019081500
+    feeds        int not null default 0,                     -- Google News feeds read
+    report       jsonb not null default '{}',
+    error        text
+);
+create unique index if not exists sws_runs_one_running on sws_runs ((true)) where status = 'running';
+create index if not exists sws_runs_started on sws_runs (started_at desc);
+-- Stories the SWS gate rejected (blocked or matching no reader): skipped for 3 days instead of being
+-- downloaded and embedded again every 15 minutes. (Items cut only by the per-run cap are not listed.)
+create table if not exists sws_rejected (
+    url          text primary key,
+    rejected_at  timestamptz not null default now()
+);
+
 -- A frozen daily paper: web view and PDF render from the same JSON.
 create table if not exists editions (
     id            bigserial primary key,

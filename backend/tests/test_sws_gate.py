@@ -34,7 +34,9 @@ def test_reasons_keep_and_drop():
                                                   unit(0.2, 0.2, 1), unit(0, 0, 1)])
     keep, reasons = decide(items, vectors, ANCHORS, followed={"uganda"})
     assert keep == [False, False, False, True, True, True, False, True]
+    rejected = reasons.pop("_rejected")
     assert reasons == {"blocked": 3, "followed": 1, "trusted": 1, "relevant": 1, "irrelevant": 1, "web": 1}
+    assert rejected == [items[k]["url"] for k in (0, 1, 2, 6)]   # over-cap items are never listed
 
 
 def test_google_news_needs_less_than_gdelt():

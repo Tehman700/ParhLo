@@ -1,0 +1,32 @@
+name: SWS (worldwide news every 15 minutes)
+
+# Vercel Hobby cron runs once a day, so GitHub's scheduler triggers SWS on production every 15 minutes.
+# The endpoint is protected by the same CRON_SECRET as the nightly jobs (repo secret, never printed).
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sws
+  cancel-in-progress: false
+
+jobs:
+  run:
+    name: Collect worldwide news
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - name: Run SWS on production
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE: https://parhlo-brown.vercel.app
+        run: |
+          code=$(curl -sS -o out.json -w "%{http_code}" --max-time 330 \
+            -H "Authorization: Bearer $CRON_SECRET" "$SITE/api/cron/sws" || echo 000)
+          jq -c 'del(.countries)' out.json 2>/dev/null || head -c 500 out.json
+          echo "HTTP $code"
+          [ "$code" = "200" ]

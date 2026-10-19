@@ -394,3 +394,10 @@ async def cron_email():
     """06:00 PKT: queue anything the nightly run missed, then send due emails (including retries)."""
     queued = digest.enqueue_for_date(editions.today_pkt())
     return {"queued": queued, **(await digest.drain(limit=500))}
+
+
+@router.get("/cron/sws", dependencies=[Depends(_cron_auth)])
+async def cron_sws():
+    """Every ~15 minutes (GitHub Actions): SWS — new worldwide stories from GDELT and Google News, gated."""
+    from app.parhlo.sws.run import run_once
+    return await run_once()

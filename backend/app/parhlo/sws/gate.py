@@ -46,10 +46,12 @@ def decide(items: list[dict], vectors: np.ndarray, anchors: np.ndarray, followed
     best = (np.asarray(vectors, np.float32) @ anchors.T).max(axis=1) if len(anchors) else np.zeros(len(items))
     scored: list[tuple[float, int, str]] = []   # (strength, index, reason)
     reasons: Counter[str] = Counter()
+    rejected: list[str] = []                     # blocked / irrelevant URLs: skipped by later runs for 3 days
     for k, item in enumerate(items):
         origin, sim = item.get("origin", "rss"), float(best[k])
         if blocked(item["source"], item["url"], item["title"]) or SPAM.search(item["title"]):
             reasons["blocked"] += 1
+            rejected.append(item["url"])
         elif origin in ("web", "rss"):
             scored.append((3.0, k, origin))           # asked for (web) or curated (rss): never gated away
         elif (item.get("country") or "").lower() in followed:
@@ -60,6 +62,7 @@ def decide(items: list[dict], vectors: np.ndarray, anchors: np.ndarray, followed
             scored.append((sim, k, "relevant"))
         else:
             reasons["irrelevant"] += 1
+            rejected.append(item["url"])
     scored.sort(reverse=True)
     keep = [False] * len(items)
     for n, (_, k, reason) in enumerate(scored):
@@ -68,7 +71,7 @@ def decide(items: list[dict], vectors: np.ndarray, anchors: np.ndarray, followed
             reasons[reason] += 1
         else:
             reasons["over_cap"] += 1
-    return keep, dict(reasons)
+    return keep, {**reasons, "_rejected": rejected}
 
 
 def make_gate(max_keep: int = MAX_KEEP):
