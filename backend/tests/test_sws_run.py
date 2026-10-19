@@ -41,3 +41,12 @@ def test_about_you_phrases_are_searched_on_their_own_schedule():
     feed = planner.feed_for({"id": 11, "kind": "interest", "query": "car accident news"})
     assert "car%20accident%20news" in feed["url"] and feed["query_id"] == 11
     assert planner.adapt("interest", 60, new=0) == 120 and planner.adapt("interest", 360, new=0) == 360
+
+
+def test_search_results_must_really_be_about_the_term():
+    from app.parhlo.rank import plausible
+    assert plausible("cat news", "Snicks Cat Cafe review praises its cat lounge", 0.1)          # names it
+    assert plausible("car accident news", "1 killed, 8 injured in crash on Hwy 210", 0.31)      # close in meaning
+    assert not plausible("uganda", "Carrick gives Fernandes a new role for Leeds clash", 0.08)  # neither
+    assert not plausible("cat news", "Catherine named new chief executive", 0.1)                # 'cat' ≠ 'catherine'… prefix
+    assert plausible("uganda", "Ugandan opposition leader arrested", 0.1)                     # simple endings ok

@@ -121,9 +121,17 @@ def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 
         follows = followed_terms(conn, user["id"])
         found_for = {}
         if follows:
-            for r in conn.execute("select article_id, term from article_terms where term = any(%s) "
-                                  "and article_id = any(%s)", (list(follows), [a["id"] for a in arts])).fetchall():
-                found_for.setdefault(r["article_id"], follows[r["term"]])
+            # Search results aren't all on topic ("Uganda" also returned a Man United story): keep the link only
+            # when the term's words are in the headline/summary or the story is close in meaning to that term.
+            for r in conn.execute(
+                    """select t.article_id, t.term, max(1 - (a.embedding <=> ia.embedding)) as sim,
+                              max(a.title || ' ' || coalesce(a.rss_summary, '')) as text
+                       from article_terms t join articles a on a.id = t.article_id
+                       left join interest_anchors ia on ia.user_id = %s and lower(ia.label) = t.term
+                       where t.term = any(%s) and t.article_id = any(%s) group by 1, 2""",
+                    (user["id"], list(follows), [a["id"] for a in arts])).fetchall():
+                if plausible(r["term"], r["text"], r["sim"]):
+                    found_for.setdefault(r["article_id"], follows[r["term"]])
     arts = [a for a in arts if a["id"] not in exclude_ids and a["id"] not in seen and not SPAM.search(a["title"])
             and source_quality(a["source"]) > 0 and len(re.findall(r"[A-Za-z]{3,}", a["title"])) >= 4]
     if not arts:
@@ -192,6 +200,15 @@ def rank_for_user(user: dict, exclude_ids: set[int] | None = None, hours: int = 
 
 
 FOLLOWED_MATCH = 0.6   # interest-match score for a story found by searching for a followed term
+TERM_MIN_SIM = 0.25    # …if it's at least this close in meaning to the term (or names it)
+FILLER = {"news", "latest", "about", "updates", "stories", "follows"}
+
+
+def plausible(term: str, text: str, sim: float | None) -> bool:
+    """Is a story found by searching for `term` really about it? Its words are in the text, or it's close."""
+    words = [w for w in re.findall(r"[a-z]{3,}", term.lower()) if w not in FILLER]
+    low = (text or "").lower()
+    return any(re.search(rf"\b{re.escape(w)}(s|es|n|ns)?\b", low) for w in words) or (sim or 0) >= TERM_MIN_SIM
 
 
 def followed_terms(conn, user_id) -> dict[str, str]:
