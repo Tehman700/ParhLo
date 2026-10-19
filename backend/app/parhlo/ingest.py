@@ -104,7 +104,8 @@ def _published(entry) -> datetime | None:
 
 def parse_feed(feed: dict, body: bytes) -> list[dict]:
     parsed = feedparser.parse(body)
-    cutoff = datetime.now(timezone.utc) - MAX_AGE
+    # 48 hours by default; a feed can ask for more (e.g. a 7-day Google News search for a question in Ask).
+    cutoff = datetime.now(timezone.utc) - max(MAX_AGE, timedelta(hours=feed.get("max_age_hours", 0)))
     items = []
     for e in parsed.entries:
         url, title = e.get("link"), clean_text(e.get("title"), 300)

@@ -180,7 +180,7 @@ async def ask_web(user: dict, body: AskIn) -> dict:
     results = await tavily.search(body.question, max_results=6, days=7) if use_tavily else []
     via = "web search"
     if not results:
-        items, _ = await fetch_all([gnews.search_feed(body.question)])
+        items, _ = await fetch_all([gnews.search_feed(body.question, days=7)])
         results, via = items[:6], "Google News"
     instant.record(user, "ask", body.question[:200], use_tavily, len(results), 0)
     if not results:

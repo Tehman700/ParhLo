@@ -77,6 +77,8 @@ def test_gnews_country_search_and_follow_search():
     assert feed["country"] == "Bangladesh" and feed["origin"] == "gnews"
     assert not set(gnews.EDITIONS.values()) & set(gnews.COUNTRIES)  # each country covered one way only
     assert gnews.search_feed("Babar Azam")["origin"] == "gnews"
+    week = gnews.search_feed("Who won the US Grand Prix?", days=7)
+    assert "when%3A7d" in week["url"] and week["max_age_hours"] == 168
 
 
 def test_curated_rss_items_keep_rss_origin():

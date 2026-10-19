@@ -64,6 +64,6 @@ def country_search_feed(country: str) -> dict:
     return {**feed, "region": _region(country), "country": country, "language": "en"}
 
 
-def search_feed(query: str) -> dict:
-    """English news for any query (a name a reader follows, a breaking story…), worldwide English edition."""
-    return {**google_news_feed(query, edition="US"), "language": "en"}
+def search_feed(query: str, days: int = 1) -> dict:
+    """English news for any query (a name a reader follows, a question in Ask…), worldwide English edition."""
+    return {**google_news_feed(query, edition="US", days=days), "language": "en"}

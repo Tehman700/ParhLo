@@ -54,11 +54,11 @@ def google_news_site(domain: str, name: str, region: str, topics: list[str], ext
     return {**feed, "name": name, "region": region, "topics": topics, "outlet": name, "origin": "rss"}
 
 
-def google_news_feed(query: str, edition: str = "PK") -> dict:
+def google_news_feed(query: str, edition: str = "PK", days: int = 1) -> dict:
     """Google News search RSS (English, one country edition, last day) — covers any niche interest."""
     # Used for every name readers follow (STEP 1 passes them in). "when:1d" = only the last 24 hours;
     # hl/gl/ceid = English, the chosen country edition (Pakistan by default, so results suit a Pakistani reader).
-    q = quote(f"{query} when:1d")
+    q = quote(f"{query} when:{days}d")
     return {
         "name": "Google News",
         "url": f"https://news.google.com/rss/search?q={q}&hl=en-{edition}&gl={edition}&ceid={edition}:en",
@@ -66,4 +66,5 @@ def google_news_feed(query: str, edition: str = "PK") -> dict:
         "topics": [],
         "query": query,
         "origin": "gnews",
+        "max_age_hours": max(48, 24 * days),   # parse_feed keeps items this old
     }
