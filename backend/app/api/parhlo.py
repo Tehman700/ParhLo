@@ -2,6 +2,8 @@
 
 import datetime as dt
 import os
+import time
+import uuid
 
 from fastapi import APIRouter, Depends, Header, Request, Response
 from fastapi.responses import HTMLResponse
@@ -211,6 +213,19 @@ def archive(user=Depends(current_user)):
     return editions.list_editions(user["id"])
 
 
+@router.get("/editions/{edition_date}/shared")
+def edition_shared(edition_date: dt.date, u: str, e: int, t: str):
+    """One reader's paper for one day through a signed link (the email's PDF link and the PDF attachment
+    renderer): no sign-in, read-only, expires (digest.PDF_LINK_DAYS)."""
+    try:
+        uuid.UUID(u)
+    except ValueError:
+        raise AuthError("This link isn't valid.") from None
+    if not digest.verify_pdf(u, edition_date.isoformat(), e, t):
+        raise AuthError("This link has expired or isn't valid. Sign in to get your paper.")
+    return editions.get_edition(u, edition_date)
+
+
 @router.get("/editions/{edition_date}")
 def edition(edition_date: dt.date, user=Depends(current_user)):
     return _with_state(user, editions.get_edition(user["id"], edition_date))
@@ -385,6 +400,7 @@ async def cron_ingest():
 @router.get("/cron/daily", dependencies=[Depends(_cron_auth)])
 async def cron_daily():
     """05:30 PKT: learn from yesterday, then print everyone's paper."""
+    started = time.monotonic()
     with db() as conn:
         users = conn.execute("select * from users where onboarded and (not is_demo or persona)").fetchall()
     done, failed = 0, []
@@ -400,7 +416,8 @@ async def cron_daily():
     if not users:
         raise NotFoundError("No onboarded readers yet")
     queued = digest.enqueue_for_date(editions.today_pkt())
-    emails = await digest.drain(limit=500)
+    # Emails (with PDFs, ~8 s each) get the time left in this call; the 06:00 email cron sends the rest.
+    emails = await digest.drain(limit=500, budget_s=max(0.0, 240 - (time.monotonic() - started)))
     return {"generated": done, "failed": failed, "guests_removed": removed, "emails_queued": queued, "emails": emails}
 
 

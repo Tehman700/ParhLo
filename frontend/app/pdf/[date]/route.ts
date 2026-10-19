@@ -18,7 +18,13 @@ export async function GET(req: Request, ctx: RouteContext<"/pdf/[date]">) {
     if (v) fwd[h] = v;
   }
 
-  const res = await fetch(`${backend}/api/editions/${encodeURIComponent(date)}`, { headers: fwd, cache: "no-store" });
+  // A signed link (?u=&e=&t=, from the email or the PDF attachment renderer) opens without signing in.
+  const q = new URL(req.url).searchParams;
+  const signed = q.get("u") && q.get("e") && q.get("t");
+  const url = signed
+    ? `${backend}/api/editions/${encodeURIComponent(date)}/shared?${new URLSearchParams({ u: q.get("u")!, e: q.get("e")!, t: q.get("t")! })}`
+    : `${backend}/api/editions/${encodeURIComponent(date)}`;
+  const res = await fetch(url, { headers: signed ? {} : fwd, cache: "no-store" });
   if (!res.ok) return new Response(await res.text(), { status: res.status });
   const edition = (await res.json()) as Edition;
 

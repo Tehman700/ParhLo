@@ -6,6 +6,8 @@ A small job queue in Postgres (the "outbox" pattern), because Vercel functions c
              sends with bounded concurrency, retries failures with backoff, and records sent / failed.
              It runs right after the nightly print and again on its own cron (retries, stragglers).
 One-click unsubscribe (RFC 8058) uses an HMAC token, so the link needs no sign-in.
+The paper's PDF is attached (made once per paper and kept in S3, see pdfstore.py); the email also has a signed
+PDF link (HMAC over reader + day + expiry) that opens without signing in, for any device.
 """
 
 import asyncio
@@ -13,6 +15,7 @@ import hashlib
 import hmac
 import html
 import logging
+import time
 from datetime import date, datetime
 
 from app.core.config import get_settings
@@ -27,6 +30,8 @@ MAX_ATTEMPTS = 3
 CONCURRENCY = 4          # parallel SMTP sends per worker run
 STALE_MIN = 10           # a "sending" job older than this is assumed lost and re-queued
 MANUAL_PER_HOUR = 3      # "send me today's email" rate limit
+DRAIN_BUDGET_S = 200     # stop claiming new jobs after this (PDFs take ~8 s; functions stop at 300 s)
+PDF_TIMEOUT_S = 70       # making one PDF; past this the email goes with the link only
 
 
 # ---------- unsubscribe token ----------
@@ -48,6 +53,25 @@ def unsubscribe(user_id: str, token: str) -> bool:
     return True
 
 
+# ---------- signed PDF link (no sign-in; one reader, one day, read-only) ----------
+
+PDF_LINK_DAYS = 30
+
+
+def pdf_token(user_id, day: str, exp: int) -> str:
+    key = (get_settings().session_secret or "dev").encode()
+    return hmac.new(key, f"pdf:{user_id}:{day}:{exp}".encode(), hashlib.sha256).hexdigest()[:32]
+
+
+def pdf_query(user_id, day: str) -> str:
+    exp = int(time.time()) + PDF_LINK_DAYS * 86400
+    return f"u={user_id}&e={exp}&t={pdf_token(user_id, day, exp)}"
+
+
+def verify_pdf(user_id: str, day: str, exp: int, token: str) -> bool:
+    return exp >= time.time() and hmac.compare_digest(token or "", pdf_token(user_id, day, exp))
+
+
 # ---------- rendering ----------
 
 def _e(s) -> str:
@@ -58,11 +82,13 @@ def _topic(s: dict) -> str:
     return TOPICS.get((s.get("topics") or [""])[0], {}).get("label", "News")
 
 
-def render(user: dict, paper: dict, edition_date: date) -> tuple[str, str, str]:
-    """Subject, HTML and plain text for one reader's paper. Table layout and inline styles for email clients."""
+def render(user: dict, paper: dict, edition_date: date, attached: bool = False) -> tuple[str, str, str]:
+    """Subject, HTML and plain text for one reader's paper. Table layout and inline styles for email clients.
+    attached: the PDF is attached to this email (the link stays as a second way to get it)."""
     base = get_settings().public_url.rstrip("/")
     day = edition_date.isoformat()
-    paper_url, pdf_url = f"{base}/paper/{day}", f"{base}/pdf/{day}"
+    paper_url, pdf_url = f"{base}/paper/{day}", f"{base}/pdf/{day}?{pdf_query(user['id'], day)}"
+    pdf_label = "Your newspaper PDF is attached · Download it here" if attached else "Download the PDF"
     stories = paper.get("stories") or []
     lead = next((s for s in stories if s["id"] == paper.get("lead_id")), stories[0] if stories else None)
     rest = [s for s in stories if lead and s["id"] != lead["id"]][:6]
@@ -130,7 +156,7 @@ def render(user: dict, paper: dict, edition_date: date) -> tuple[str, str, str]:
 {f'<tr><td style="padding:8px 28px 0"><table role="presentation" width="100%" style="background:#272729;border-radius:14px"><tr><td style="padding:18px 20px"><div style="font-size:13px;font-weight:600;color:#2997ff;margin-bottom:6px">3 things to remember</div><table role="presentation" width="100%" style="color:#fff">{things_html.replace("color:#1d1d1f", "color:#ffffff")}</table></td></tr></table></td></tr>' if things_html else ''}
 <tr><td align="center" style="padding:28px">
   <a href="{paper_url}" style="display:inline-block;background:#0066cc;color:#ffffff;text-decoration:none;font-size:17px;padding:12px 26px;border-radius:999px">Read your paper</a>
-  <div style="margin-top:12px;font-size:14px"><a href="{pdf_url}" style="color:#0066cc;text-decoration:none">Download the PDF</a></div>
+  <div style="margin-top:12px;font-size:14px"><a href="{pdf_url}" style="color:#0066cc;text-decoration:none">{pdf_label}</a></div>
 </td></tr>
 </table>
 <table role="presentation" width="100%" style="max-width:600px"><tr><td style="padding:18px 12px;text-align:center;font-size:12px;line-height:1.5;color:#7a7a7a">
@@ -147,7 +173,9 @@ def render(user: dict, paper: dict, edition_date: date) -> tuple[str, str, str]:
         lines += [paper["editor_note"], ""]
     for s in ([lead] if lead else []) + rest:
         lines += [f"{_topic(s).upper()}: {s['headline']}", s.get("summary", ""), f"{s.get('source', '')} · {paper_url}#story-{s['id']}", ""]
-    lines += [f"Read your paper: {paper_url}", f"Download the PDF: {pdf_url}", "", f"Unsubscribe: {unsubscribe_url(user['id'])}"]
+    lines += [f"Read your paper: {paper_url}",
+              ("Your newspaper PDF is attached. Download it again: " if attached else "Download the PDF: ") + pdf_url,
+              "", f"Unsubscribe: {unsubscribe_url(user['id'])}"]
     return subject, html_body, "\n".join(lines)
 
 
@@ -163,42 +191,59 @@ def enqueue(conn, user: dict, edition_id: int, kind: str = "morning") -> int | N
     return row["id"] if row else None
 
 
-async def drain(limit: int = 200, job_ids: list[int] | None = None) -> dict:
-    """Claim due jobs and send them. Safe to run concurrently (SKIP LOCKED) and repeatedly (status per job)."""
+async def drain(limit: int = 200, job_ids: list[int] | None = None, budget_s: float = DRAIN_BUDGET_S) -> dict:
+    """Claim due jobs and send them, the paper's PDF attached. Safe to run concurrently (SKIP LOCKED) and
+    repeatedly (status per job). Jobs are claimed a few at a time and claiming stops after budget_s, so a run
+    never outlives the server's time limit: anything left stays queued for the next run (06:00 PKT cron)."""
+    from app.parhlo.pdfstore import filename, get_pdf
+
     with db() as conn:
         conn.execute("update email_jobs set status = 'queued' where status = 'sending' "
                      "and claimed_at < now() - make_interval(mins => %s)", (STALE_MIN,))
-        jobs = conn.execute(
-            f"""update email_jobs set status = 'sending', attempts = attempts + 1, claimed_at = now()
-                where id in (select id from email_jobs where status = 'queued' and run_after <= now()
-                             {'and id = any(%s)' if job_ids else ''} order by id limit %s for update skip locked)
-                returning *""", ((job_ids, limit) if job_ids else (limit,))).fetchall()
-    stats = {"claimed": len(jobs), "sent": 0, "retry": 0, "failed": 0, "skipped": 0}
-    sem = asyncio.Semaphore(CONCURRENCY)
+    stats = {"claimed": 0, "sent": 0, "retry": 0, "failed": 0, "skipped": 0, "with_pdf": 0}
+    deadline = time.monotonic() + budget_s
 
     async def one(job: dict) -> None:
-        async with sem:
-            with db() as conn:
-                user = conn.execute("select * from users where id = %s", (job["user_id"],)).fetchone()
-                ed = conn.execute("select edition_date, data from editions where id = %s", (job["edition_id"],)).fetchone()
-            if not user or not ed or not user.get("email") or (job["kind"] == "morning" and not user["email_morning"]):
-                _finish(job["id"], "skipped")
-                stats["skipped"] += 1
-                return
+        with db() as conn:
+            user = conn.execute("select * from users where id = %s", (job["user_id"],)).fetchone()
+            ed = conn.execute("select id, edition_date, data, pdf_key from editions where id = %s",
+                              (job["edition_id"],)).fetchone()
+        if not user or not ed or not user.get("email") or (job["kind"] == "morning" and not user["email_morning"]):
+            _finish(job["id"], "skipped")
+            stats["skipped"] += 1
+            return
+        try:
             try:
-                subject, body, text = render(user, ed["data"], ed["edition_date"])
-                unsub = unsubscribe_url(user["id"])
-                await send_email(user["email"], subject, body, text, headers={
-                    "List-Unsubscribe": f"<{unsub}>", "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"})
-                _finish(job["id"], "sent")
-                stats["sent"] += 1
-            except Exception as e:  # one reader's failure never blocks the rest
-                log.warning("email job %s failed (attempt %s): %s", job["id"], job["attempts"], e)
-                final = job["attempts"] >= MAX_ATTEMPTS
-                _finish(job["id"], "failed" if final else "queued", error=str(e)[:300], retry_min=None if final else 5 * job["attempts"])
-                stats["failed" if final else "retry"] += 1
+                pdf = await asyncio.wait_for(get_pdf(user, ed), timeout=PDF_TIMEOUT_S)
+            except Exception as e:   # no PDF → the email still goes, with the signed link
+                log.warning("no PDF for email job %s: %s", job["id"], e)
+                pdf = None
+            subject, body, text = render(user, ed["data"], ed["edition_date"], attached=bool(pdf))
+            unsub = unsubscribe_url(user["id"])
+            await send_email(user["email"], subject, body, text, headers={
+                "List-Unsubscribe": f"<{unsub}>", "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"},
+                attachments=[(filename(ed["edition_date"]), pdf, "application/pdf")] if pdf else None)
+            _finish(job["id"], "sent")
+            stats["sent"] += 1
+            stats["with_pdf"] += bool(pdf)
+        except Exception as e:  # one reader's failure never blocks the rest
+            log.warning("email job %s failed (attempt %s): %s", job["id"], job["attempts"], e)
+            final = job["attempts"] >= MAX_ATTEMPTS
+            _finish(job["id"], "failed" if final else "queued", error=str(e)[:300], retry_min=None if final else 5 * job["attempts"])
+            stats["failed" if final else "retry"] += 1
 
-    await asyncio.gather(*(one(j) for j in jobs))
+    while stats["claimed"] < limit and time.monotonic() < deadline:
+        batch = min(CONCURRENCY, limit - stats["claimed"])
+        with db() as conn:
+            jobs = conn.execute(
+                f"""update email_jobs set status = 'sending', attempts = attempts + 1, claimed_at = now()
+                    where id in (select id from email_jobs where status = 'queued' and run_after <= now()
+                                 {'and id = any(%s)' if job_ids else ''} order by id limit %s for update skip locked)
+                    returning *""", ((job_ids, batch) if job_ids else (batch,))).fetchall()
+        if not jobs:
+            break
+        stats["claimed"] += len(jobs)
+        await asyncio.gather(*(one(j) for j in jobs))
     return stats
 
 

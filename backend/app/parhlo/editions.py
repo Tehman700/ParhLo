@@ -231,7 +231,8 @@ async def polish_edition(user: dict, edition_date: date) -> dict | None:
             "build_ms": {**data.get("build_ms", {}), "polish": round((time.perf_counter() - t0) * 1000)},
         })
         with db() as conn:
-            row = conn.execute("update editions set data = %s where id = %s and data->>'generated_at' = %s returning *",
+            row = conn.execute("update editions set data = %s, pdf_key = null where id = %s "   # stored PDF is stale now
+                               "and data->>'generated_at' = %s returning *",
                                (Jsonb(data), row["id"], version)).fetchone()
         return _public(row) if row else None
     except Exception:
